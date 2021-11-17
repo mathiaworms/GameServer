@@ -117,7 +117,7 @@ namespace LeagueSandbox.GameServer.Items
         {
             if (stacksToRemove < 0)
             {
-                throw new Exception("Stacks to be Removed can't be a negative number!");
+                stacksToRemove = 0;
             }
 
             var itemID = Items[slot].ItemData.ItemId;

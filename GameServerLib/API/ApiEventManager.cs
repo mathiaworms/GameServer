@@ -96,6 +96,7 @@ namespace LeagueSandbox.GameServer.API
             OnSpellHit.RemoveListener(owner);
             OnBeingHit.RemoveListener(owner);
             OnSpellMissileEnd.RemoveListener(owner);
+            OnCastAnySpell.RemoveListener(owner);
             OnSpellPostCast.RemoveListener(owner);
             OnSpellPostChannel.RemoveListener(owner);
             OnPreTakeDamage.RemoveListener(owner);
@@ -116,6 +117,7 @@ namespace LeagueSandbox.GameServer.API
         public static EventOnPreAttack OnPreAttack = new EventOnPreAttack();
         public static EventOnResurrect OnResurrect = new EventOnResurrect();
         public static EventOnSpellCast OnSpellCast = new EventOnSpellCast();
+        public static EventOnCastAnySpell OnCastAnySpell = new EventOnCastAnySpell();
         public static EventOnSpellChannel OnSpellChannel = new EventOnSpellChannel();
         public static EventOnSpellChannelCancel OnSpellChannelCancel = new EventOnSpellChannelCancel();
         public static EventOnSpellHit OnSpellHit = new EventOnSpellHit();
@@ -329,7 +331,7 @@ namespace LeagueSandbox.GameServer.API
         {
             _listeners.RemoveAll((listener) => listener.Item1 == owner);
         }
-        public void Publish(IObjAiBase unit, ISpell spell)
+        public void Publish(ISpell spell)
         {
             var count = _listeners.Count;
 
@@ -340,10 +342,10 @@ namespace LeagueSandbox.GameServer.API
 
             for (int i = count - 1; i >= 0; i--)
             {
-                if (_listeners[i].Item2 == unit)
+                if (_listeners[i].Item2 == spell.CastInfo.Owner)
                 {
                     _listeners[i].Item3(spell);
-                    if (_listeners[i].Item4 == true)
+                    if (_listeners[i].Item4)
                     {
                         _listeners.RemoveAt(i);
                     }
@@ -567,6 +569,45 @@ namespace LeagueSandbox.GameServer.API
             }
         }
     }
+    public class EventOnCastAnySpell
+    {
+        private readonly List<Tuple<object, IObjAiBase, Action<IObjAiBase, ISpell>, bool>> _listeners = new List<Tuple<object, IObjAiBase, Action<IObjAiBase, ISpell>, bool>>();
+        public void AddListener(object owner, IObjAiBase caster, Action<IObjAiBase, ISpell> callback, bool singleInstance)
+        {
+            var listenerTuple = new Tuple<object, IObjAiBase, Action<IObjAiBase, ISpell>, bool>(owner, caster, callback, singleInstance);
+            _listeners.Add(listenerTuple);
+        }
+        public void RemoveListener(object owner, IObjAiBase caster)
+        {
+            _listeners.RemoveAll((listener) => listener.Item1 == owner && listener.Item2 == caster);
+        }
+        public void RemoveListener(object owner)
+        {
+            _listeners.RemoveAll((listener) => listener.Item1 == owner);
+        }
+        public void Publish(IObjAiBase owner, ISpell spell)
+        {
+            var count = _listeners.Count;
+
+            if (count == 0)
+            {
+                return;
+            }
+
+            for (int i = count - 1; i >= 0; i--)
+            {
+                if (_listeners[i].Item2 == owner)
+                {
+                    _listeners[i].Item3(owner, spell);
+
+                    if (_listeners[i].Item4)
+                    {
+                        _listeners.RemoveAt(i);
+                    }
+                }
+            }
+        }
+    }
 
     public class EventOnSpellChannel
     {
@@ -665,7 +706,7 @@ namespace LeagueSandbox.GameServer.API
 
             for (int i = count - 1; i >= 0; i--)
             {
-                if (_listeners[i].Item2 == spell)
+                if (_listeners[i].Item2 == spell && target != null)
                 {
                     _listeners[i].Item3(spell, target, p, s);
                     if (_listeners[i].Item4 == true)

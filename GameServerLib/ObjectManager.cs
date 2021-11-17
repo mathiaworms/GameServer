@@ -345,6 +345,11 @@ namespace LeagueSandbox.GameServer
                 return true;
             }
 
+            if (team == TeamId.TEAM_NEUTRAL)
+            {
+                return true;
+            }
+
             lock (_objectsLock)
             {
                 foreach (var kv in _objects)
@@ -352,6 +357,12 @@ namespace LeagueSandbox.GameServer
                     if (kv.Value.Team == team && Vector2.DistanceSquared(kv.Value.Position, o.Position) < kv.Value.VisionRadius * kv.Value.VisionRadius &&
                         !_game.Map.NavigationGrid.IsAnythingBetween(kv.Value, o, true))
                     {
+                        var min = kv.Value as IMinion;
+                        if (min != null && !(min is ILaneMinion) && !(min is IMonster) && !min.IsWard)
+                        {
+                            continue;
+                        }
+
                         var unit = kv.Value as IAttackableUnit;
                         if (unit != null && unit.IsDead)
                         {
