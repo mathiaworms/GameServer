@@ -96,19 +96,21 @@ namespace Spells
         {
             var owner = spell.CastInfo.Owner;
             var APratio = owner.Stats.AbilityPower.Total * 0.75f;
-            var damage = 75 + (spell.CastInfo.SpellLevel - 1) * 40 + APratio; //kennen q damage = 75 + spell level * 40 + 75% ap
+            var damage = 35 + spell.CastInfo.SpellLevel  * 40 + APratio; //kennen q damage = 75 + spell level * 40 + 75% ap
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
 
             AddParticleTarget(owner, target, "Kennen_ts_tar.troy", target);
             AddBuff("KennenMarkOfStorm", 6f, 1, spell, target, owner);
 
-            if(target.GetBuffWithName("KennenMarkOfStorm").StackCount == 3) //remove mos if stacks reach 3
+           if(target.GetBuffWithName("KennenMarkOfStorm").StackCount == 3) //remove mos if stacks reach 3
             {
                 target.RemoveBuffsWithName("KennenMarkOfStorm");
-                AddBuff("Stun", 1f, 1, spell, target, owner); //stun target for 1 second after 3 stacks
+               AddBuff("Stun", 1.5f, 1, spell, target, owner); //stun target for 1 second after 3 stacks
 
             }
             missile.SetToRemove();
+
+                   
 
        
             

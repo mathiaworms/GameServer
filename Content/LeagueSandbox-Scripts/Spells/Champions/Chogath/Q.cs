@@ -51,13 +51,13 @@ namespace Spells
             var owner = spell.CastInfo.Owner;
             var targetPos = GetPointFromUnit(owner, 950.0f);
             SpellCast(owner, 0, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
-                
+            var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);        
 
 
-                AddParticle(owner, null, "rupture_cas_01__green_team.troy", targetPos, lifetime: 0.5f , reqVision: false);
-                AddParticle(owner, null, "rupture_cas_01_red_team.troy", targetPos, lifetime: 0.5f , reqVision: false);
-                AddParticle(owner, null, "rupture_cas_02.troy", targetPos, lifetime: 0.5f , reqVision: false);
-                 AddParticle(owner, null, "rupture_cas_01.troy", targetPos, lifetime: 0.5f , reqVision: false);
+                AddParticle(owner, null, "rupture_cas_01__green_team.troy", spellpos, lifetime: 0.5f , reqVision: false);
+                AddParticle(owner, null, "rupture_cas_01_red_team.troy", spellpos, lifetime: 0.5f , reqVision: false);
+                AddParticle(owner, null, "rupture_cas_02.troy", spellpos, lifetime: 0.5f , reqVision: false);
+                 AddParticle(owner, null, "rupture_cas_01.troy", spellpos, lifetime: 0.5f , reqVision: false);
                
                 DamageSector = spell.CreateSpellSector(new SectorParameters
                 {
@@ -82,8 +82,8 @@ namespace Spells
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
             
             
-            AddBuff("Stun", 1.0f, 1, spell, target, owner);
-            AddBuff("Rupture", 2.5f, 1, spell, target, owner);
+
+            AddBuff("Rupture", 3.5f, 1, spell, target, owner);
             
            
 

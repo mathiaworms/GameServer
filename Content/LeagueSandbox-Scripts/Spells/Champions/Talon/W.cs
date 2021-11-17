@@ -191,7 +191,7 @@ namespace Spells
             }
             var owner = spell.CastInfo.Owner;
             var spellLevel = owner.GetSpell("TalonRake").CastInfo.SpellLevel;
-            var ADratio = 0.6f;
+            var ADratio =  0.6f;
             var damage = 30 + 25f * (spellLevel - 1) + ADratio;
 
             if (!UnitsHit.Contains(target))

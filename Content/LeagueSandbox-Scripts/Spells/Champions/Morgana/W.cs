@@ -51,7 +51,7 @@ namespace Spells
             var owner = spell.CastInfo.Owner;
             var targetPos = GetPointFromUnit(owner, 900.0f);
             SpellCast(owner, 1, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
-                
+            var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);    
 
 
                 AddParticle(owner, null, "TormentedSoil_tar.troy", targetPos, lifetime: 5.0f , reqVision: false);

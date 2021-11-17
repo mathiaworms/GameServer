@@ -198,7 +198,7 @@ namespace Spells
         {
             var owner = spell.CastInfo.Owner;
             var spellLevel = owner.GetSpell("TalonShadowAssault").CastInfo.SpellLevel;
-            var ADratio =  0.75f;
+            var ADratio = 0.75f;
             var damage = 120 + 50f * (spellLevel - 1) + ADratio;
 
             if (!UnitsHit.Contains(target) && target != spell.CastInfo.Owner)

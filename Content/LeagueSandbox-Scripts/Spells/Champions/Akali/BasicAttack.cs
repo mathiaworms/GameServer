@@ -1,4 +1,4 @@
-using GameServerCore.Domain.GameObjects;
+﻿using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using System.Numerics;
@@ -56,9 +56,9 @@ namespace Spells
             }
 
             // Passive On-Hit
-         //   float passiveDamagePercent = (6 + (int)Math.Floor(owner.Stats.AbilityPower.TotalBonus / 6)) / 100f;
-        //    var passiveDamage = owner.Stats.AttackDamage.Total * passiveDamagePercent;
-         //   _target.TakeDamage(owner, passiveDamage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+        //    float passiveDamagePercent = (6 + (int)Math.Floor(owner.Stats.AbilityPower.TotalBonus / 6)) / 100f;
+          //  var passiveDamage = owner.Stats.AttackDamage.Total * passiveDamagePercent;
+            //_target.TakeDamage(owner, passiveDamage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
         }
 
         public void OnSpellCast(ISpell spell)
@@ -130,9 +130,9 @@ namespace Spells
             }
 
             // Passive On-Hit
-       //     float passiveDamagePercent = (6 + (int)Math.Floor(owner.Stats.AbilityPower.TotalBonus / 6)) / 100f;
-       //     var passiveDamage = owner.Stats.AttackDamage.Total * passiveDamagePercent;
-         //   _target.TakeDamage(owner, passiveDamage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+         //   float passiveDamagePercent = (6 + (int)Math.Floor(owner.Stats.AbilityPower.TotalBonus / 6)) / 100f;
+      //      var passiveDamage = owner.Stats.AttackDamage.Total * passiveDamagePercent;
+          //  _target.TakeDamage(owner, passiveDamage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
         }
 
         public void OnSpellCast(ISpell spell)

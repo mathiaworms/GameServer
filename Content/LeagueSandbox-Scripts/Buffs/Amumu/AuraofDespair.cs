@@ -1,93 +1,88 @@
-﻿using System.Numerics;
+using System.Numerics;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
-using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using GameServerCore.Scripting.CSharp;
+using GameServerCore.Domain.GameObjects.Spell.Sector;
+using System.Collections.Generic;
+using GameServerCore.Domain.GameObjects.Spell.Missile;
 
 namespace Buffs
 {
     class AuraofDespair : IBuffGameScript
     {
         public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
-        public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
+        public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
         public int MaxStacks => 1;
         public bool IsHidden => false;
-
-        public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
-
-        IAttackableUnit owner;
-        ISpell originSpell;
-        IBuff thisBuff;
-        IParticle red;
-        IParticle green;
+      
         float DamageManaTimer;
-        float SlowTimer;
-        float manaCost = 8.0f;
-
+        public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
+        ISpell originSpell;
+        float[] manaCost = { 8.0f , 8.0f , 8.0f , 8.0f , 8.0f };
+        IObjAiBase Owner;
+        IBuff thisBuff;
+        public ISpellSector AuraAmumu;
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            owner = unit;
+            Owner = ownerSpell.CastInfo.Owner;
             originSpell = ownerSpell;
             thisBuff = buff;
+            ApiEventManager.OnSpellHit.AddListener(this, ownerSpell, TargetExecute, false);
 
-            var spellPos = owner.Position;
 
-            originSpell.SetCooldown(1.0f, true);
 
-            SetTargetingType((IObjAiBase)unit, SpellSlotType.SpellSlots, 3, TargetingType.Self);
-          
-               red = AddParticle(owner, null, "Despairpool_tar.troy", spellPos, lifetime: buff.Duration, reqVision: false);
-
+            AuraAmumu = ownerSpell.CreateSpellSector(new SectorParameters
+            {
+                BindObject = ownerSpell.CastInfo.Owner,
+                Length = 300f,
+                Tickrate = 1,
+                CanHitSameTargetConsecutively = true,
+                OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
+                Type = SectorType.Area
+            });
         }
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        {   
+             float ap = Owner.Stats.AbilityPower.Total ;
+             float lvlmaxhp = ( ((  0.25f * (ap/100) ) + ( 0.425f + 0.075f *  spell.CastInfo.SpellLevel )) * target.Stats.HealthPoints.Total ) /100; 
+             var damage = 4 + spell.CastInfo.SpellLevel * 2 + lvlmaxhp;
+           
 
+            target.TakeDamage(Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL,DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
+        }
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            ownerSpell.SetCooldown(1.0f);
-
-            SetTargetingType((IObjAiBase)unit, SpellSlotType.SpellSlots, 3, TargetingType.Area);
-
-            RemoveParticle(red);
-
-
-            if (ownerSpell.Script is Spells.AuraofDespair spellScript)
-            {
-                spellScript.DamageSector.ExecuteTick();
-                spellScript.DamageSector.SetToRemove();
-
-            }
+            ApiEventManager.OnSpellHit.RemoveListener(this);
+            AuraAmumu.SetToRemove();
         }
-
         public void OnUpdate(float diff)
         {
-
-
-
-            if (owner != null && thisBuff != null && originSpell != null)
+             if (Owner != null && thisBuff != null && originSpell != null)
             {
                 DamageManaTimer += diff;
 
                 if (DamageManaTimer >= 500f)
                 {
-                    if (manaCost > owner.Stats.CurrentMana)
+                    if (manaCost[originSpell.CastInfo.SpellLevel - 1] > Owner.Stats.CurrentMana)
                     {
                         RemoveBuff(thisBuff);
                     }
                     else
                     {
-                        owner.Stats.CurrentMana -= manaCost;
-
+                        Owner.Stats.CurrentMana -= manaCost[originSpell.CastInfo.SpellLevel - 1];
                     }
 
                     DamageManaTimer = 0;
                 }
-           
 
                 
-
             }
+
         }
     }
 }

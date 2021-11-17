@@ -34,6 +34,7 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
+
              var ownerr = spell.CastInfo.Owner as IChampion;
            var ap = ownerr.Stats.AbilityPower.Total;
            var spellLevel = ownerr.GetSpell("Tantrum").CastInfo.SpellLevel;
@@ -51,8 +52,14 @@ namespace Spells
                    
                 }
             }
+            ApiEventManager.OnLevelUpSpell.AddListener(this, owner.GetSpell("Tantrum"), AddAmumuPassive, false);
         }
 
+        public void AddAmumuPassive(ISpell spell)
+        {
+            var owner = spell.CastInfo.Owner;
+            AddBuff("Tantrum", 99999f, 1, spell, owner, owner, true);
+        }
         public void OnSpellCast(ISpell spell)
         {
         }

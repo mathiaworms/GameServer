@@ -28,7 +28,7 @@ namespace Spells
         {
             Spell = spell;
             Owner = owner;
-
+         //   ApiEventManager.OnTakeDamage.AddListener(this, owner, TakeDamage, false);
         }
         public void TakeDamage(IAttackableUnit unit, IAttackableUnit source)
         {

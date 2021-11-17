@@ -8,37 +8,23 @@ using LeagueSandbox.GameServer.API;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
     public class KennenShurikenStorm : ISpellScript
     {
+        IObjAiBase Owner;
 
+        ISpell Spell;
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
             TriggersSpellCasts = true,
-            IsDamagingSpell = true,
-            MissileParameters = new MissileParameters
-            {
-                  Type = MissileType.Arc
-            }
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-          ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
-        }
-
-       public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
-        {
-            var owner = spell.CastInfo.Owner as IChampion;
-
-            var APratio = owner.Stats.AbilityPower.Total * 0.4f;
-            var damage = 80 + (spell.CastInfo.SpellLevel - 1 * 65) + APratio;
-
-            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
-            AddParticleTarget(owner, target, "kennen_ss_tar.troy", target);
+            Owner = owner;
+            Spell = spell;
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -47,19 +33,20 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-
         }
 
         public void OnSpellCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner;
-            AddBuff("KennenShurikenStorm", spell.CastInfo.SpellLevel + 2, 1, spell, owner, owner);
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
-        }
 
+                AddBuff("KennenShurikenStorm", 3.0f, 1, spell, Owner, Owner, true);
+
+              
+        }
+        
         public void OnSpellChannel(ISpell spell)
         {
         }
@@ -74,6 +61,7 @@ namespace Spells
 
         public void OnUpdate(float diff)
         {
+            
         }
     }
 }

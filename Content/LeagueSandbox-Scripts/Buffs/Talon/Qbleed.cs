@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
@@ -29,8 +29,8 @@ namespace Buffs
         {
             owner = ownerSpell.CastInfo.Owner as IChampion;
             Unit = unit;
-            var ADratio = owner.Stats.AttackDamage;
-        //    damage = (10 * ownerSpell.CastInfo.SpellLevel + ADratio) / 6f;
+            var ADratio = 1;
+            damage = (10 * ownerSpell.CastInfo.SpellLevel + ADratio) / 6f;
 
             p = AddParticleTarget(owner, unit, "talon_Q_bleed_indicator.troy", unit, 1, buff.Duration);
             p2 = AddParticle(owner, unit, "talon_Q_bleed.troy", unit.Position, 1, buff.Duration);

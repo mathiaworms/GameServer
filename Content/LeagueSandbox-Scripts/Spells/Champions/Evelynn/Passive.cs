@@ -11,7 +11,7 @@ namespace Passives
     {
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-           
+           // ApiEventManager.OnTakeDamage.AddListener(this, owner, SelfWasDamaged, false);
         }
         private void SelfWasDamaged(IAttackableUnit unit, IAttackableUnit source)
         {

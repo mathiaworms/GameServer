@@ -43,7 +43,7 @@ namespace Spells
         public void AddFizzPassive(ISpell spell)
         {
             var owner = spell.CastInfo.Owner;
-            AddBuff("FizzMalison", 99f, 1, spell, daowner, daowner, true);
+            AddBuff("FizzMalison", 99999f, 1, spell, daowner, daowner, true);
         }
         
 

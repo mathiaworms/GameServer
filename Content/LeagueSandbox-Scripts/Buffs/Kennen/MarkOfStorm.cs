@@ -9,11 +9,11 @@ using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
 
 
-namespace KennenMarkOfStorm
+namespace Buffs
 {
     internal class KennenMarkOfStorm : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.STUN;
+        public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
         public BuffAddType BuffAddType => BuffAddType.STACKS_AND_RENEWS;
         public int MaxStacks => 3;
         public bool IsHidden => false;

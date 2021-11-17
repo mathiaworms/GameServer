@@ -4,7 +4,8 @@ using LeagueSandbox.GameServer.GameObjects.Stats;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Scripting.CSharp;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
-
+using System;
+using System.Numerics;
 
 namespace Buffs
 {
@@ -20,9 +21,17 @@ namespace Buffs
         IParticle p;
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
+             var randOffset = (float)new Random().NextDouble();
+            var randPoint = new Vector2(unit.Position.X + (80.0f * randOffset), unit.Position.Y + 80.0f * randOffset);
+             ForceMovement(unit, "", randPoint, 90.0f, 80.0f, 1200000.0f, 0.0f, ForceMovementType.FURTHEST_WITHIN_RANGE, ForceMovementOrdersType.CANCEL_ORDER, ForceMovementOrdersFacing.KEEP_CURRENT_FACING);
+            buff.SetStatusEffect(StatusFlags.CanAttack | StatusFlags.CanCast | StatusFlags.CanMove, false);
+            
             StatsModifier.MoveSpeed.PercentBonus -= 0.6f ;
 
             unit.AddStatModifier(StatsModifier);
+
+           
+          
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
