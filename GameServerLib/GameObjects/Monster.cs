@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -82,10 +82,10 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             MoveOrder = OrderType.Hold;
             Replication = new ReplicationMonster(this);
             spawnPosition = position;
+            ApiEventManager.OnBeingHit.AddListener(this, this, OnBeingHit, false);
 
-            ApiEventManager.OnTakeDamage.AddListener(this, this, TakeDamage, false);
         }
-        public void TakeDamage(IAttackableUnit unit, IAttackableUnit source)
+        public void OnBeingHit(IAttackableUnit unit, IAttackableUnit source)
         {
             if (resetting) return;
             AlertCamp(source);
