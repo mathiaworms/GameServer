@@ -245,8 +245,8 @@ namespace PacketDefinitions420
                 targetPacket.TargetNetID = target.NetId;
             }
 
-            // TODO: Verify if we need to account for other cases.
-            if (attacker is IBaseTurret)
+            // TODO: Verify if we need to account for other cases. (most likely don't want to send mosnter packets to unseen objects either).
+            if (attacker is IBaseTurret || attacker is IMonster)
             {
                 _packetHandlerManager.BroadcastPacket(targetPacket.GetBytes(), Channel.CHL_S2C);
             }
@@ -1570,7 +1570,7 @@ namespace PacketDefinitions420
         public void NotifyMonsterSpawned(IMonster m)
         {
             var sp = new SpawnMonster(_navGrid, m);
-            _packetHandlerManager.BroadcastPacketVision(m, sp, Channel.CHL_S2C);
+            _packetHandlerManager.BroadcastPacket(sp.GetBytes(), Channel.CHL_S2C);
         }
 
         /// <summary>
@@ -1968,8 +1968,14 @@ namespace PacketDefinitions420
                 IsSummonerSpell = isSummonerSpell,
                 ForceDoClient = forceClient
             };
+            // TODO: Verify if we want to send packets from unseen monsters (maybe send packets when they come into vision).
+            if (attacker is IMonster)
+            {
+                _packetHandlerManager.BroadcastPacket(stopAttack.GetBytes(), Channel.CHL_S2C);
+            }
             _packetHandlerManager.BroadcastPacketVision(attacker, stopAttack.GetBytes(), Channel.CHL_S2C);
         }
+
 
         /// <summary>
         /// Sends a packet to all players detailing that the specified Champion has leveled up.
@@ -3198,7 +3204,7 @@ namespace PacketDefinitions420
 
             _packetHandlerManager.BroadcastPacketVision(obj, wpList.GetBytes(), Channel.CHL_S2C);
         }
-
+        
         /// <summary>
         /// Sends a packet to all players that have vision of the specified unit.
         /// The packet details a list of waypoints with speed parameters which determine what kind of movement will be done to reach the waypoints, or optionally a GameObject.
@@ -3254,6 +3260,26 @@ namespace PacketDefinitions420
             };
 
             _packetHandlerManager.BroadcastPacketVision(u, speedWpGroup.GetBytes(), Channel.CHL_S2C);
+        }
+
+        public void NotifyCreateMonsterCamp(Vector2 pos, byte campId, TeamId team, string icon)
+        {
+            var Z = _navGrid.GetHeightAtLocation(pos);
+
+            var camp = new CreateMonsterCamp(pos.X, pos.Y, Z, icon, campId, 0, 0);
+            _packetHandlerManager.BroadcastPacket(camp.GetBytes(), Channel.CHL_S2C);
+        }
+
+        // TODO: Send to team of killer and enemy team if they have vision of the monster camp rather than everyone.
+        public void NotifyMonsterCampEmpty(IMonsterCamp monsterCamp, IChampion killer)
+        {
+            var emptyCamp = new NeutralCampEmpty(monsterCamp, killer);
+            _packetHandlerManager.BroadcastPacket(emptyCamp.GetBytes(), Channel.CHL_S2C);
+        }
+        public void NotifyAttachMinimapIcon(IAttackableUnit unit, bool ChangeIcon, string IconCategory, bool ChangeBorder, string BorderCategory, string BorderScriptName)
+        {
+            var icon = new AttachMinimapIcon(unit, ChangeIcon, IconCategory, ChangeBorder, BorderCategory, BorderScriptName);
+            _packetHandlerManager.BroadcastPacket(icon, Channel.CHL_S2C);
         }
     }
 }

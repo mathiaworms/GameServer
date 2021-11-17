@@ -673,7 +673,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         {
             if (CastInfo.IsAutoAttack)
             {
-                ApiEventManager.OnLaunchAttack.Publish(CastInfo.Owner, this);
+                ApiEventManager.OnLaunchAttack.Publish(this);
             }
 
             if (CastInfo.IsAutoAttack || CastInfo.UseAttackCastTime)

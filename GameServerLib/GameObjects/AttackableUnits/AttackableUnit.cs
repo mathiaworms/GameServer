@@ -665,6 +665,17 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                         _game.PacketNotifier.NotifyNPC_BuffUpdateCount(ParentBuffs[b.Name], ParentBuffs[b.Name].Duration - ParentBuffs[b.Name].TimeElapsed, ParentBuffs[b.Name].TimeElapsed);
                     }
                 }
+                //If the buff stacks and resets the timer, but doesn't trigger OnActivate again
+                else if (b.BuffAddType == BuffAddType.STACKS_AND_CONTINUE_AND_RENEWS)
+                {
+                    ParentBuffs[b.Name].IncrementStackCount();
+                    ParentBuffs[b.Name].ResetTimeElapsed();
+
+                    if (!b.IsHidden)
+                    {
+                        _game.PacketNotifier.NotifyNPC_BuffUpdateCount(ParentBuffs[b.Name], ParentBuffs[b.Name].Duration - ParentBuffs[b.Name].TimeElapsed, ParentBuffs[b.Name].TimeElapsed);
+                    }
+                }
                 // If the buff is supposed to be applied alongside any existing buff instances of the same name.
                 else if (b.BuffAddType == BuffAddType.STACKS_AND_OVERLAPS)
                 {
