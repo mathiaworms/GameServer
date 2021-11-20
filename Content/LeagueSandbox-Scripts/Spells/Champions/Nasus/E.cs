@@ -54,9 +54,9 @@ namespace Spells
             var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);    
 
 
-                AddParticle(owner, null, "Nasus_Base_E_SpiritFire.troy", targetPos, lifetime: 5.0f , reqVision: false);
-                AddParticle(owner, null, "Nasus_Base_E_Staff_Swirl.troy", targetPos, lifetime: 5.0f , reqVision: false);
-                AddParticle(owner, null, "Nasus_Base_E_Warning.troy", targetPos, lifetime: 5.0f , reqVision: false);
+                AddParticle(owner, null, "Nasus_Base_E_SpiritFire.troy", spellpos, lifetime: 5.0f , reqVision: false);
+                AddParticle(owner, null, "Nasus_Base_E_Staff_Swirl.troy", spellpos, lifetime: 5.0f , reqVision: false);
+                AddParticle(owner, null, "Nasus_Base_E_Warning.troy",spellpos, lifetime: 5.0f , reqVision: false);
                 DamageSector = spell.CreateSpellSector(new SectorParameters
                 {
                     Length = 400f,

@@ -1,9 +1,4 @@
-using GameServerCore.Domain.GameObjects;
-using GameServerCore.Domain.GameObjects.Spell;
-using GameServerCore.Enums;
-using LeagueSandbox.GameServer.GameObjects.Stats;
-using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects;
+﻿using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
 using GameServerCore.Scripting.CSharp;
@@ -11,40 +6,41 @@ using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Domain;
+
+
 namespace Buffs
 {
-    class FrostShot : IBuffGameScript
+    internal class NasusQStacks : IBuffGameScript
     {
         public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
-        public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
-        public int MaxStacks => 1;
+        public BuffAddType BuffAddType => BuffAddType.STACKS_AND_OVERLAPS;
+        public int MaxStacks => 999999;
         public bool IsHidden => false;
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
+
+        IBuff thisBuff;
+        IObjAiBase Unit;
+        IParticle p;
         IParticle p2;
         IObjAiBase Owner;
-
-
+        IAttackableUnit AtOwner;
+        public static float Qstacks = 0f;
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-
-                StatsModifier.MoveSpeed.PercentBonus -= 0.1f + (ownerSpell.CastInfo.Owner.GetSpell("FrostShot").CastInfo.SpellLevel * 0.05f);
-                 p2 = AddParticleTarget(unit, unit, "iceSparkle_02.troy", unit, buff.Duration);
-                unit.AddStatModifier(StatsModifier);
+            //ApiEventManager.OnKillUnit.AddListener(this, AtOwner, NasusMoreStacks, true);
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-             RemoveParticle(p2);
-        }
-
-        public void OnPreAttack(ISpell spell)
-        {
+            //ApiEventManager.OnHitUnit.RemoveListener(this);
 
         }
 
         public void OnUpdate(float diff)
         {
+
         }
     }
 }
+

@@ -9,7 +9,7 @@ using System.Numerics;
 
 namespace Buffs
 {
-    internal class Rupture : IBuffGameScript
+    internal class ZacQ : IBuffGameScript
     {
         public BuffType BuffType => BuffType.COMBAT_DEHANCER;
         public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
@@ -21,7 +21,7 @@ namespace Buffs
         IParticle p;
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            StatsModifier.MoveSpeed.PercentBonus -= 0.6f ;
+            StatsModifier.MoveSpeed.PercentBonus -= 0.4f ;
             unit.AddStatModifier(StatsModifier);
         }
 

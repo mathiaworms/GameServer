@@ -49,7 +49,7 @@ namespace Buffs
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {   
              float ap = Owner.Stats.AbilityPower.Total ;
-             float lvlmaxhp = ( ((  0.25f * (ap/100) ) + ( 0.425f + 0.075f *  spell.CastInfo.SpellLevel )) * target.Stats.HealthPoints.Total ) /100; 
+             float lvlmaxhp = ( ((  0.0025f * (ap/100) ) + ( 0.00425f + 0.00075f *  spell.CastInfo.SpellLevel )) * target.Stats.HealthPoints.Total ) ; 
              var damage = 4 + spell.CastInfo.SpellLevel * 2 + lvlmaxhp;
            
 

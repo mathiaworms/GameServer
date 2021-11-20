@@ -55,8 +55,8 @@ namespace Spells
          //   target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL,
         //        DamageSource.DAMAGE_SOURCE_SPELL, false);
             _target = target;
-            AddBuff("FizzQ1", 0.395f - spell.CastInfo.SpellLevel * 0.012f, 1, spell, owner, owner);
-            PlayAnimation(owner, "SPELL2", 0.395f, 0f , -10f);
+       //     AddBuff("Charging", 0.395f - spell.CastInfo.SpellLevel * 0.012f, 1, spell, owner, owner);
+       //     PlayAnimation(owner, "SPELL2", 0.395f, 0f , -10f);
 
 
         }

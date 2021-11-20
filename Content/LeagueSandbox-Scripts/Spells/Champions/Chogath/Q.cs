@@ -82,7 +82,7 @@ namespace Spells
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
             
             
-
+             AddBuff("RupturePopup", 1.0f, 1, spell, target, owner);
             AddBuff("Rupture", 3.5f, 1, spell, target, owner);
             
            
