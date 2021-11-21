@@ -15,22 +15,24 @@ namespace Spells
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
-            TriggersSpellCasts = true,
+
             
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+           
         }
 
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
-            var owner = spell.CastInfo.Owner as IChampion;
             
-            AddParticleTarget(owner, target, "Nasus_Base_W_tar.troy", target, 1f);
+         
+
             
-            AddBuff("NasusW", 5f, 1, spell, target, owner);
+            
+            
+            
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -39,6 +41,11 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
+               if (target != null)
+            {
+               AddParticleTarget(owner, target, "Nasus_Base_W_tar.troy", target);
+                AddBuff("NasusW", 5f, 1, spell, target, owner);
+            }
         }
 
         public void OnSpellCast(ISpell spell)

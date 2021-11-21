@@ -15,6 +15,7 @@ namespace Spells
 { 
      public class AsheSpiritOfTheHawkCast : ISpellScript
     {
+        public ISpellSector DamageSector;
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
             TriggersSpellCasts = true,
@@ -48,6 +49,24 @@ namespace Spells
             
         SpellCast(owner, 2, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
            
+
+            var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);
+
+
+               
+                AddParticle(owner, null, "Ashe_Base_E_tar_explode.troy", spellpos, lifetime: 7f , reqVision: false);
+                AddParticle(owner, null, "Ashe_Base_E_tar_linger.troy", spellpos, lifetime: 7f , reqVision: false);
+                
+                DamageSector = spell.CreateSpellSector(new SectorParameters
+                {
+                    Length = 250f,
+
+                    Tickrate = 2,
+                    CanHitSameTargetConsecutively = true,
+                    OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
+                    Type = SectorType.Area,
+                    Lifetime = 5.0f
+                });
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -65,12 +84,12 @@ namespace Spells
         public void OnUpdate(float diff)
         {
         }
-    }
+    } /* 
     public class AsheSpiritOfTheHawk : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
-           MissileParameters = new MissileParameters
+         MissileParameters = new MissileParameters
             {
                 Type = MissileType.Circle
             },
@@ -145,5 +164,5 @@ namespace Spells
         public void OnUpdate(float diff)
         {
         }
-    }
+    }*/
 }

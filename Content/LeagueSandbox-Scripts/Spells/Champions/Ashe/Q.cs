@@ -34,15 +34,7 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-        }
-
-        public void OnSpellCast(ISpell spell)
-        {
-        }
-
-        public void OnSpellPostCast(ISpell spell)
-        {
-            if (!Owner.HasBuff("AsheQAttack"))
+             if (!Owner.HasBuff("AsheQAttack"))
             {
                 AddBuff("AsheQAttack", 250000f, 1, spell, Owner, Owner, true);
 
@@ -52,6 +44,15 @@ namespace Spells
             {
                 RemoveBuff(Owner, "AsheQAttack");
             }
+        }
+
+        public void OnSpellCast(ISpell spell)
+        {
+        }
+
+        public void OnSpellPostCast(ISpell spell)
+        {
+           
         }
         
         public void OnSpellChannel(ISpell spell)

@@ -41,7 +41,7 @@ namespace MapScripts
         public long FirstSpawnTime { get; set; } = 90 * 1000;
         public long NextSpawnTime { get; set; } = 90 * 1000;
         public long SpawnInterval { get; set; } = 30 * 1000;
-        public bool MinionPathingOverride { get; set; } = false;
+        public bool MinionPathingOverride { get; set; } = true;
         public List<IMonsterCamp> JungleCamps { get; set; }
 
         //General things that will affect players globaly, such as default gold per-second, Starting gold....
@@ -147,9 +147,6 @@ namespace MapScripts
             new Vector2(12042.19f, 8413.8f),
             new Vector2(11758.64f, 6586.07f)}
                 },
-
-
-
                 //Pathing coordinates for Bot lane
                 {LaneID.BOTTOM, new List<Vector2> {
             new Vector2(1960f, 5977f),
@@ -273,7 +270,7 @@ namespace MapScripts
 
             // Announcer events
             map.AddAnnouncement(FirstSpawnTime - 90 * 1000, Announces.THIRY_SECONDS_TO_MINIONS_SPAWN, true); // 30 seconds until minions spawn
-            map.AddAnnouncement(FirstSpawnTime, Announces.MINIONS_HAVE_SPAWNED, false); // Minions have spawned (90 * 1000)
+            map.AddAnnouncement(FirstSpawnTime, Announces.MINIONS_HAVE_SPAWNED, true); // Minions have spawned (90 * 1000)
             map.AddAnnouncement(FirstSpawnTime, Announces.MINIONS_HAVE_SPAWNED2, false); // Minions have spawned [2] (90 * 1000)
         
             //Map props
