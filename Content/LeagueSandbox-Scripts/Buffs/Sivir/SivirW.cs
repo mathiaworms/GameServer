@@ -8,7 +8,7 @@ using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 
-namespace Buffs
+namespace SivirW
 {
     class SivirW : IBuffGameScript
     {

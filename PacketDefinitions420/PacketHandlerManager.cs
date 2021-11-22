@@ -344,12 +344,6 @@ namespace PacketDefinitions420
         {
             var request = PacketReader.ReadKeyCheckRequest(data);
 
-            if (!_blowfishes.ContainsKey(request.PlayerID))
-            {
-                Debug.WriteLine($"Player ID {request.PlayerID} is invalid.");
-                return false;
-            }
-
             long playerID = _blowfishes[request.PlayerID].Decrypt(request.CheckSum);
 
             if(request.PlayerID != playerID)

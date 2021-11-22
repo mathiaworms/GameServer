@@ -5,7 +5,7 @@ using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using GameServerCore.Scripting.CSharp;
 
-namespace Buffs
+namespace SummonerDot
 {
     internal class SummonerDot : IBuffGameScript
     {
@@ -28,7 +28,7 @@ namespace Buffs
             Owner = ownerSpell.CastInfo.Owner;
             Target = unit;
             damage = 10 + Owner.Stats.Level * 4;
-            ignite = AddParticleTarget(Owner, unit, "Global_SS_Ignite.troy", unit, buff.Duration, bone: "C_BUFFBONE_GLB_CHEST_LOC");
+            ignite = AddParticleTarget(Owner, unit, "Global_SS_Ignite.troy", unit, buff.Duration, 1, "C_BUFFBONE_GLB_CHEST_LOC");
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)

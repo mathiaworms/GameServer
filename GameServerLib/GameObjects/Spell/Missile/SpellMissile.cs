@@ -195,8 +195,6 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
         {
             if (!IsToRemove())
             {
-                API.ApiEventManager.OnSpellMissileEnd.Publish(this);
-
                 base.SetToRemove();
 
                 _game.PacketNotifier.NotifyDestroyClientMissile(this);

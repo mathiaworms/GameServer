@@ -24,7 +24,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellSectorHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -44,12 +44,12 @@ namespace Spells
         {
             var sector = spell.CreateSpellSector(new SectorParameters
             {
-                Length = 300f,
+                HalfLength = 300f,
                 SingleTick = true,
                 Type = SectorType.Area
             });
         }
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner;
             var AP = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.3f;

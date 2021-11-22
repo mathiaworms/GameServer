@@ -25,13 +25,9 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         IGameObject TargetObject { get; }
         /// <summary>
-        /// Position this object is spawned at.
+        /// Position this object is spawned at. *NOTE*: Does not update. Refer to TargetObject.GetPosition() if particle is supposed to be attached.
         /// </summary>
-        Vector2 StartPosition { get; }
-        /// <summary>
-        /// Position this object is aimed at and/or moving towards.
-        /// </summary>
-        Vector2 EndPosition { get; }
+        Vector2 TargetPosition { get; }
         /// <summary>
         /// Client-sided, internal name of the bone that this particle should be attached to for networking
         /// </summary>
@@ -63,10 +59,6 @@ namespace GameServerCore.Domain.GameObjects
         /// Effectively uses the ground height for the end position.
         /// </summary>
         bool FollowsGroundTilt { get; }
-        /// <summary>
-        /// Flags which determine how the particle behaves. Values unknown.
-        /// </summary>
-        FXFlags Flags { get; }
 
         /// <summary>
         /// Returns the total game-time passed since the particle was added to ObjectManager

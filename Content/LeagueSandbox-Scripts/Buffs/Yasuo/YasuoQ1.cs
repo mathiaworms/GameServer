@@ -3,7 +3,7 @@ using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
 using GameServerCore.Scripting.CSharp;
 
-namespace Buffs
+namespace YasuoQ01
 {
     internal class YasuoQ01 : IBuffGameScript
     {

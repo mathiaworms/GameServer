@@ -21,7 +21,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellSectorHit.AddListener(this, new System.Collections.Generic.KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -48,7 +48,7 @@ namespace Spells
             spell.CreateSpellSector(new SectorParameters
             {
                 BindObject = owner,
-                Length = 550f,
+                HalfLength = 550f,
                 Width = spell.SpellData.LineWidth,
                 PolygonVertices = new Vector2[]
                 {
@@ -65,7 +65,7 @@ namespace Spells
             AddParticle(owner, owner, "Lucian_Q_laser.troy", endPoint, bone: "C_BUFFBONE_GLB_CENTER_LOC", lifetime: 1.0f);
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner;
 

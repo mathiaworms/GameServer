@@ -1,7 +1,6 @@
 ﻿using System.Numerics;
 using System.Text;
 using Force.Crc32;
-using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using LeagueSandbox.GameServer.GameObjects.Stats;
@@ -26,7 +25,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// <summary>
         /// MapObject that this turret was created from.
         /// </summary>
-        public IMapObject ParentObject { get; private set; }
+        public MapData.MapObject ParentObject { get; private set; }
         /// <summary>
         /// Internal name of this turret, used for packets so that clients know which visual turret to assign them to.
         /// </summary>
@@ -44,16 +43,15 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             TeamId team = TeamId.TEAM_BLUE,
             uint netId = 0,
             LaneID lane = LaneID.NONE,
-            IMapObject mapObject = null,
-            int skinId = 0
-        ) : base(game, model, new Stats.Stats(), 88, position, 1200, skinId, netId, team)
+            MapData.MapObject mapObject = null
+        ) : base(game, model, new Stats.Stats(), 88, position, 1200, netId, team)
         {
             ParentNetId = Crc32Algorithm.Compute(Encoding.UTF8.GetBytes(name)) | 0xFF000000;
             Name = name;
             Lane = lane;
             ParentObject = mapObject;
             SetTeam(team);
-            Inventory = InventoryManager.CreateInventory(game.PacketNotifier, game.ScriptEngine);
+            Inventory = InventoryManager.CreateInventory();
             Replication = new ReplicationAiTurret(this);
         }
 
@@ -69,7 +67,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             foreach (var u in units)
             {
-                if (u.IsDead || u.Team == Team || !u.Status.HasFlag(StatusFlags.Targetable))
+                if (u.IsDead || u.Team == Team)
                 {
                     continue;
                 }
@@ -121,9 +119,9 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// Called when this unit dies.
         /// </summary>
         /// <param name="killer">Unit that killed this unit.</param>
-        public override void Die(IDeathData data)
+        public override void Die(IAttackableUnit killer)
         {
-            foreach (var player in _game.ObjectManager.GetAllChampionsFromTeam(data.Killer.Team))
+            foreach (var player in _game.ObjectManager.GetAllChampionsFromTeam(killer.Team))
             {
                 var goldEarn = _globalGold;
 
@@ -139,11 +137,11 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
 
                 player.Stats.Gold += goldEarn;
-                _game.PacketNotifier.NotifyUnitAddGold(player, this, goldEarn);
+                _game.PacketNotifier.NotifyAddGold(player, this, goldEarn);
             }
 
-            _game.PacketNotifier.NotifyUnitAnnounceEvent(UnitAnnounces.TURRET_DESTROYED, this, data.Killer);
-            base.Die(data);
+            _game.PacketNotifier.NotifyUnitAnnounceEvent(UnitAnnounces.TURRET_DESTROYED, this, killer);
+            base.Die(killer);
         }
 
         /// <summary>
@@ -175,6 +173,12 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// <param name="newId"></param>
         public void SetLaneID(LaneID newId)
         {
+            // Protect the current LaneID if it has already been set.
+            if (Lane != LaneID.NONE)
+            {
+                return;
+            }
+
             Lane = newId;
         }
 
@@ -196,6 +200,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             }
 
             base.Update(diff);
+            Replication.Update();
         }
     }
 }

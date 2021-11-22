@@ -18,11 +18,6 @@ namespace LeagueSandbox.GameServer.Scripting.CSharp
 
         public string AutoItemActivateEffect { get; set; } = "";
 
-        /// <summary>
-        /// Whether or not the caster should automatically face the end position of the spell.
-        /// </summary>
-        public bool AutoFaceDirection { get; set; } = true;
-
         public float[] AutoTargetDamageByLevel { get; set; } = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 
         public float CastTime { get; set; } = 0.0f;
@@ -99,10 +94,6 @@ namespace LeagueSandbox.GameServer.Scripting.CSharp
         /// What kind of behavior this missile has.
         /// </summary>
         public MissileType Type { get; set; } = MissileType.None;
-        /// <summary>
-        /// Position the missile should end at, only useful for Circle and Arc missile types.
-        /// </summary>
-        public Vector2 OverrideEndPosition { get; set; }
     }
 
     /// <summary>
@@ -115,14 +106,14 @@ namespace LeagueSandbox.GameServer.Scripting.CSharp
         /// </summary>
         public IGameObject BindObject { get; set; } = null;
         /// <summary>
-        /// Distance from the bottom of the sector to the top.
+        /// Half the distance from the center of the sector to the maximum Y-value.
         /// If this is larger than Width, it will be used as the area around the sector to check for collisions.
         /// Scales the distance (in y) between PolygonVertices.
         /// </summary>
-        public float Length { get; set; } = 0f;
+        public float HalfLength { get; set; } = 0f;
         /// <summary>
-        /// Distance from the left side of the sector to the right side.
-        /// If this is larger than Length, it will be used as the area around the sector to check for collisions.
+        /// Distance from the center of the sector to the maximum X-value.
+        /// If this is larger than HalfLength, it will be used as the area around the sector to check for collisions.
         /// Scales the distance (in x) between PolygonVertices.
         /// </summary>
         public float Width { get; set; } = 0f;

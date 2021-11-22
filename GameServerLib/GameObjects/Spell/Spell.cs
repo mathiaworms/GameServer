@@ -67,7 +67,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         /// <summary>
         /// Whether or not the script for this spell is the default empty script.
         /// </summary>
-        public bool HasEmptyScript { get; private set; } = true;
+        public bool HasEmptyScript => Script.GetType() == typeof(SpellScriptEmpty);
 
         public Spell(Game game, IObjAiBase owner, string spellName, byte slot)
         {
@@ -94,28 +94,15 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
 
             SpellData = game.Config.ContentManager.GetSpellData(spellName);
 
-            //Checks if the spell is in the passive slot, so it doesn't try to load it twice under the "Spells" and "Passives" namespaces
-            if (CastInfo.SpellSlot != (int)SpellSlotType.PassiveSpellSlot)
-            {
-                //Set the game script for the spell
-                LoadScript();
-                HasEmptyScript = Script.GetType() == typeof(SpellScriptEmpty);
-            }
-            else
-            {
-                owner.LoadPassiveScript(this);
-            }
+            //Set the game script for the spell
+            LoadScript();
         }
 
         public void LoadScript()
         {
             ApiEventManager.RemoveAllListenersForOwner(Script);
-            string nameSpace = "Spells";
-            if (CastInfo.SpellSlot >= (byte)SpellSlotType.InventorySlots && CastInfo.SpellSlot < (byte)SpellSlotType.BluePillSlot)
-            {
-               nameSpace = "ItemSpells";
-            }
-            Script = _scriptEngine.CreateObject<ISpellScript>(nameSpace, SpellName) ?? new SpellScriptEmpty();
+
+            Script = _scriptEngine.CreateObject<ISpellScript>("Spells", SpellName) ?? new SpellScriptEmpty();
 
             if (Script.ScriptMetadata.TriggersSpellCasts)
             {
@@ -148,13 +135,14 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 }
             }
 
-            if (CastInfo.IsAutoAttack)
+            if (p != null)
             {
-                ApiEventManager.OnBeingHit.Publish(u, CastInfo.Owner);
+                ApiEventManager.OnSpellMissileHit.Publish(CastInfo.Owner, this, u, p);
             }
-            else
+
+            if (s != null)
             {
-                ApiEventManager.OnSpellHit.Publish(CastInfo.Owner, this, u, p, s);
+                ApiEventManager.OnSpellSectorHit.Publish(CastInfo.Owner, this, u, s);
             }
         }
 
@@ -291,7 +279,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
 
             Script.OnSpellPreCast(CastInfo.Owner, this, unit, start, end);
 
-            if (!CastInfo.IsAutoAttack && !SpellData.IsToggleSpell
+            if (!CastInfo.IsAutoAttack && (!SpellData.IsToggleSpell)
                         || (!SpellData.NoWinddownIfCancelled
                         && !SpellData.Flags.HasFlag(SpellDataFlags.InstantCast)
                         && SpellData.CantCancelWhileWindingUp))
@@ -306,18 +294,15 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                         CastInfo.Owner.UpdateMoveOrder(OrderType.CastSpell, true);
                     }
 
-                    if (Script.ScriptMetadata.AutoFaceDirection)
+                    var goingTo = end - CastInfo.Owner.Position;
+
+                    if (unit != null)
                     {
-                        var goingTo = end - CastInfo.Owner.Position;
-
-                        if (unit != null)
-                        {
-                            goingTo = unit.Position - CastInfo.Owner.Position;
-                        }
-
-                        var dirTemp = Vector2.Normalize(goingTo);
-                        CastInfo.Owner.FaceDirection(new Vector3(dirTemp.X, 0, dirTemp.Y), false);
+                        goingTo = unit.Position - CastInfo.Owner.Position;
                     }
+
+                    var dirTemp = Vector2.Normalize(goingTo);
+                    CastInfo.Owner.FaceDirection(new Vector3(dirTemp.X, 0, dirTemp.Y), false);
                 }
             }
 
@@ -336,10 +321,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
 
             if (CastInfo.Targets[0].Unit != null && CastInfo.Targets[0].Unit != CastInfo.Owner)
             {
-                if (Script.ScriptMetadata.AutoFaceDirection)
-                {
-                    ApiFunctionManager.FaceDirection(CastInfo.Targets[0].Unit.Position, CastInfo.Owner);
-                }
+                ApiFunctionManager.FaceDirection(CastInfo.Targets[0].Unit.Position, CastInfo.Owner);
                 _game.PacketNotifier.NotifyS2C_UnitSetLookAt(CastInfo.Owner, CastInfo.Targets[0].Unit, attackType);
             }
 
@@ -497,7 +479,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             // TODO: Verify
             var attackType = AttackType.ATTACK_TYPE_RADIAL;
 
-            if (cast && (!CastInfo.IsAutoAttack && !SpellData.IsToggleSpell
+            if (cast && (!CastInfo.IsAutoAttack && (!SpellData.IsToggleSpell)
                         || (!SpellData.NoWinddownIfCancelled
                         && !SpellData.Flags.HasFlag(SpellDataFlags.InstantCast)
                         && SpellData.CantCancelWhileWindingUp)))
@@ -512,18 +494,15 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                         CastInfo.Owner.UpdateMoveOrder(OrderType.CastSpell, true);
                     }
 
-                    if (Script.ScriptMetadata.AutoFaceDirection)
+                    var goingTo = end - CastInfo.Owner.Position;
+
+                    if (CastInfo.Targets[0].Unit != null)
                     {
-                        var goingTo = end - CastInfo.Owner.Position;
-
-                        if (CastInfo.Targets[0].Unit != null)
-                        {
-                            goingTo = CastInfo.Targets[0].Unit.Position - CastInfo.Owner.Position;
-                        }
-
-                        var dirTemp = Vector2.Normalize(goingTo);
-                        CastInfo.Owner.FaceDirection(new Vector3(dirTemp.X, 0, dirTemp.Y), false);
+                        goingTo = CastInfo.Targets[0].Unit.Position - CastInfo.Owner.Position;
                     }
+
+                    var dirTemp = Vector2.Normalize(goingTo);
+                    CastInfo.Owner.FaceDirection(new Vector3(dirTemp.X, 0, dirTemp.Y), false);
                 }
             }
 
@@ -534,10 +513,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
 
             if (cast && CastInfo.Targets[0].Unit != null && CastInfo.Targets[0].Unit != CastInfo.Owner)
             {
-                if (Script.ScriptMetadata.AutoFaceDirection)
-                {
-                    ApiFunctionManager.FaceDirection(CastInfo.Targets[0].Unit.Position, CastInfo.Owner);
-                }
+                ApiFunctionManager.FaceDirection(CastInfo.Targets[0].Unit.Position, CastInfo.Owner);
 
                 _game.PacketNotifier.NotifyS2C_UnitSetLookAt(CastInfo.Owner, CastInfo.Targets[0].Unit, attackType);
             }
@@ -671,6 +647,24 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
 
         public void FinishCasting()
         {
+            // Updates move order before script PostCast so teleports are sent to clients correctly (not sent if MoveOrder == CastSpell).
+            if (SpellData.Flags.HasFlag(SpellDataFlags.InstantCast))
+            {
+                if (!CastInfo.Owner.IsPathEnded())
+                {
+                    CastInfo.Owner.UpdateMoveOrder(OrderType.MoveTo, true);
+                }
+                if (CastInfo.Owner.TargetUnit != null)
+                {
+                    CastInfo.Owner.UpdateMoveOrder(OrderType.AttackTo, true);
+                }
+            }
+            else
+            {
+                // TODO: Verify
+                CastInfo.Owner.UpdateMoveOrder(OrderType.Hold, true);
+            }
+
             if (CastInfo.IsAutoAttack)
             {
                 ApiEventManager.OnLaunchAttack.Publish(CastInfo.Owner, this);
@@ -695,7 +689,10 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 }
                 else
                 {
-                    ApplyEffects(CastInfo.Targets[0].Unit);
+                    if (Script.ScriptMetadata.MissileParameters == null)
+                    {
+                        ApplyEffects(CastInfo.Targets[0].Unit, null);
+                    }
                     CastInfo.Owner.AutoAttackHit(CastInfo.Targets[0].Unit);
                 }
 
@@ -734,24 +731,6 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             if (CastInfo.Owner.SpellToCast != null)
             {
                 CastInfo.Owner.SetSpellToCast(null, Vector2.Zero);
-            }
-
-            // Updates move order before script PostCast so teleports are sent to clients correctly (not sent if MoveOrder == CastSpell).
-            if (SpellData.Flags.HasFlag(SpellDataFlags.InstantCast))
-            {
-                if (!CastInfo.Owner.IsPathEnded())
-                {
-                    CastInfo.Owner.UpdateMoveOrder(OrderType.MoveTo, true);
-                }
-                if (CastInfo.Owner.TargetUnit != null)
-                {
-                    CastInfo.Owner.UpdateMoveOrder(OrderType.AttackTo, true);
-                }
-            }
-            else
-            {
-                // TODO: Verify
-                CastInfo.Owner.UpdateMoveOrder(OrderType.Hold, true);
             }
         }
 
@@ -816,7 +795,6 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                         this,
                         CastInfo,
                         SpellData.MissileSpeed,
-                        parameters.OverrideEndPosition,
                         SpellData.Flags,
                         netId,
                         isServerOnly
@@ -831,21 +809,12 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                         this,
                         CastInfo,
                         SpellData.MissileSpeed,
-                        parameters.OverrideEndPosition,
                         SpellData.Flags,
                         netId,
                         isServerOnly
                     );
                     break;
                 }
-            }
-
-            // If the position is the same as the destination, the server will have destroyed the missile before notifying of creation, causing the client to crash.
-            // TODO: Make a better check.
-            if (p == null || (p is ISpellCircleMissile c && c.Position == c.Destination)
-                || p.Position == p.GetTargetPosition())
-            {
-                return null;
             }
 
             _game.ObjectManager.AddObject(p);
@@ -1037,14 +1006,6 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         public void ResetSpellDelay()
         {
             CurrentDelayTime = 0;
-        }
-
-        /// <summary>
-        /// Toggles the auto cast state for this spell.
-        /// </summary>
-        public void SetAutocast()
-        {
-            _game.PacketNotifier.NotifyNPC_SetAutocast(CastInfo.Owner, this);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-﻿namespace GameServerCore.Domain
+﻿namespace LeagueSandbox.GameServer.Content
 {
     public interface IPassiveData
     {

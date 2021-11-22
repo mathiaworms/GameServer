@@ -6,14 +6,14 @@ namespace GameServerCore.Packets.PacketDefinitions.Requests
     {
         public float X { get; }
         public float Y { get; }
-        public uint TargetNetId { get; }
+        public int TargetNetId { get; }
         public Pings Type { get; }
 
         public AttentionPingRequest(float x, float y, int targetNetId, Pings type)
         {
             X = x;
             Y = y;
-            TargetNetId = (uint)targetNetId;
+            TargetNetId = targetNetId;
             Type = type;
         }
     }

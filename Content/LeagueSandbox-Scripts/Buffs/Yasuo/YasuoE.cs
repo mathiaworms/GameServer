@@ -5,7 +5,7 @@ using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using System.Numerics;
 using GameServerCore.Scripting.CSharp;
 
-namespace Buffs
+namespace YasuoE
 {
     internal class YasuoE : IBuffGameScript
     {

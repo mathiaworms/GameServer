@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Numerics;
 using System.Timers;
-using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
+using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
 
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.Buildings.AnimatedBuildings
 {
@@ -42,7 +42,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.Buildings.Animate
             _game.ObjectManager.AddInhibitor(this);
         }
 
-        public override void Die(IDeathData data)
+        public override void Die(IAttackableUnit killer)
         {
             var objects = _game.ObjectManager.GetObjects().Values;
             foreach (var obj in objects)
@@ -66,16 +66,16 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.Buildings.Animate
             _respawnTimer.Start();
             _timerStartTime = DateTime.Now;
 
-            if (data.Killer is IChampion c)
+            if (killer is IChampion c)
             {
                 c.Stats.Gold += GOLD_WORTH;
-                _game.PacketNotifier.NotifyUnitAddGold(c, this, GOLD_WORTH);
+                _game.PacketNotifier.NotifyAddGold(c, this, GOLD_WORTH);
             }
 
-            SetState(InhibitorState.DEAD, data.Killer);
+            SetState(InhibitorState.DEAD, killer);
             RespawnAnnounced = false;
 
-            base.Die(data);
+            base.Die(killer);
         }
 
         public void SetState(InhibitorState state, IGameObject killer = null)

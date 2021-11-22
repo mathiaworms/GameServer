@@ -4,7 +4,8 @@ using GameServerCore.Enums;
 using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 
-namespace Buffs
+
+namespace GangplankW
 {
     internal class GangplankW : IBuffGameScript
     {

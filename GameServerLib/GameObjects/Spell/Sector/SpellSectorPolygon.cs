@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
-using GameMaths.Geometry.Polygons;
 using GameServerCore;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
@@ -13,12 +12,11 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
     /// Base class for all spell sectors. Functionally acts as a circular spell hitbox.
     /// Base functionality can be overriden to fit a specific shape.
     /// </summary>
-    internal class SpellSectorPolygon : SpellSector, ISpellSectorPolygon
+    internal class SpellSectorPolygon : SpellSector, ISpellSector
     {
         private Vector2[] _trueVertices;
         private float _trueWidth;
-        private float _trueLength;
-        private Polygon _clipperPoly;
+        private float _trueHalfLength;
 
         public SpellSectorPolygon(
             Game game,
@@ -31,14 +29,12 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
             // TODO: Verify if assignment is necessary.
             _trueVertices = new Vector2[parameters.PolygonVertices.Length];
 
-            // This whole section involving vertices is simply scaling vertices by Width/Length,
-            // then making sure the distance between vertices after scaling is less than Width/Length
+            // This whole section involving vertices is simply scaling vertices by Width/HalfLength,
+            // then making sure the distance between vertices after scaling is less than Width/HalfLength
             // (otherwise, we override them)
             parameters.PolygonVertices.CopyTo(_trueVertices, 0);
             _trueWidth = parameters.Width;
-            _trueLength = parameters.Length;
-
-            _clipperPoly = new Polygon();
+            _trueHalfLength = parameters.HalfLength;
 
             Vector2? lastVertex = null;
             for (int i = 0; i < _trueVertices.Length; i++)
@@ -46,9 +42,9 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
                 Vector2 currVertex = _trueVertices[i];
 
                 // Scale the vertex
-                Vector2 trueVertex = new Vector2(currVertex.X * parameters.Width, currVertex.Y * parameters.Length);
+                Vector2 trueVertex = new Vector2(currVertex.X * parameters.Width, currVertex.Y * parameters.HalfLength);
 
-                // Compare distances and override Width/Length as necessary
+                // Compare distances and override HalfWidth/Length as necessary
                 if (lastVertex != null)
                 {
                     var distX = currVertex.X - trueVertex.X;
@@ -58,30 +54,28 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
                     }
 
                     var distY = currVertex.Y - trueVertex.Y;
-                    if (distY > _trueLength)
+                    if (distY > _trueHalfLength)
                     {
-                        _trueLength = distY;
+                        _trueHalfLength = distY;
                     }
                 }
 
-                // Reassign with true width/length.
-                trueVertex = new Vector2(currVertex.X * _trueWidth, currVertex.Y * _trueLength);
+                // Reassign with true width/halflength.
+                trueVertex = new Vector2(currVertex.X * _trueWidth, currVertex.Y * _trueHalfLength);
 
                 // Save current vertex for next iteration so we can compare distance.
                 lastVertex = trueVertex;
                 // Assign scaled vertex.
                 _trueVertices[i] = trueVertex;
-
-                _clipperPoly.Add(trueVertex);
             }
 
-            if (_trueWidth > _trueLength)
+            if (_trueWidth > _trueHalfLength)
             {
                 CollisionRadius = _trueWidth;
             }
             else
             {
-                CollisionRadius = _trueLength;
+                CollisionRadius = _trueHalfLength;
             }
 
             Position = GetTargetPosition();
@@ -139,33 +133,64 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
                 return false;
             }
 
-            // Get the current direction of the sector.
-            var angleDir = Extensions.UnitVectorToAngle(new Vector2(Direction.X, Direction.Z));
-            var startPos = new Vector2(CastInfo.SpellCastLaunchPosition.X, CastInfo.SpellCastLaunchPosition.Z);
-            if (Parameters.BindObject != null)
+            var start = new Vector2(CastInfo.TargetPosition.X, CastInfo.TargetPosition.Z);
+            var end = new Vector2(CastInfo.TargetPositionEnd.X, CastInfo.TargetPositionEnd.Z);
+
+            // First check if the start or end points are inside the collider.
+            // Without this check, due to how the sector was positioned in initialization, units at the very edge of the sector will fail the circle -> line intersection check.
+            if (Extensions.IsVectorWithinRange(start, collider.Position, collider.CollisionRadius)
+                || Extensions.IsVectorWithinRange(end, collider.Position, collider.CollisionRadius))
             {
-                startPos = Parameters.BindObject.Position;
+                return true;
             }
 
-            // Get position of collider relative to polygon (including rotation).
-            var relativePos = (collider.Position - startPos).Rotate(angleDir + 270f);
-            return _clipperPoly.IsInside(relativePos);
+            // Get the current direction of the sector (negated and added 90 degrees for clockwise rotation of vertices)
+            var angleDir = -Extensions.UnitVectorToAngle(new Vector2(Direction.X, Direction.Z)) + 90f;
+
+            // This section checks if the any of the lines connecting each vertex intersect with the collider's collision radius.
+            var collision = false;
+            int next = 0;
+            for (int curr = 0; curr < _trueVertices.Length; curr++)
+            {
+                next = curr++;
+
+                // Last vertex connects to the first.
+                if (next == _trueVertices.Length)
+                {
+                    next = 0;
+                }
+
+                // Move to sector position, rotate with facing direction, then make collider.Position the origin for CircleLineIntersection.
+                var currVert = Position + _trueVertices[curr].Rotate(angleDir) - collider.Position;
+                var nextVert = Position + _trueVertices[next].Rotate(angleDir) - collider.Position;
+
+                // Then, for each vertex, check if it is colliding.
+                if (Extensions.IsVectorWithinRange(currVert, Vector2.Zero, collider.CollisionRadius)
+                    || Extensions.IsVectorWithinRange(nextVert, Vector2.Zero, collider.CollisionRadius))
+                {
+                    return true;
+                }
+
+                // Otherwise, we perform a circle -> line intersection check.
+                collision = Extensions.CircleLineIntersection(currVert, nextVert, collider.CollisionRadius).Count > 0;
+
+                if (collision)
+                {
+                    break;
+                }
+            }
+
+            return collision;
         }
 
         public override Vector2 GetTargetPosition()
         {
             if (Parameters.BindObject != null)
             {
-                // Center of polygon
-                return API.ApiFunctionManager.GetPointFromUnit(Parameters.BindObject, _trueLength / 2f);
+                return API.ApiFunctionManager.GetPointFromUnit(Parameters.BindObject, _trueHalfLength);
             }
 
             return new Vector2(CastInfo.SpellCastLaunchPosition.X, CastInfo.SpellCastLaunchPosition.Z);
-        }
-
-        public Vector2[] GetPolygonVertices()
-        {
-            return _trueVertices;
         }
     }
 }

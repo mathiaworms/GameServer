@@ -9,48 +9,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 {
     public class Minion : ObjAiBase, IMinion
     {
-        protected bool _aiPaused;
-
-        /// <summary>
-        /// Unit which spawned this minion.
-        /// </summary>
-        public IObjAiBase Owner { get; }
-        /// <summary>
-        /// Whether or not this minion is considered a clone of its owner.
-        /// </summary>
-        public bool IsClone { get; protected set; }
-        /// <summary>
-        /// Whether or not this minion should ignore collisions.
-        /// </summary>
-        public bool IgnoresCollision { get; protected set; }
-        /// <summary>
-        /// Whether or not this minion is considered a ward.
-        /// </summary>
-        public bool IsWard { get; protected set; }
-        /// <summary>
-        /// Whether or not this minion is a LaneMinion.
-        /// </summary>
-        public bool IsLaneMinion { get; protected set; }
-        /// <summary>
-        /// Whether or not this minion is considered a bot.
-        /// </summary>
-        public bool IsBot { get; protected set; }
-        /// <summary>
-        /// Whether or not this minion is considered a pet.
-        /// </summary>
-        public bool IsPet { get; protected set; }
-        /// <summary>
-        /// Whether or not this minion is targetable at all.
-        /// </summary>
-        public bool IsTargetable { get; protected set; }
-        /// <summary>
-        /// Internal name of the minion.
-        /// </summary>
         public string Name { get; protected set; }
-        /// <summary>
-        /// Only unit which is allowed to see this minion.
-        /// </summary>
-        public IObjAiBase VisibilityOwner { get; }
+        public IObjAiBase Owner { get; } // We'll probably want to change this in the future
+        public bool IsWard { get; protected set; }
+        public bool IsPet { get; protected set; }
+        public bool IsBot { get; protected set; }
+        public bool IsLaneMinion { get; protected set; }
+        public bool IsClone { get; protected set; }
+        protected bool _aiPaused;
 
         public Minion(
             Game game,
@@ -59,12 +25,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             string model,
             string name,
             uint netId = 0,
-            TeamId team = TeamId.TEAM_NEUTRAL,
-            int skinId = 0,
-            bool ignoreCollision = false,
-            bool targetable = true,
-            IObjAiBase visibilityOwner = null
-        ) : base(game, model, new Stats.Stats(), 40, position, 1100, skinId, netId, team)
+            TeamId team = TeamId.TEAM_NEUTRAL
+        ) : base(game, model, new Stats.Stats(), 40, position, 1100, netId, team)
         {
             Name = name;
 
@@ -81,21 +43,10 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             }
 
             IsLaneMinion = false;
-            IgnoresCollision = ignoreCollision;
-            if (IgnoresCollision)
-            {
-                SetStatus(StatusFlags.Ghosted, true);
-            }
 
-            IsTargetable = targetable;
-            if (!IsTargetable)
-            {
-                SetStatus(StatusFlags.Targetable, false);
-            }
+            SetVisibleByTeam(Team, true);
 
-            VisibilityOwner = visibilityOwner;
-
-            MoveOrder = OrderType.Stop;
+            MoveOrder = OrderType.MoveTo;
 
             Replication = new ReplicationMinion(this);
         }
@@ -108,6 +59,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         public override void OnAdded()
         {
             base.OnAdded();
+            _game.PacketNotifier.NotifySpawn(this);
         }
 
         public override void Update(float diff)
@@ -117,11 +69,13 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             {
                 if (MovementParameters != null || _aiPaused)
                 {
+                    Replication.Update();
                     return;
                 }
 
                 AIMove();
             }
+            Replication.Update();
         }
 
         public virtual bool AIMove()
@@ -140,7 +94,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         // AI tasks
         protected bool ScanForTargets()
         {
-            if (TargetUnit != null && !TargetUnit.IsDead)
+            if(TargetUnit != null && !TargetUnit.IsDead)
             {
                 return true;
             }
@@ -151,13 +105,11 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             //Find target closest to max attack range.
             foreach (var it in nearestObjects.OrderBy(x => Vector2.DistanceSquared(Position, x.Position) - (Stats.Range.Total * Stats.Range.Total)))
             {
-                if (!(it is IAttackableUnit u)
-                    || u.IsDead
-                    || u.Team == Team
-                    || Vector2.DistanceSquared(Position, u.Position) > DETECT_RANGE * DETECT_RANGE
-                    || !_game.ObjectManager.TeamHasVisionOn(Team, u)
-                    || !u.Status.HasFlag(StatusFlags.Targetable)
-                    || _game.ProtectionManager.IsProtected(u))
+                if (!(it is IAttackableUnit u) ||
+                    u.IsDead ||
+                    u.Team == Team ||
+                    Vector2.DistanceSquared(Position, u.Position) > DETECT_RANGE * DETECT_RANGE ||
+                    !_game.ObjectManager.TeamHasVisionOn(Team, u))
                 {
                     continue;
                 }

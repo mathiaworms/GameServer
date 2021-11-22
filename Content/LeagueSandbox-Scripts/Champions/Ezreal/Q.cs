@@ -8,7 +8,6 @@ using LeagueSandbox.GameServer.API;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
@@ -34,23 +33,14 @@ namespace Spells
 
         public void OnSpellCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner;
-            AddParticleTarget(owner, owner, "ezreal_bow.troy", owner, bone: "L_HAND");
+            AddParticleTarget(spell.CastInfo.Owner, spell.CastInfo.Owner, "ezreal_bow.troy", spell.CastInfo.Owner, 1.0f, bone: "L_HAND");
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
             var owner = spell.CastInfo.Owner as IChampion;
-            var ownerSkinID = owner.SkinID;
-            var targetPos = new Vector2(spell.CastInfo.TargetPosition.X, spell.CastInfo.TargetPosition.Z);
-            var ownerPos = owner.Position;
-            var distance = Vector2.Distance(ownerPos, targetPos);
-            FaceDirection(targetPos, owner);
-
-            if (distance > 1200.0)
-            {
-                targetPos = GetPointFromUnit(owner, 1150.0f);
-            }
+            var ownerSkinID = owner.Skin;
+            var targetPos = GetPointFromUnit(owner, 1150f);
 
             if (ownerSkinID == 5)
             {
@@ -91,11 +81,9 @@ namespace Spells
             // TODO
         };
 
-        //Vector2 direction;
-
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellMissileHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -106,23 +94,23 @@ namespace Spells
         {
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
         {
             var owner = spell.CastInfo.Owner;
             var ad = owner.Stats.AttackDamage.Total * spell.SpellData.AttackDamageCoefficient;
             var ap = owner.Stats.AbilityPower.Total * spell.SpellData.MagicDamageCoefficient;
             var damage = 15 + spell.CastInfo.SpellLevel * 20 + ad + ap;
+
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_ATTACK, false);
+            AddParticleTarget(owner, target, "Ezreal_mysticshot_tar.troy", target, 1f);
+            AddBuff("EzrealRisingSpellForce", 6f, 1, spell, owner, owner);
 
             for (byte i = 0; i < 4; i++)
             {
-                owner.Spells[i].LowerCooldown(1);
+                owner.Spells[i].LowerCooldown(1f);
             }
 
-            AddParticleTarget(owner, target, "Ezreal_mysticshot_tar.troy", target);
             missile.SetToRemove();
-
-            // SpellBuffAdd EzrealRisingSpellForce
         }
 
         public void OnSpellCast(ISpell spell)

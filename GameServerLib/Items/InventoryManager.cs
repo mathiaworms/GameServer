@@ -1,41 +1,22 @@
-﻿using System;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using GameServerCore.Domain;
-using GameServerCore.Domain.GameObjects;
-using GameServerCore.Packets.Interfaces;
-using LeagueSandbox.GameServer.Scripting.CSharp;
 
 namespace LeagueSandbox.GameServer.Items
 {
     public class InventoryManager : IInventoryManager
     {
-        private readonly IPacketNotifier _packetNotifier;
         private readonly Inventory _inventory;
 
-        private InventoryManager(IPacketNotifier packetNotifier, CSharpScriptEngine scriptEngine)
+        private InventoryManager()
         {
-            _packetNotifier = packetNotifier;
-            _inventory = new Inventory(this, scriptEngine);
+            _inventory = new Inventory(this);
         }
 
-        public KeyValuePair<IItem, bool> AddItem(IItemData itemData, IObjAiBase owner = null)
+        public IItem AddItem(IItemData item)
         {
-            var item = _inventory.AddItem(itemData, owner);
-            
-            if(item == null)
-            {
-                return KeyValuePair.Create(item, false);
-            }
-
-            if (owner is IChampion champion && item != null)
-            {
-                //This packet seems to break when buying more than 3 of one of the 250Gold elixirs
-                _packetNotifier.NotifyBuyItem((int)champion.GetPlayerId(), champion, item);
-            }
-            return KeyValuePair.Create(item, true);
+            return _inventory.AddItem(item);
         }
 
         public IItem SetExtraItem(byte slot, IItemData item)
@@ -48,53 +29,16 @@ namespace LeagueSandbox.GameServer.Items
             return _inventory.GetItem(slot);
         }
 
-        public IItem GetItem(string itemSpellName)
+        public void RemoveItem(byte slot)
         {
-            return _inventory.GetItem(itemSpellName);
+            _inventory.RemoveItem(slot);
         }
-        public bool RemoveItem(byte slot, IObjAiBase owner = null, int stacksToRemove = 1)
+
+        public void RemoveItem(IItem item)
         {
-            var item = _inventory.Items[slot];
-            if (item == null)
-            {
-                return false;
-            }
-
-            _inventory.RemoveItem(slot, owner, stacksToRemove);
-
-            if (owner != null)
-            {
-                item = _inventory.Items[slot];
-
-                byte stacks = 0;
-                if (item != null)
-                {
-                    stacks = (byte)item.StackCount;
-                }
-
-                _packetNotifier.NotifyRemoveItem(owner, slot, stacks);
-            }
-
-            return true;
+            _inventory.RemoveItem(item);
         }
-        public bool RemoveItem(IItem item, IObjAiBase owner = null, int stacksToRemove = 1)
-        {
-            var slot = _inventory.GetItemSlot(item);
 
-            if(_inventory.Items[slot] == null)
-            {
-                return false;
-            }
-
-            _inventory.RemoveItem(slot, owner, stacksToRemove);
-
-            if (owner != null)
-            {
-                _packetNotifier.NotifyRemoveItem(owner, slot, (byte)item.StackCount);
-            }
-
-            return true;
-        }
         public byte GetItemSlot(IItem item)
         {
             return _inventory.GetItemSlot(item);
@@ -110,7 +54,7 @@ namespace LeagueSandbox.GameServer.Items
             var tempInv = new List<IItem>(_inventory.GetBaseItems());
             return GetAvailableItemsRecursive(ref tempInv, items);
         }
-
+        
         private static List<IItem> GetAvailableItemsRecursive(ref List<IItem> inventoryState, IEnumerable<IItemData> items)
         {
             var result = new List<IItem>();
@@ -135,21 +79,14 @@ namespace LeagueSandbox.GameServer.Items
             return result;
         }
 
-        public static InventoryManager CreateInventory(IPacketNotifier packetNotifier, CSharpScriptEngine scriptEngine)
+        public static InventoryManager CreateInventory()
         {
-            return new InventoryManager(packetNotifier, scriptEngine);
+            return new InventoryManager();
         }
 
         public IEnumerator GetEnumerator()
         {
             return _inventory.Items.GetEnumerator();
-        }
-        public void OnUpdate(float diff)
-        {
-            foreach (var item in _inventory.ItemScripts)
-            {
-                item.Value.OnUpdate(diff);
-            }
         }
     }
 }

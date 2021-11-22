@@ -7,12 +7,10 @@ using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
-using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.Content;
 using LeagueSandbox.GameServer.GameObjects.Spell.Missile;
 using LeagueSandbox.GameServer.Items;
-using LeagueSandbox.GameServer.Scripting.CSharp;
 
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 {
@@ -25,9 +23,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         // Crucial Vars
         private float _autoAttackCurrentCooldown;
         private bool _skipNextAutoAttack;
-        private Random _random = new Random();
-        private readonly CSharpScriptEngine _charScriptEngine;
         protected ItemManager _itemManager;
+        private Random _random = new Random();
 
         /// <summary>
         /// Variable storing all the data related to this AI's current auto attack. *NOTE*: Will be deprecated as the spells system gets finished.
@@ -42,10 +39,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// </summary>
         /// TODO: Move to AttackableUnit as it relates to stats.
         public ICharData CharData { get; }
-        /// <summary>
-        /// The ID of the skin this unit should use for its model.
-        /// </summary>
-        public int SkinID { get; set; }
         public bool HasAutoAttacked { get; set; }
         /// <summary>
         /// Whether or not this AI has made their first auto attack against their current target. Refreshes after untargeting or targeting another unit.
@@ -80,21 +73,16 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// </summary>
         public IAttackableUnit TargetUnit { get; set; }
         public Dictionary<short, ISpell> Spells { get; }
-        public ICharScript CharScript { get; private set; }
 
         public ObjAiBase(Game game, string model, Stats.Stats stats, int collisionRadius = 40,
-            Vector2 position = new Vector2(), int visionRadius = 0, int skinId = 0, uint netId = 0, TeamId team = TeamId.TEAM_NEUTRAL) :
+            Vector2 position = new Vector2(), int visionRadius = 0, uint netId = 0, TeamId team = TeamId.TEAM_NEUTRAL) :
             base(game, model, stats, collisionRadius, position, visionRadius, netId, team)
         {
             _itemManager = game.ItemManager;
 
             CharData = _game.Config.ContentManager.GetCharData(Model);
 
-            SkinID = skinId;
-
             stats.LoadStats(CharData);
-
-            _charScriptEngine = game.ScriptEngine;
 
             // TODO: Centralize this instead of letting it lay in the initialization.
             if (CharData.PathfindingCollisionRadius > 0)
@@ -144,13 +132,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                         Spells[i] = new Spell.Spell(game, this, CharData.SpellNames[i], (byte)i);
                     }
                 }
-                //Passive
-                var passiveSpellName = "BaseSpell";
-                if (!string.IsNullOrEmpty(CharData.PassiveData.PassiveLuaName))
-                {
-                    passiveSpellName = CharData.PassiveData.PassiveLuaName;
-                }
-                Spells[(int)SpellSlotType.PassiveSpellSlot] = new Spell.Spell(game, this, passiveSpellName, (int)SpellSlotType.PassiveSpellSlot);
 
                 Spells[(int)SpellSlotType.SummonerSpellSlots] = new Spell.Spell(game, this, "BaseSpell", (int)SpellSlotType.SummonerSpellSlots);
                 Spells[(int)SpellSlotType.SummonerSpellSlots + 1] = new Spell.Spell(game, this, "BaseSpell", (int)SpellSlotType.SummonerSpellSlots + 1);
@@ -190,6 +171,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 Spells[(int)SpellSlotType.RespawnSpellSlot] = new Spell.Spell(game, this, "BaseSpell", (int)SpellSlotType.RespawnSpellSlot);
                 Spells[(int)SpellSlotType.UseSpellSlot] = new Spell.Spell(game, this, "BaseSpell", (int)SpellSlotType.UseSpellSlot);
 
+                var passiveSpellName = "BaseSpell";
+                if (!string.IsNullOrEmpty(CharData.Passive.PassiveAbilityName))
+                {
+                    passiveSpellName = CharData.Passive.PassiveAbilityName;
+                }
+
+                Spells[(int)SpellSlotType.PassiveSpellSlot] = new Spell.Spell(game, this, passiveSpellName, (int)SpellSlotType.PassiveSpellSlot);
+
                 // BasicAttackNormalSlots & BasicAttackCriticalSlots
                 // 64 - 72 & 73 - 81
                 for (short i = 0; i < CharData.AttackNames.Length; i++)
@@ -207,15 +196,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             {
                 IsMelee = true;
             }
-        }
-
-        /// <summary>
-        /// Loads the Passive Script
-        /// </summary>
-        public void LoadPassiveScript(ISpell spell)
-        {
-            CharScript = _charScriptEngine.CreateObject<ICharScript>("Passives", spell.SpellName) ?? new CharScriptEmpty();
-            CharScript.OnActivate(this, spell);
         }
 
         /// <summary>
@@ -248,16 +228,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         public override bool CanMove()
         {
             // TODO: Verify if Dashes should bypass this.
-            return !IsDead
-                // TODO: Verify if priority is still maintained with the MovementParameters checks.
-                && ((Status.HasFlag(StatusFlags.CanMove) && Status.HasFlag(StatusFlags.CanMoveEver)) || MovementParameters != null)
-                && (MoveOrder != OrderType.CastSpell || MovementParameters != null)
-                && (!(Status.HasFlag(StatusFlags.Netted)
-                || Status.HasFlag(StatusFlags.Rooted)
-                || Status.HasFlag(StatusFlags.Sleep)
-                || Status.HasFlag(StatusFlags.Stunned)
-                || Status.HasFlag(StatusFlags.Suppressed))
-                || MovementParameters != null);
+            return !(IsDead || MoveOrder == OrderType.CastSpell
+                    || !(Status.HasFlag(StatusFlags.CanMove) || Status.HasFlag(StatusFlags.CanMoveEver))
+                    || Status.HasFlag(StatusFlags.Immovable)
+                    || Status.HasFlag(StatusFlags.Netted)
+                    || Status.HasFlag(StatusFlags.Rooted)
+                    || Status.HasFlag(StatusFlags.Sleep)
+                    || Status.HasFlag(StatusFlags.Stunned)
+                    || Status.HasFlag(StatusFlags.Suppressed));
         }
 
         /// <summary>
@@ -431,7 +409,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             // TODO: Take into account the rest of the arguments
             MovementParameters = new ForceMovementParameters
             {
-                ElapsedTime = 0,
                 PathSpeedOverride = dashSpeed,
                 ParabolicGravity = leapGravity,
                 ParabolicStartPoint = Position,
@@ -441,6 +418,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 FollowBackDistance = backDistance,
                 FollowTravelTime = travelTime
             };
+            DashElapsedTime = 0;
 
             _game.PacketNotifier.NotifyWaypointGroupWithSpeed(this);
 
@@ -676,7 +654,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             }
 
             s.LevelUp();
-            ApiEventManager.OnLevelUpSpell.Publish(s);
+
             return s;
         }
 
@@ -690,8 +668,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             {
                 return;
             }
-            // Verify if we want to support removal/re-addition of character scripts.
-            //Removes normal Spells
             else
             {
                 Spells[slot].Deactivate();
@@ -830,11 +806,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// TODO: Remove Target class.
         public void SetTargetUnit(IAttackableUnit target, bool networked = false)
         {
-            if (target == null || target.IsDead || !target.Status.HasFlag(StatusFlags.Targetable))
-            {
-                target = null;
-            }
-
             TargetUnit = target;
 
             if (networked)
@@ -905,7 +876,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         public override void Update(float diff)
         {
             base.Update(diff);
-            CharScript.OnUpdate(diff);
+
             foreach (var s in Spells.Values)
             {
                 s.Update(diff);
@@ -1032,7 +1003,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 else
                 {
                     // Acquires the closest target.
-                    // TODO: Make a function which uses this method and use it for every case of target acquisition (ex minions, turrets, attackmove).
                     if (MoveOrder == OrderType.AttackMove)
                     {
                         var objects = _game.ObjectManager.GetObjects();
@@ -1045,17 +1015,11 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                             if (!(it.Value is IAttackableUnit u) ||
                                 u.IsDead ||
                                 u.Team == Team ||
-                                Vector2.DistanceSquared(Position, u.Position) > range * range ||
-                                !u.Status.HasFlag(StatusFlags.Targetable))
-                            {
+                                Vector2.DistanceSquared(Position, u.Position) > range * range)
                                 continue;
-                            }
 
                             if (!(Vector2.DistanceSquared(Position, u.Position) < distanceSqrToTarget))
-                            {
                                 continue;
-                            }
-
                             distanceSqrToTarget = Vector2.DistanceSquared(Position, u.Position);
                             nextTarget = u;
                         }

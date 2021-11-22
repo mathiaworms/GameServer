@@ -1,4 +1,3 @@
-using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
@@ -6,7 +5,7 @@ using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.API;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 
-namespace Buffs
+namespace Recall
 {
     class Recall : IBuffGameScript
     {
@@ -45,9 +44,9 @@ namespace Buffs
             RemoveParticle(_createdParticle);
         }
 
-        private void OnTakeDamage(IDamageData damageData)
+        public void OnTakeDamage(IAttackableUnit unit, IAttackableUnit source)
         {
-            var buff = damageData.Target.GetBuffWithName("Recall");
+            var buff = unit.GetBuffWithName("Recall");
             if (buff != null)
             {
                 buff.DeactivateBuff();

@@ -4,14 +4,14 @@ using GameServerCore.Domain.GameObjects.Spell;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
 
-namespace Buffs
+namespace Stun
 {
     internal class Stun : IBuffGameScript
     {
         public BuffType BuffType => BuffType.STUN;
         public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
         public int MaxStacks => 1;
-        public bool IsHidden => false;
+        public bool IsHidden => true;
 
         public IStatsModifier StatsModifier { get; private set; }
 
@@ -19,18 +19,17 @@ namespace Buffs
 
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            buff.SetStatusEffect(StatusFlags.Stunned, true);
-            stun = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "LOC_Stun.troy", unit, buff.Duration, bone: "head");
+            stun = AddParticleTarget(ownerSpell.CastInfo.Owner, null, "Global_Stun.troy", unit, buff.Duration, bone: "head");
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            buff.SetStatusEffect(StatusFlags.Stunned, false);
             RemoveParticle(stun);
         }
 
         public void OnUpdate(float diff)
         {
+
         }
     }
 }

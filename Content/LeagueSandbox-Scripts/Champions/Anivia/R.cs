@@ -8,7 +8,6 @@ using LeagueSandbox.GameServer.API;
 using System.Collections.Generic;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects.Spell.Missile;
 
 namespace Spells
 {
@@ -30,7 +29,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellSectorHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -59,7 +58,7 @@ namespace Spells
 
                 DamageSector = spell.CreateSpellSector(new SectorParameters
                 {
-                    Length = 400f,
+                    HalfLength = 400f,
                     Tickrate = 2,
                     CanHitSameTargetConsecutively = true,
                     OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
@@ -68,7 +67,7 @@ namespace Spells
 
                 SlowSector = spell.CreateSpellSector(new SectorParameters
                 {
-                    Length = 400f,
+                    HalfLength = 400f,
                     Tickrate = 4,
                     CanHitSameTargetConsecutively = true,
                     OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
@@ -77,7 +76,7 @@ namespace Spells
             }
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellSector sector)
         {
             if (!spell.CastInfo.Owner.HasBuff(thisBuff))
             {

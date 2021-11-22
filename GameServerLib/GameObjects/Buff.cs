@@ -7,7 +7,6 @@ using LeagueSandbox.GameServer.Scripting.CSharp;
 using LeagueSandbox.GameServer.GameObjects.Other;
 using LeagueSandbox.GameServer.API;
 using GameServerCore.Scripting.CSharp;
-using System.Collections.Generic;
 
 namespace LeagueSandbox.GameServer.GameObjects
 {
@@ -16,6 +15,7 @@ namespace LeagueSandbox.GameServer.GameObjects
         // Crucial Vars.
         private readonly Game _game;
         private readonly CSharpScriptEngine _scriptEngine;
+        private IBuffGameScript _buffGameScript;
 
         // Function Vars.
         private readonly bool _infiniteDuration;
@@ -28,19 +28,11 @@ namespace LeagueSandbox.GameServer.GameObjects
         public string Name { get; }
         public ISpell OriginSpell { get; }
         public byte Slot { get; private set; }
-        public IObjAiBase SourceUnit { get; }
+        public IAttackableUnit SourceUnit { get; }
         public IAttackableUnit TargetUnit { get; }
         public float TimeElapsed { get; private set; }
-        /// <summary>
-        /// Script instance for this buff. Casting to a specific buff class gives access its functions and variables.
-        /// </summary>
-        public IBuffGameScript BuffScript { get; private set; }
-        /// <summary>
-        /// All status effects applied by this buff.
-        /// </summary>
-        public Dictionary<StatusFlags, bool> StatusEffects { get; private set; }
 
-        public Buff(Game game, string buffName, float duration, int stacks, ISpell originSpell, IAttackableUnit onto, IObjAiBase from, bool infiniteDuration = false)
+        public Buff(Game game, string buffName, float duration, int stacks, ISpell originSpell, IAttackableUnit onto, IAttackableUnit from, bool infiniteDuration = false)
         {
             if (duration < 0)
             {
@@ -55,22 +47,22 @@ namespace LeagueSandbox.GameServer.GameObjects
 
             LoadScript();
 
-            BuffAddType = BuffScript.BuffAddType;
-            if (BuffAddType == (BuffAddType.STACKS_AND_RENEWS | BuffAddType.STACKS_AND_CONTINUE | BuffAddType.STACKS_AND_OVERLAPS) && BuffScript.MaxStacks < 2)
+            BuffAddType = _buffGameScript.BuffAddType;
+            if (BuffAddType == (BuffAddType.STACKS_AND_RENEWS | BuffAddType.STACKS_AND_CONTINUE | BuffAddType.STACKS_AND_OVERLAPS) && _buffGameScript.MaxStacks < 2)
             {
                 throw new ArgumentException("Error: Tried to create Stackable Buff, but MaxStacks was less than 2.");
             }
 
-            BuffType = BuffScript.BuffType;
+            BuffType = _buffGameScript.BuffType;
             Duration = duration;
-            IsHidden = BuffScript.IsHidden;
-            if (BuffScript.MaxStacks > 254 && BuffType != BuffType.COUNTER)
+            IsHidden = _buffGameScript.IsHidden;
+            if (_buffGameScript.MaxStacks > 254 && BuffType != BuffType.COUNTER)
             {
                 MaxStacks = 254;
             }
             else
             {
-                MaxStacks = Math.Min(BuffScript.MaxStacks, int.MaxValue);
+                MaxStacks = Math.Min(_buffGameScript.MaxStacks, int.MaxValue);
             }
             OriginSpell = originSpell;
             if (onto.HasBuff(Name) && BuffAddType == BuffAddType.STACKS_AND_OVERLAPS)
@@ -87,20 +79,19 @@ namespace LeagueSandbox.GameServer.GameObjects
             SourceUnit = from;
             TimeElapsed = 0;
             TargetUnit = onto;
-            StatusEffects = new Dictionary<StatusFlags, bool>();
         }
 
         public void LoadScript()
         {
-            ApiEventManager.RemoveAllListenersForOwner(BuffScript);
-            BuffScript = _scriptEngine.CreateObject<IBuffGameScript>("Buffs", Name) ?? new BuffScriptEmpty();
+            ApiEventManager.RemoveAllListenersForOwner(_buffGameScript);
+            _buffGameScript = _scriptEngine.CreateObject<IBuffGameScript>(Name, Name);
         }
 
         public void ActivateBuff()
         {
-            _remove = false;
+            _buffGameScript.OnActivate(TargetUnit, this, OriginSpell);
 
-            BuffScript.OnActivate(TargetUnit, this, OriginSpell);
+            _remove = false;
         }
 
         public void DeactivateBuff()
@@ -111,11 +102,11 @@ namespace LeagueSandbox.GameServer.GameObjects
             }
             _remove = true; // To prevent infinite loop with OnDeactivate calling events
 
-            BuffScript.OnDeactivate(TargetUnit, this, OriginSpell);
+            _buffGameScript.OnDeactivate(TargetUnit, this, OriginSpell);
 
-            if (BuffScript.StatsModifier != null)
+            if (_buffGameScript.StatsModifier != null)
             {
-                TargetUnit.RemoveStatModifier(BuffScript.StatsModifier);
+                TargetUnit.RemoveStatModifier(_buffGameScript.StatsModifier);
             }
         }
 
@@ -126,27 +117,7 @@ namespace LeagueSandbox.GameServer.GameObjects
 
         public IStatsModifier GetStatsModifier()
         {
-            return BuffScript.StatsModifier;
-        }
-
-        public void SetStatusEffect(StatusFlags flag, bool enabled)
-        {
-            // Loop over all possible status flags and assign them individually to the dictionary
-            for (int i = 0; i < 30; i++)
-            {
-                StatusFlags currentFlag = (StatusFlags)(1 << i);
-
-                if (flag.HasFlag(currentFlag))
-                {
-                    if (StatusEffects.ContainsKey(currentFlag))
-                    {
-                        StatusEffects[currentFlag] = enabled;
-                        continue;
-                    }
-
-                    StatusEffects.Add(currentFlag, enabled);
-                }
-            }
+            return _buffGameScript.StatsModifier;
         }
 
         public bool IsBuffInfinite()
@@ -179,7 +150,7 @@ namespace LeagueSandbox.GameServer.GameObjects
             TimeElapsed += diff / 1000.0f;
             if (Math.Abs(Duration) > Extensions.COMPARE_EPSILON)
             {
-                BuffScript?.OnUpdate(diff);
+                _buffGameScript?.OnUpdate(diff);
                 if (TimeElapsed >= Duration)
                 {
                     DeactivateBuff();

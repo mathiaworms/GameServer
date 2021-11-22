@@ -31,13 +31,9 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// </summary>
         public IGameObject TargetObject { get; }
         /// <summary>
-        /// Position this object is spawned at.
+        /// Position this object is spawned at. *NOTE*: Does not update. Refer to TargetObject.GetPosition() if particle is supposed to be attached.
         /// </summary>
-        public Vector2 StartPosition { get; private set; }
-        /// <summary>
-        /// Position this object is aimed at and/or moving towards.
-        /// </summary>
-        public Vector2 EndPosition { get; private set; }
+        public Vector2 TargetPosition { get; private set; }
         /// <summary>
         /// Client-sided, internal name of the bone that this particle should be attached to on the owner, for networking.
         /// </summary>
@@ -69,10 +65,6 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// Effectively uses the ground height for the end position.
         /// </summary>
         public bool FollowsGroundTilt { get; }
-        /// <summary>
-        /// Flags which determine how the particle behaves. Values unknown.
-        /// </summary>
-        public FXFlags Flags { get; }
 
         /// <summary>
         /// Prepares the Particle, setting up the information required for networking it to clients.
@@ -93,14 +85,13 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// <param name="reqVision">Whether or not the Particle is affected by vision checks.</param>
         /// <param name="autoSend">Whether or not to automatically send the Particle packet to clients.</param>
         /// <param name="teamOnly">The only team that should be able to see this particle.</param>
-        /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
-        public Particle(Game game, IGameObject caster, IGameObject bindObj, IGameObject target, string particleName, float scale = 1.0f, string boneName = "", string targetBoneName = "", uint netId = 0, Vector3 direction = new Vector3(), bool followGroundTilt = false, float lifetime = 0, bool reqVision = true, bool autoSend = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.GivenDirection)
+        public Particle(Game game, IGameObject caster, IGameObject bindObj, IGameObject target, string particleName, float scale = 1.0f, string boneName = "", string targetBoneName = "", uint netId = 0, Vector3 direction = new Vector3(), bool followGroundTilt = false, float lifetime = 0, bool reqVision = true, bool autoSend = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL)
                : base(game, target.Position, 0, 0, netId)
         {
             Caster = caster;
             BindObject = bindObj;
             TargetObject = target;
-            StartPosition = TargetObject.Position;
+            TargetPosition = TargetObject.Position;
             Name = particleName;
             BoneName = boneName;
             TargetBoneName = targetBoneName;
@@ -110,7 +101,6 @@ namespace LeagueSandbox.GameServer.GameObjects
             VisionAffected = reqVision;
             SpecificTeam = teamOnly;
             FollowsGroundTilt = followGroundTilt;
-            Flags = flags;
 
             _game.ObjectManager.AddObject(this);
 
@@ -139,8 +129,7 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// <param name="reqVision">Whether or not the Particle is affected by vision checks.</param>
         /// <param name="autoSend">Whether or not to automatically send the Particle packet to clients.</param>
         /// <param name="teamOnly">The only team that should be able to see this particle.</param>
-        /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
-        public Particle(Game game, IGameObject caster, IGameObject bindObj, Vector2 targetPos, string particleName, float scale = 1.0f, string boneName = "", string targetBoneName = "", uint netId = 0, Vector3 direction = new Vector3(), bool followGroundTilt = false, float lifetime = 0, bool reqVision = true, bool autoSend = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.GivenDirection)
+        public Particle(Game game, IGameObject caster, IGameObject bindObj, Vector2 targetPos, string particleName, float scale = 1.0f, string boneName = "", string targetBoneName = "", uint netId = 0, Vector3 direction = new Vector3(), bool followGroundTilt = false, float lifetime = 0, bool reqVision = true, bool autoSend = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL)
                : base(game, targetPos, 0, 0, netId, teamOnly)
         {
             Caster = caster;
@@ -152,7 +141,7 @@ namespace LeagueSandbox.GameServer.GameObjects
             }
 
             TargetObject = null;
-            StartPosition = targetPos;
+            TargetPosition = targetPos;
             Name = particleName;
             BoneName = boneName;
             TargetBoneName = targetBoneName;
@@ -162,55 +151,6 @@ namespace LeagueSandbox.GameServer.GameObjects
             VisionAffected = reqVision;
             SpecificTeam = teamOnly;
             FollowsGroundTilt = followGroundTilt;
-            Flags = flags;
-
-            _game.ObjectManager.AddObject(this);
-
-            if (autoSend)
-            {
-                _game.PacketNotifier.NotifyFXCreateGroup(this);
-            }
-        }
-
-        /// <summary>
-        /// Prepares the Particle, setting up the information required for networking it to clients.
-        /// This particle will spawn and stay at the specified position.
-        /// </summary>
-        /// <param name="game">Game instance.</param>
-        /// <param name="caster">GameObject that caused this particle to spawn.</param>
-        /// <param name="startPos">Position the particle will spawn at.</param>
-        /// <param name="endPos">Position the particle will end at.</param>
-        /// <param name="particleName">Name used by League of Legends interally (ex: DebugCircle.troy).</param>
-        /// <param name="scale">Scale of the Particle.</param>
-        /// <param name="boneName">Name used by League of Legends internally where the Particle should be attached. Only useful when the target is a GameObject.</param>
-        /// <param name="targetBoneName">Bone of the target to attach to.</param>
-        /// <param name="netId">NetID that should be forced onto the Particle. *NOTE*: Exceptions unhandled, expect crashes if NetID is already owned by a GameObject.</param>
-        /// <param name="direction">3 dimensional vector representing the particle's orientation; unit vector forward.</param>
-        /// <param name="followGroundTilt">Whether or not the particle should be titled along the ground towards its end position.</param>
-        /// <param name="lifetime">Number of seconds the Particle should exist.</param>
-        /// <param name="reqVision">Whether or not the Particle is affected by vision checks.</param>
-        /// <param name="autoSend">Whether or not to automatically send the Particle packet to clients.</param>
-        /// <param name="teamOnly">The only team that should be able to see this particle.</param>
-        /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
-        public Particle(Game game, IGameObject caster, Vector2 startPos, Vector2 endPos, string particleName, float scale = 1.0f, string boneName = "", string targetBoneName = "", uint netId = 0, Vector3 direction = new Vector3(), bool followGroundTilt = false, float lifetime = 0, bool reqVision = true, bool autoSend = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.GivenDirection)
-               : base(game, startPos, 0, 0, netId, teamOnly)
-        {
-            Caster = caster;
-
-            BindObject = null;
-            TargetObject = null;
-            StartPosition = startPos;
-            EndPosition = endPos;
-            Name = particleName;
-            BoneName = boneName;
-            TargetBoneName = targetBoneName;
-            Scale = scale;
-            Direction = direction;
-            Lifetime = lifetime;
-            VisionAffected = reqVision;
-            SpecificTeam = teamOnly;
-            FollowsGroundTilt = followGroundTilt;
-            Flags = flags;
 
             _game.ObjectManager.AddObject(this);
 

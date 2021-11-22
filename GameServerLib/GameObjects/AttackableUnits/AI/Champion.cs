@@ -8,7 +8,6 @@ using GameServerCore.NetInfo;
 using GameServerCore.Enums;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using LeagueSandbox.GameServer.Items;
-using LeagueSandbox.GameServer.API;
 
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 {
@@ -21,6 +20,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         public IChampionStats ChampStats { get; private set; } = new ChampionStats();
 
         public byte SkillPoints { get; set; }
+        public int Skin { get; set; }
 
         private float _championHitFlagTimer;
         /// <summary>
@@ -42,17 +42,17 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                         ClientInfo clientInfo,
                         uint netId = 0,
                         TeamId team = TeamId.TEAM_BLUE)
-            : base(game, model, new Stats.Stats(), 30, new Vector2(), 1200, clientInfo.SkinNo, netId, team)
+            : base(game, model, new Stats.Stats(), 30, new Vector2(), 1200, netId, team)
         {
             _playerId = playerId;
             _playerTeamSpecialId = playerTeamSpecialId;
             RuneList = runeList;
 
-            Inventory = InventoryManager.CreateInventory(game.PacketNotifier, game.ScriptEngine);
+            Inventory = InventoryManager.CreateInventory();
             Shop = Items.Shop.CreateShop(this, game);
 
-            Stats.Gold = _game.Map.MapScript.StartingGold;
-            Stats.GoldPerSecond.BaseValue = _game.Map.MapScript.GoldPerSecond;
+            Stats.Gold = _game.Map.MapProperties.StartingGold;
+            Stats.GoldPerSecond.BaseValue = _game.Map.MapProperties.GoldPerSecond;
             Stats.IsGeneratingGold = false;
 
             //TODO: automaticaly rise spell levels with CharData.SpellLevelsUp
@@ -117,10 +117,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             return 0;
         }
-        public uint GetPlayerId()
-        {
-            return _playerId;
-        }
 
         public Vector2 GetSpawnPosition()
         {
@@ -180,7 +176,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         {
             base.Update(diff);
 
-            if (!Stats.IsGeneratingGold && _game.GameTime >= _game.Map.MapScript.FirstGoldTime)
+            if (!Stats.IsGeneratingGold && _game.GameTime >= _game.Map.MapProperties.FirstGoldTime)
             {
                 Stats.IsGeneratingGold = true;
                 Logger.Debug("Generating Gold!");
@@ -197,7 +193,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             if (LevelUp())
             {
-                ApiEventManager.OnLevelUp.Publish(this);
                 _game.PacketNotifier.NotifyNPC_LevelUp(this);
                 // TODO: send this in one place only
                 _game.PacketNotifier.NotifyUpdatedStats(this, false);
@@ -211,24 +206,18 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                     _championHitFlagTimer = 0;
                 }
             }
+            Replication.Update();
         }
 
         public void Respawn()
         {
             var spawnPos = GetRespawnPosition();
             SetPosition(spawnPos.X, spawnPos.Y);
-            float parToRestore = 0;
-            // TODO: Find a better way to do this, perhaps through scripts. Otherwise, make sure all types are accounted for.
-            if (Stats.ParType == PrimaryAbilityResourceType.MANA || Stats.ParType == PrimaryAbilityResourceType.Energy || Stats.ParType == PrimaryAbilityResourceType.Wind   )
-            {
-                parToRestore = Stats.ManaPoints.Total;
-            }
-            _game.PacketNotifier.NotifyHeroReincarnateAlive(this, parToRestore);
+            _game.PacketNotifier.NotifyChampionRespawn(this);
             Stats.CurrentHealth = Stats.HealthPoints.Total;
-            Stats.CurrentMana = parToRestore;
+            Stats.CurrentMana = Stats.HealthPoints.Total;
             IsDead = false;
             RespawnTimer = -1;
-            ApiEventManager.OnResurrect.Publish(this);
         }
 
         public bool OnDisconnect()
@@ -266,24 +255,24 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             return false;
         }
 
-        public void OnKill(IDeathData deathData)
+        public void OnKill(IAttackableUnit killed)
         {
-            if (deathData.Unit is IMinion)
+            if (killed is IMinion)
             {
                 ChampStats.MinionsKilled += 1;
-                if (deathData.Unit.Team == TeamId.TEAM_NEUTRAL)
+                if (killed.Team == TeamId.TEAM_NEUTRAL)
                 {
                     ChampStats.NeutralMinionsKilled += 1;
                 }
 
-                var gold = _game.Map.MapScript.GetGoldFor(deathData.Unit);
+                var gold = _game.Map.MapProperties.GetGoldFor(killed);
                 if (gold <= 0)
                 {
                     return;
                 }
 
                 Stats.Gold += gold;
-                _game.PacketNotifier.NotifyUnitAddGold(this, deathData.Unit, gold);
+                _game.PacketNotifier.NotifyAddGold(this, killed, gold);
 
                 if (KillDeathCounter < 0)
                 {
@@ -297,19 +286,16 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                     KillDeathCounter += 1;
                 }
             }
-            ApiEventManager.OnKillUnit.Publish(deathData);
         }
 
-        public override void Die(IDeathData data)
+        public override void Die(IAttackableUnit killer)
         {
-            ApiEventManager.OnDeath.Publish(data);
-
             RespawnTimer = _game.Config.MapData.DeathTimes[Stats.Level] * 1000.0f;
             ChampStats.Deaths += 1;
 
-            _game.PacketNotifier.NotifyUnitAnnounceEvent(UnitAnnounces.DEATH, this, data.Killer);
+            _game.PacketNotifier.NotifyUnitAnnounceEvent(UnitAnnounces.DEATH, this, killer);
 
-            var cKiller = data.Killer as IChampion;
+            var cKiller = killer as IChampion;
 
             if (cKiller == null && _championHitFlagTimer > 0)
             {
@@ -319,17 +305,15 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             if (cKiller == null)
             {
-                _game.PacketNotifier.NotifyNPC_Hero_Die(data);
+                _game.PacketNotifier.NotifyChampionDie(this, killer, 0);
                 return;
             }
-
-            ApiEventManager.OnKill.Publish(data);
 
             cKiller.ChampionGoldFromMinions = 0;
             cKiller.ChampStats.Kills += 1;
             // TODO: add assists
 
-            var gold = _game.Map.MapScript.GetGoldFor(this);
+            var gold = _game.Map.MapProperties.GetGoldFor(this);
             Logger.Debug($"Before: getGoldFromChamp: {gold} Killer: {cKiller.KillDeathCounter} Victim {KillDeathCounter}");
 
             if (cKiller.KillDeathCounter < 0)
@@ -346,27 +330,27 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             if (gold < 0)
             {
-                _game.PacketNotifier.NotifyNPC_Hero_Die(data);
+                _game.PacketNotifier.NotifyChampionDie(this, cKiller, 0);
                 return;
             }
 
-            if (_game.Map.MapScript.IsKillGoldRewardReductionActive
-                && _game.Map.MapScript.HasFirstBloodHappened)
+            if (_game.Map.MapProperties.IsKillGoldRewardReductionActive
+                && _game.Map.MapProperties.HasFirstBloodHappened)
             {
                 gold -= gold * 0.25f;
                 //CORE_INFO("Still some minutes for full gold reward on champion kills");
             }
 
-            if (!_game.Map.MapScript.HasFirstBloodHappened)
+            if (!_game.Map.MapProperties.HasFirstBloodHappened)
             {
                 gold += 100;
-                _game.Map.MapScript.HasFirstBloodHappened = true;
+                _game.Map.MapProperties.HasFirstBloodHappened = true;
             }
 
-            _game.PacketNotifier.NotifyNPC_Hero_Die(data);
+            _game.PacketNotifier.NotifyChampionDie(this, cKiller, (int)gold);
 
             cKiller.Stats.Gold = cKiller.Stats.Gold + gold;
-            _game.PacketNotifier.NotifyUnitAddGold(cKiller, this, gold);
+            _game.PacketNotifier.NotifyAddGold(cKiller, this, gold);
             //CORE_INFO("After: getGoldFromChamp: %f Killer: %i Victim: %i", gold, cKiller.killDeathCounter,this.killDeathCounter);
 
             _game.ObjectManager.StopTargeting(this);
@@ -383,7 +367,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
         public void UpdateSkin(int skinNo)
         {
-            SkinID = skinNo;
+            Skin = skinNo;
         }
     }
 }

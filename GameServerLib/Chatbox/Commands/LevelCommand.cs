@@ -1,5 +1,4 @@
 ﻿using GameServerCore;
-using GameServerCore.Domain;
 
 namespace LeagueSandbox.GameServer.Chatbox.Commands
 {
@@ -9,7 +8,7 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
 
         public override string Command => "level";
         public override string Syntax => $"{Command} level";
-        private readonly IMapData _mapData;
+        private readonly MapData _mapData;
 
         public LevelCommand(ChatCommandManager chatCommandManager, Game game)
             : base(chatCommandManager, game)

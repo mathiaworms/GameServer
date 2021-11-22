@@ -1,7 +1,7 @@
 ﻿using System;
-using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
+using LeagueSandbox.GameServer.Content;
 
 namespace LeagueSandbox.GameServer.GameObjects.Stats
 {
@@ -78,7 +78,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Stats
         {
             SpellCostReduction = 0;
             ManaCost = new float[64];
-            ActionState = ActionState.CAN_ATTACK | ActionState.CAN_CAST | ActionState.CAN_MOVE | ActionState.TARGETABLE;
+            ActionState = ActionState.CAN_ATTACK | ActionState.CAN_CAST | ActionState.CAN_MOVE | ActionState.UNKNOWN;
             IsTargetable = true;
             IsTargetableToTeam = SpellDataFlags.TargetableToAll;
 
@@ -269,35 +269,6 @@ namespace LeagueSandbox.GameServer.GameObjects.Stats
         public bool GetActionState(ActionState state)
         {
             return ActionState.HasFlag(state);
-        }
-
-        public float GetPostMitigationDamage(float damage, DamageType type, IAttackableUnit attacker)
-        {
-            float defense = 0;
-            switch (type)
-            {
-                case DamageType.DAMAGE_TYPE_PHYSICAL:
-                    defense = Armor.Total;
-                    defense = (1 - attacker.Stats.ArmorPenetration.PercentBonus) * defense -
-                              attacker.Stats.ArmorPenetration.FlatBonus;
-
-                    break;
-                case DamageType.DAMAGE_TYPE_MAGICAL:
-                    defense = MagicResist.Total;
-                    defense = (1 - attacker.Stats.MagicPenetration.PercentBonus) * defense -
-                              attacker.Stats.MagicPenetration.FlatBonus;
-                    break;
-                case DamageType.DAMAGE_TYPE_TRUE:
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(type), type, null);
-            }
-            if (damage < 0f)
-            {
-                damage = 0f;
-            }
-            damage = defense >= 0 ? 100 / (100 + defense) * damage : (2 - 100 / (100 - defense)) * damage;
-            return damage;
         }
 
         public void SetActionState(ActionState state, bool enabled)

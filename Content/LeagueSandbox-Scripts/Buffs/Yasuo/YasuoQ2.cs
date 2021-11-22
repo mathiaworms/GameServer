@@ -4,7 +4,7 @@ using GameServerCore.Enums;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
 
-namespace Buffs
+namespace YasuoQ02
 {
     internal class YasuoQ02 : IBuffGameScript
     {

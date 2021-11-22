@@ -50,6 +50,11 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         IForceMovementParameters MovementParameters { get; }
         /// <summary>
+        /// Amount of time passed since the unit started dashing.
+        /// </summary>
+        /// TODO: Implement a dash class so dash based variables and functions can be separate from units.
+        float DashElapsedTime { get; set; }
+        /// <summary>
         /// Stats used purely in networking the accompishments or status of units and their gameplay affecting stats.
         /// </summary>
         IReplication Replication { get; }
@@ -81,6 +86,11 @@ namespace GameServerCore.Domain.GameObjects
         /// <param name="team">TeamId to check for.</param>
         /// <returns>True/False.</returns>
         bool GetIsTargetableToTeam(TeamId team);
+        /// <summary>
+        /// Sets whether or not this unit should be targetable.
+        /// </summary>
+        /// <param name="targetable">True/False.</param>
+        void SetIsTargetable(bool targetable);
         /// <summary>
         /// Sets whether or not this unit is targetable to the specified team.
         /// </summary>
@@ -124,8 +134,8 @@ namespace GameServerCore.Domain.GameObjects
         /// <summary>
         /// Called when this unit dies.
         /// </summary>
-        /// <param name="data">Data of the death.</param>
-        void Die(IDeathData data);
+        /// <param name="killer">Unit that killed this unit.</param>
+        void Die(IAttackableUnit killer);
         /// <summary>
         /// Sets this unit's current model to the specified internally named model. *NOTE*: If the model is not present in the client files, all connected players will crash.
         /// </summary>

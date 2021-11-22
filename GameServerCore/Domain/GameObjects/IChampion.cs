@@ -9,17 +9,17 @@ namespace GameServerCore.Domain.GameObjects
         float RespawnTimer { get; }
         float ChampionGoldFromMinions { get; set; }
         IRuneCollection RuneList { get; }
+        int Skin { get; }
         IChampionStats ChampStats { get; }
         byte SkillPoints { get; set; }
 
         // basic
         void UpdateSkin(int skinNo);
-        uint GetPlayerId();
         bool LevelUp();
         void Recall();
         void Respawn();
         bool OnDisconnect();
 
-        void OnKill(IDeathData deathData);
+        void OnKill(IAttackableUnit killed);
     }
 }

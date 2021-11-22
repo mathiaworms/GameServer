@@ -1,6 +1,6 @@
 ﻿using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
-using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.Content;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -25,10 +25,6 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         /// TODO: Move to AttackableUnit as it relates to stats..
         ICharData CharData { get; }
-        /// <summary>
-        /// The ID of the skin this unit should use for its model.
-        /// </summary>
-        int SkinID { get; }
         /// <summary>
         /// Whether or not this AI has finished an auto attack.
         /// </summary>
@@ -61,13 +57,11 @@ namespace GameServerCore.Domain.GameObjects
         OrderType MoveOrder { get; }
         bool IsNextAutoCrit { get; }
         Dictionary<short, ISpell> Spells { get; }
-        ICharScript CharScript { get; }
         /// <summary>
         /// Unit this AI will auto attack when it is in auto attack range.
         /// </summary>
-        IAttackableUnit TargetUnit { get; set; }
+        IAttackableUnit TargetUnit { get; set;  }
 
-        void LoadPassiveScript(ISpell spell);
         /// <summary>
         /// Function called by this AI's auto attack projectile when it hits its target.
         /// </summary>

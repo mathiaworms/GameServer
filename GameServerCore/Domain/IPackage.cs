@@ -1,5 +1,6 @@
 ﻿using GameServerCore.Content;
 using GameServerCore.Domain.GameObjects.Spell;
+using LeagueSandbox.GameServer.Content;
 
 namespace GameServerCore.Domain
 {

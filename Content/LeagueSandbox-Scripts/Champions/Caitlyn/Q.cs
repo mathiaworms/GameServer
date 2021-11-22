@@ -9,7 +9,6 @@ using GameServerCore.Domain.GameObjects.Spell.Missile;
 using LeagueSandbox.GameServer.API;
 using System.Collections.Generic;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
@@ -27,19 +26,22 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellMissileHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
         {
             if (missile is ISpellCircleMissile skillshot)
             {
                 var owner = spell.CastInfo.Owner;
                 var reduc = Math.Min(skillshot.ObjectsHit.Count, 5);
-                var baseDamage = new[] { 20, 60, 100, 140, 180 }[spell.CastInfo.SpellLevel - 1] +
-                                 1.3f * owner.Stats.AttackDamage.Total;
+                var ADratio = owner.Stats.AttackDamage.Total * 1.3f;
+                var baseDamage = -20 + (40 * spell.CastInfo.SpellLevel) + ADratio;
                 var damage = baseDamage * (1 - reduc / 10);
+
                 target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+                AddParticleTarget(owner, target, "caitlyn_peaceMaker_tar.troy", target, lifetime: 1f);
+                AddParticleTarget(owner, target, "caitlyn_peaceMaker_tar_02.troy", target, lifetime: 1f);
             }
         }
 

@@ -11,7 +11,6 @@ using LeagueSandbox.GameServer.Content;
 
 namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
 {
-    // TODO: Complete this. Arc missiles have rotational velocity, and follow a repeating pattern similar to a wave function.
     public class SpellLineMissile : SpellCircleMissile, ISpellLineMissile
     {
         // Function Vars.
@@ -25,13 +24,39 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
             ISpell originSpell,
             ICastInfo castInfo,
             float moveSpeed,
-            Vector2 overrideEndPos,
             SpellDataFlags overrideFlags = 0, // TODO: Find a use for these
             uint netId = 0,
             bool serverOnly = false
-        ) : base(game, collisionRadius, originSpell, castInfo, moveSpeed, overrideEndPos, overrideFlags, netId, serverOnly)
+        ) : base(game, collisionRadius, originSpell, castInfo, moveSpeed, overrideFlags, netId, serverOnly)
         {
-            // Basic functionality of end position is done already by SpellCircleMissile.
+            // TODO: Verify if there is a case which contradicts this.
+            // Line and Circle Missiles are location targeted only.
+            TargetUnit = null;
+
+            Position = new Vector2(castInfo.SpellCastLaunchPosition.X, castInfo.SpellCastLaunchPosition.Z);
+
+            var goingTo = new Vector2(castInfo.TargetPositionEnd.X, castInfo.TargetPositionEnd.Z) - Position;
+            var dirTemp = Vector2.Normalize(goingTo);
+            var endPos = Position + (dirTemp * SpellOrigin.GetCurrentCastRange());
+
+            // usually doesn't happen
+            if (float.IsNaN(dirTemp.X) || float.IsNaN(dirTemp.Y))
+            {
+                if (float.IsNaN(CastInfo.Owner.Direction.X) || float.IsNaN(CastInfo.Owner.Direction.Y))
+                {
+                    dirTemp = new Vector2(1, 0);
+                }
+                else
+                {
+                    dirTemp = new Vector2(CastInfo.Owner.Direction.X, CastInfo.Owner.Direction.Z);
+                }
+
+                endPos = Position + (dirTemp * SpellOrigin.GetCurrentCastRange());
+                CastInfo.TargetPositionEnd = new Vector3(endPos.X, 0, endPos.Y);
+            }
+
+            // TODO: Verify if CastRangeDisplayOverride is the correct variable to use.
+            Destination = endPos;
         }
 
         public override void Update(float diff)

@@ -9,7 +9,6 @@ using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
 using GameServerCore.Enums;
-using GameServerLib.GameObjects.AttackableUnits;
 using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.Logging;
 using log4net;
@@ -25,7 +24,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         // Crucial Vars.
         private float _statUpdateTimer;
         private object _buffsLock;
-        private IDeathData _death;
 
         // Utility Vars.
         internal const float DETECT_RANGE = 475.0f;
@@ -101,6 +99,11 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         /// Parameters of any forced movements (dashes) this unit is performing.
         /// </summary>
         public IForceMovementParameters MovementParameters { get; protected set; }
+        /// <summary>
+        /// Amount of time passed since the unit started dashing.
+        /// </summary>
+        /// TODO: Implement a dash class so dash based variables and functions can be separate from units.
+        public float DashElapsedTime { get; set; }
 
         public AttackableUnit(
             Game game,
@@ -119,7 +122,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             Model = model;
             Waypoints = new List<Vector2> { Position };
             CurrentWaypoint = new KeyValuePair<int, Vector2>(1, Position);
-            Status = StatusFlags.CanAttack | StatusFlags.CanCast | StatusFlags.CanMove | StatusFlags.CanMoveEver | StatusFlags.Targetable;
+            Status = StatusFlags.CanAttack | StatusFlags.CanCast | StatusFlags.CanMove | StatusFlags.CanMoveEver;
             MovementParameters = null;
             Stats.AttackSpeedMultiplier.BaseValue = 1.0f;
 
@@ -147,13 +150,13 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             if (this is IChampion c)
             {
                 var szSkin = "";
-                if (c.SkinID < 10)
+                if (c.Skin < 10)
                 {
-                    szSkin = "0" + c.SkinID;
+                    szSkin = "0" + c.Skin;
                 }
                 else
                 {
-                    szSkin = c.SkinID.ToString();
+                    szSkin = c.Skin.ToString();
                 }
                 gobj += szSkin;
             }
@@ -204,9 +207,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             var onUpdate = _game.ScriptEngine.GetStaticMethod<Action<IAttackableUnit, double>>(Model, "Passive", "OnUpdate");
             onUpdate?.Invoke(this, diff);
 
-            Replication.Update();
-
-            if (Waypoints.Count > 1 && CanMove())
+            if (Waypoints.Count > 1)
             {
                 Move(diff);
             }
@@ -219,20 +220,12 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                     return;
                 }
 
-                MovementParameters.SetTimeElapsed(MovementParameters.ElapsedTime + diff);
-                if (MovementParameters.ElapsedTime >= MovementParameters.FollowTravelTime)
+                DashElapsedTime += diff;
+                if (DashElapsedTime >= MovementParameters.FollowTravelTime)
                 {
                     SetDashingState(false);
                 }
             }
-
-            if (IsDead && _death != null)
-            {
-                Die(_death);
-                _death = null;
-            }
-
-            UpdateStatus();
         }
 
         public override void OnRemoved()
@@ -248,8 +241,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         /// <param name="isTerrain">Whether or not this AI collided with terrain.</param>
         public override void OnCollision(IGameObject collider, bool isTerrain = false)
         {
-            // We do not want to teleport out of missiles, sectors, owned regions, or buildings. Buildings in particular are already baked into the Navigation Grid.
-            if (collider is ISpellMissile || collider is ISpellSector || collider is IObjBuilding || (collider is IRegion region && (region.CollisionUnit == this || !region.HasCollision)))
+            // We do not want to teleport out of missiles, sectors, or buildings. Buildings in particular are already baked into the Navigation Grid.
+            if (collider is ISpellMissile || collider is ISpellSector || collider is IObjBuilding)
             {
                 return;
             }
@@ -275,13 +268,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 var onCollide = _game.ScriptEngine.GetStaticMethod<Action<IAttackableUnit, IGameObject>>(Model, "Passive", "onCollide");
                 onCollide?.Invoke(this, collider);
 
-                if (MovementParameters != null || Status.HasFlag(StatusFlags.Ghosted)
-                    || (collider is IAttackableUnit unit &&
-                    (unit.MovementParameters != null || unit.Status.HasFlag(StatusFlags.Ghosted))))
-                {
-                    return;
-                }
-
                 // We should not teleport here because Pathfinding should handle it.
                 // TODO: Implement a PathfindingHandler, and remove currently implemented manual pathfinding.
                 Vector2 exit = Extensions.GetCircleEscapePoint(Position, CollisionRadius + 1, collider.Position, collider.CollisionRadius);
@@ -296,7 +282,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         /// <returns>True/False.</returns>
         public bool GetIsTargetableToTeam(TeamId team)
         {
-            if (!Status.HasFlag(StatusFlags.Targetable))
+            if (!Stats.IsTargetable)
             {
                 return false;
             }
@@ -307,6 +293,15 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             }
 
             return !Stats.IsTargetableToTeam.HasFlag(SpellDataFlags.NonTargetableEnemy);
+        }
+
+        /// <summary>
+        /// Sets whether or not this unit should be targetable.
+        /// </summary>
+        /// <param name="targetable">True/False.</param>
+        public void SetIsTargetable(bool targetable)
+        {
+            Stats.IsTargetable = targetable;
         }
 
         /// <summary>
@@ -370,9 +365,28 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         public virtual void TakeDamage(IAttackableUnit attacker, float damage, DamageType type, DamageSource source,
             DamageResultType damageText)
         {
+            float defense = 0;
             float regain = 0;
             var attackerStats = attacker.Stats;
-            float postMitigationDamage = Stats.GetPostMitigationDamage(damage, type, attacker);
+
+            switch (type)
+            {
+                case DamageType.DAMAGE_TYPE_PHYSICAL:
+                    defense = Stats.Armor.Total;
+                    defense = (1 - attackerStats.ArmorPenetration.PercentBonus) * defense -
+                              attackerStats.ArmorPenetration.FlatBonus;
+
+                    break;
+                case DamageType.DAMAGE_TYPE_MAGICAL:
+                    defense = Stats.MagicResist.Total;
+                    defense = (1 - attackerStats.MagicPenetration.PercentBonus) * defense -
+                              attackerStats.MagicPenetration.FlatBonus;
+                    break;
+                case DamageType.DAMAGE_TYPE_TRUE:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(type), type, null);
+            }
 
             switch (source)
             {
@@ -406,36 +420,23 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                     throw new ArgumentOutOfRangeException(nameof(source), source, null);
             }
 
-            IDamageData damageData = new DamageData
+            if (damage < 0f)
             {
-                IsAutoAttack = source == DamageSource.DAMAGE_SOURCE_ATTACK,
-                Attacker = attacker,
-                Target = this,
-                Damage = damage,
-                PostMitigationdDamage = postMitigationDamage,
-                DamageSource = source,
-                DamageType = type,
-            };
+                damage = 0f;
+            }
+            else
+            {
+                //Damage dealing. (based on leagueoflegends' wikia)
+                damage = defense >= 0 ? 100 / (100 + defense) * damage : (2 - 100 / (100 - defense)) * damage;
+            }
 
-            ApiEventManager.OnPreTakeDamage.Publish(damageData);
+            ApiEventManager.OnTakeDamage.Publish(this, attacker);
 
-            Stats.CurrentHealth = Math.Max(0.0f, Stats.CurrentHealth - postMitigationDamage);
-
-            ApiEventManager.OnTakeDamage.Publish(damageData);
-
+            Stats.CurrentHealth = Math.Max(0.0f, Stats.CurrentHealth - damage);
             if (!IsDead && Stats.CurrentHealth <= 0)
             {
                 IsDead = true;
-                _death = new DeathData
-                {
-                    BecomeZombie = false, // TODO: Unhardcode
-                    DieType = 0, // TODO: Unhardcode
-                    Unit = this,
-                    Killer = attacker,
-                    DamageType = type,
-                    DamageSource = source,
-                    DeathDuration = 0 // TODO: Unhardcode
-                };
+                Die(attacker);
             }
 
             int attackerId = 0, targetId = 0;
@@ -456,11 +457,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 attackerId = (int)_game.PlayerManager.GetClientInfoByChampion((IChampion)attackerMinion.Owner).PlayerId;
             }
 
-            if (attacker.Team != Team)
-            {
-                _game.PacketNotifier.NotifyUnitApplyDamage(attacker, this, postMitigationDamage, type, damageText,
-                    _game.Config.IsDamageTextGlobal, attackerId, targetId);
-            }
+            _game.PacketNotifier.NotifyUnitApplyDamage(attacker, this, damage, type, damageText,
+                _game.Config.IsDamageTextGlobal, attackerId, targetId);
 
             // TODO: send this in one place only
             _game.PacketNotifier.NotifyUpdatedStats(this, false);
@@ -469,7 +467,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             if (regain > 0)
             {
                 attackerStats.CurrentHealth = Math.Min(attackerStats.HealthPoints.Total,
-                    attackerStats.CurrentHealth + regain * postMitigationDamage);
+                    attackerStats.CurrentHealth + regain * damage);
                 // TODO: send this in one place only (preferably a central EventHandler class)
                 _game.PacketNotifier.NotifyUpdatedStats(attacker, false);
             }
@@ -508,20 +506,22 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         /// <summary>
         /// Function called when this unit's health drops to 0 or less.
         /// </summary>
-        /// <param name="data">Data of the death.</param>
-        public virtual void Die(IDeathData data)
+        /// <param name="killer">Unit which killed this unit.</param>
+        public virtual void Die(IAttackableUnit killer)
         {
             _game.ObjectManager.StopTargeting(this);
 
             if (!IsToRemove())
             {
-                _game.PacketNotifier.NotifyS2C_NPC_Die_MapView(data);
+                _game.PacketNotifier.NotifyNpcDie(this, killer);
             }
 
             SetToRemove();
 
-            ApiEventManager.OnDeath.Publish(data);
-            var exp = _game.Map.MapScript.GetExperienceFor(this);
+            var onDie = _game.ScriptEngine.GetStaticMethod<Action<IAttackableUnit, IAttackableUnit>>(Model, "Passive", "OnDie");
+            onDie?.Invoke(this, killer);
+
+            var exp = _game.Map.MapProperties.GetExperienceFor(this);
             var champs = _game.ObjectManager.GetChampionsInRange(Position, EXP_RANGE, true);
             //Cull allied champions
             champs.RemoveAll(l => l.Team == Team);
@@ -532,12 +532,12 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 foreach (var c in champs)
                 {
                     c.Stats.Experience += expPerChamp;
-                    _game.PacketNotifier.NotifyUnitAddEXP(c, expPerChamp);
+                    _game.PacketNotifier.NotifyAddXp(c, expPerChamp);
                 }
             }
 
-            if (data.Killer != null && data.Killer is IChampion champion)
-                champion.OnKill(data);
+            if (killer != null && killer is IChampion champion)
+                champion.OnKill(this);
         }
 
         /// <summary>
@@ -552,8 +552,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             {
                 return false;
             }
-            Model = model;
             IsModelUpdated = true;
+            Model = model;
             return true;
         }
 
@@ -595,6 +595,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
 
                     prevbuff.DeactivateBuff();
                     RemoveBuff(b.Name, false);
+                    BuffList.Remove(prevbuff);
 
                     // Clear the newly given buff's slot since we will move it into the previous buff's slot.
                     RemoveBuffSlot(b);
@@ -612,22 +613,13 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                     {
                         _game.PacketNotifier.NotifyNPC_BuffReplace(b);
                     }
-
-                    // New buff means new script, so we need to activate it.
                     b.ActivateBuff();
                 }
+                // If the buff is supposed to reset the timer on any existing buff instances of the same name.
                 else if (b.BuffAddType == BuffAddType.RENEW_EXISTING)
                 {
-                    // Clear the newly created buff's slot so we aren't wasting slots.
-                    if (b != ParentBuffs[b.Name])
-                    {
-                        RemoveBuffSlot(b);
-                    }
-
-                    // Reset the already existing buff's timer.
                     ParentBuffs[b.Name].ResetTimeElapsed();
 
-                    // Update the visual buff in-game (just resets the time on the icon).
                     if (!b.IsHidden)
                     {
                         _game.PacketNotifier.NotifyNPC_BuffReplace(ParentBuffs[b.Name]);
@@ -1102,7 +1094,15 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 dirTemp = new Vector2(0, 0);
             }
 
-            Direction = new Vector3(dirTemp.X, 0.0f, dirTemp.Y);
+            if (CanMove())
+            {
+                //FaceDirection(new Vector3(dirTemp.X, 0.0f, dirTemp.Y), false);
+                Direction = new Vector3(dirTemp.X, 0.0f, dirTemp.Y);
+            }
+            else
+            {
+                Direction = new Vector3(dirTemp.X, 0.0f, dirTemp.Y);
+            }
 
             FaceDirection(Direction, false);
 
@@ -1206,7 +1206,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         {
             // Waypoints should always have an origin at the current position.
             // Can't set waypoints if we can't move. Dashes are also excluded as their paths should be set before being applied.
-            if (newWaypoints.Count <= 1 || newWaypoints[0] != Position || !CanMove())
+            if (newWaypoints.Count <= 1 || newWaypoints[0] != Position || !CanMove() || MovementParameters != null)
             {
                 return;
             }
@@ -1269,152 +1269,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             {
                 Status &= ~status;
             }
-
-            switch (status)
-            {
-                // CallForHelpSuppressor
-                case StatusFlags.CanAttack:
-                {
-                    Stats.SetActionState(ActionState.CAN_ATTACK, enabled);
-                    return;
-                }
-                case StatusFlags.CanCast:
-                {
-                    Stats.SetActionState(ActionState.CAN_CAST, enabled);
-                    return;
-                }
-                case StatusFlags.CanMove:
-                {
-                    Stats.SetActionState(ActionState.CAN_MOVE, enabled);
-                    return;
-                }
-                case StatusFlags.CanMoveEver:
-                {
-                    Stats.SetActionState(ActionState.CAN_NOT_MOVE, !enabled);
-                    return;
-                }
-                case StatusFlags.Charmed:
-                {
-                    Stats.SetActionState(ActionState.CHARMED, enabled);
-                    return;
-                }
-                // DisableAmbientGold
-                case StatusFlags.Feared:
-                {
-                    Stats.SetActionState(ActionState.FEARED, enabled);
-                    // TODO: Verify
-                    Stats.SetActionState(ActionState.IS_FLEEING, enabled);
-                    return;
-                }
-                case StatusFlags.ForceRenderParticles:
-                {
-                    Stats.SetActionState(ActionState.FORCE_RENDER_PARTICLES, enabled);
-                    return;
-                }
-                // GhostProof
-                case StatusFlags.Ghosted:
-                {
-                    Stats.SetActionState(ActionState.IS_GHOSTED, enabled);
-                    return;
-                }
-                // IgnoreCallForHelp
-                // Immovable
-                // Invulnerable
-                // MagicImmune
-                case StatusFlags.NearSighted:
-                {
-                    Stats.SetActionState(ActionState.IS_NEAR_SIGHTED, enabled);
-                    return;
-                }
-                // Netted
-                case StatusFlags.NoRender:
-                {
-                    Stats.SetActionState(ActionState.NO_RENDER, enabled);
-                    return;
-                }
-                // PhysicalImmune
-                case StatusFlags.RevealSpecificUnit:
-                {
-                    Stats.SetActionState(ActionState.REVEAL_SPECIFIC_UNIT, enabled);
-                    return;
-                }
-                // Rooted
-                // Silenced
-                case StatusFlags.Sleep:
-                {
-                    Stats.SetActionState(ActionState.IS_ASLEEP, enabled);
-                    return;
-                }
-                case StatusFlags.Stealthed:
-                {
-                    Stats.SetActionState(ActionState.STEALTHED, enabled);
-                    return;
-                }
-                // SuppressCallForHelp
-                case StatusFlags.Targetable:
-                {
-                    Stats.IsTargetable = enabled;
-                    // TODO: Verify.
-                    Stats.SetActionState(ActionState.TARGETABLE, enabled);
-                    return;
-                }
-                case StatusFlags.Taunted:
-                {
-                    Stats.SetActionState(ActionState.TAUNTED, enabled);
-                    return;
-                }   
-            }
-
-            if (!(Status.HasFlag(StatusFlags.CanAttack)
-                    && !Status.HasFlag(StatusFlags.Charmed)
-                    && !Status.HasFlag(StatusFlags.Disarmed)
-                    && !Status.HasFlag(StatusFlags.Feared)
-                    // TODO: Verify
-                    && !Status.HasFlag(StatusFlags.Pacified)
-                    && !Status.HasFlag(StatusFlags.Sleep)
-                    && !Status.HasFlag(StatusFlags.Stunned)
-                    && !Status.HasFlag(StatusFlags.Suppressed)))
-            {
-                Stats.SetActionState(ActionState.CAN_NOT_ATTACK, true);
-            }
-            else if (Stats.GetActionState(ActionState.CAN_NOT_ATTACK))
-            {
-                Stats.SetActionState(ActionState.CAN_NOT_ATTACK, false);
-            }
-        }
-
-        public void UpdateStatus()
-        {
-            // Combine the status effects of all the buffs
-            Dictionary<StatusFlags, bool> finalEffects = new Dictionary<StatusFlags, bool>();
-            foreach (IBuff buff in GetBuffs())
-            {
-                foreach (KeyValuePair<StatusFlags, bool> effect in buff.StatusEffects)
-                {
-                    if (finalEffects.ContainsKey(effect.Key))
-                    {
-                        // If the effect should be enabled, it overrides disable.
-                        if (finalEffects[effect.Key])
-                        {
-                            continue;
-                        }
-                        else
-                        {
-                            finalEffects[effect.Key] = effect.Value;
-                        }
-                    }
-                    else
-                    {
-                        finalEffects.Add(effect.Key, effect.Value);
-                    }
-                }
-            }
-
-            // Set the status effects of this unit.
-            foreach (KeyValuePair<StatusFlags, bool> effect in finalEffects)
-            {
-                SetStatus(effect.Key, effect.Value);
-            }
         }
 
         /// <summary>
@@ -1438,7 +1292,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             // TODO: Take into account the rest of the arguments
             MovementParameters = new ForceMovementParameters
             {
-                ElapsedTime = 0,
                 PathSpeedOverride = dashSpeed,
                 ParabolicGravity = leapGravity,
                 ParabolicStartPoint = Position,
@@ -1448,6 +1301,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 FollowBackDistance = 0,
                 FollowTravelTime = 0
             };
+            DashElapsedTime = 0;
 
             SetDashingState(true);
 
@@ -1474,16 +1328,26 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
             if (MovementParameters != null && state == false)
             {
                 MovementParameters = null;
+                DashElapsedTime = 0;
+
+                // TODO: Implement this as a parameter.
+                Stats.SetActionState(ActionState.CAN_ATTACK, true);
+                Stats.SetActionState(ActionState.CAN_NOT_ATTACK, false);
+                Stats.SetActionState(ActionState.CAN_MOVE, true);
+                Stats.SetActionState(ActionState.CAN_NOT_MOVE, false);
 
                 var animPairs = new Dictionary<string, string> { { "RUN", "" } };
                 SetAnimStates(animPairs);
             }
 
-            // TODO: Implement this as a parameter.
-            Stats.SetActionState(ActionState.CAN_ATTACK, !state);
-            Stats.SetActionState(ActionState.CAN_NOT_ATTACK, state);
-            Stats.SetActionState(ActionState.CAN_MOVE, !state);
-            Stats.SetActionState(ActionState.CAN_NOT_MOVE, state);
+            if (state)
+            {
+                // TODO: Implement this as a parameter.
+                Stats.SetActionState(ActionState.CAN_ATTACK, false);
+                Stats.SetActionState(ActionState.CAN_NOT_ATTACK, true);
+                Stats.SetActionState(ActionState.CAN_MOVE, false);
+                Stats.SetActionState(ActionState.CAN_NOT_MOVE, true);
+            }
         }
 
         /// <summary>

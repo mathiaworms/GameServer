@@ -7,7 +7,6 @@ using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using LeagueSandbox.GameServer.API;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
@@ -73,7 +72,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellMissileHit.AddListener(this, new System.Collections.Generic.KeyValuePair<ISpell, IObjAiBase>(spell, spell.CastInfo.Owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -97,23 +96,19 @@ namespace Spells
             SealSpellSlot(spell.CastInfo.Owner, SpellSlotType.SummonerSpellSlots, 1, SpellbookType.SPELLBOOK_SUMMONER, false);
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
         {
             var owner = spell.CastInfo.Owner;
             var ap = owner.Stats.AbilityPower.Total;
             var damage = 80 + ((spell.CastInfo.SpellLevel - 1) * 55) + ap;
-            var dist = System.Math.Abs(Vector2.Distance(target.Position, owner.Position));
-            var time = dist / 1350f;
-
-            // Grab particle
-            AddBuff("RocketGrab", time, 1, spell, target, owner);
-
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-
-            AddBuff("Stun", 0.6f, 1, spell, target, owner);
 
             missile.SetToRemove();
 
+            var dist = System.Math.Abs(Vector2.Distance(target.Position, owner.Position));
+            var time = dist / 1350f;
+            // Grab particle
+            AddBuff("RocketGrab", time, 1, spell, target, owner);
             // SetStatus & auto attack
             AddBuff("RocketGrab2", 0.6f, 1, spell, target, owner);
         }

@@ -1,6 +1,6 @@
 ﻿using GameServerCore.Enums;
 
-namespace GameServerCore.Domain
+namespace LeagueSandbox.GameServer.Content
 {
     public interface ICharData
     {
@@ -37,7 +37,7 @@ namespace GameServerCore.Domain
         float[] AttackProbabilities { get; }
         string[] ExtraSpells { get; }
         // TODO: Verify if we want this to be an array.
-        IPassiveData PassiveData { get; }
+        IPassiveData Passive { get; }
         void Load(string name);
     }
 }

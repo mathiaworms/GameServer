@@ -3,14 +3,15 @@ using GameServerCore.Enums;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Scripting.CSharp;
 
-namespace Buffs
+namespace Blind
+
 {
     internal class Blind : IBuffGameScript
     {
         public BuffType BuffType => BuffType.BLIND;
-        public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
+        public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
         public int MaxStacks => 1;
-        public bool IsHidden => true;
+        public bool IsHidden => false;
 
         public IStatsModifier StatsModifier { get; private set; }
 

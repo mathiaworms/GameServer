@@ -6,46 +6,33 @@ namespace LeagueSandbox.GameServer.GameObjects
 {
     public class LevelProp : GameObject, ILevelProp
     {
-        public byte NetNodeID { get; set; }
-        public int SkinID { get; set; }
-        public float Height { get; set; }
-        public Vector3 PositionOffset { get; set; }
-        public Vector3 Scale { get; set; }
-        public byte SkillLevel { get; set; }
-        public byte Rank { get; set; }
-        public byte Type { get; set; }
-        public string Name { get; set; }
-        public string Model { get; set; }
+        public string Name { get; }
+        public string Model { get; }
+        public float Height { get; }
+        public float Unk1 { get; }
+        public float Unk2 { get; }
+        public byte SkinId { get; }
 
         public LevelProp(
             Game game,
-            byte netNodeId,
+            Vector2 position,
+            float z,
+            Vector3 direction,
+            float unk1,
+            float unk2,
             string name,
             string model,
-            Vector2 position,
-            float height,
-            Vector3 direction,
-            Vector3 posOffset,
-            Vector3 scale,
-            int skinId = 0,
-            byte skillLevel = 0,
-            byte rank = 0,
-            byte type = 2,
-            uint netId = 64
-
+            byte skin = 0,
+            uint netId = 0
         ) : base(game, position, 0, 0, netId)
         {
-            NetNodeID = netNodeId;
-            SkinID = skinId;
-            Height = height;
+            Height = z;
             Direction = direction;
-            PositionOffset = posOffset;
-            Scale = scale;
-            SkillLevel = skillLevel;
-            Rank = rank;
-            Type = type;
+            Unk1 = unk1;
+            Unk2 = unk2;
             Name = name;
             Model = model;
+            SkinId = skin;
         }
     }
 }

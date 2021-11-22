@@ -1,7 +1,6 @@
 ﻿using GameServerCore;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
 using LeagueSandbox.GameServer.GameObjects;
 using LeagueSandbox.GameServer.Logging;
 using log4net;
@@ -27,7 +26,7 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
         private static readonly object _particlesLock = new object();
 
         public override string Command => "debugmode";
-        public override string Syntax => $"{Command} self/all/champions/minions/projectiles/sectors";
+        public override string Syntax => $"{Command} self/champions/laneminions/projectiles";
 
         public DebugParticlesCommand(ChatCommandManager chatCommandManager, Game game)
             : base(chatCommandManager, game)
@@ -56,22 +55,12 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
 
                 if (_debugMode == 3)
                 {
-                    _logger.Debug($"Stopped debugging minions.");
+                    _logger.Debug($"Stopped debugging lane minions.");
                 }
 
                 if (_debugMode == 4)
                 {
                     _logger.Debug($"Stopped debugging projectiles.");
-                }
-
-                if (_debugMode == 5)
-                {
-                    _logger.Debug($"Stopped debugging sectors.");
-                }
-
-                if (_debugMode == 6)
-                {
-                    _logger.Debug($"Stopped debugging all.");
                 }
 
                 _debugMode = 0;
@@ -125,25 +114,15 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
                     _debugMode = 2;
                     DebugChampions(userId);
                 }
-                else if (split[1].Contains("minions"))
+                else if (split[1].Contains("laneminions"))
                 {
                     _debugMode = 3;
-                    DebugMinions(userId);
+                    DebugLaneMinions(userId);
                 }
                 else if (split[1].Contains("projectiles"))
                 {
                     _debugMode = 4;
                     DebugProjectiles(userId);
-                }
-                else if (split[1].Contains("sectors"))
-                {
-                    _debugMode = 5;
-                    DebugSectors(userId);
-                }
-                else if (split[1].Contains("all"))
-                {
-                    _debugMode = 6;
-                    DebugAll(userId);
                 }
                 else
                 {
@@ -155,7 +134,7 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
 
         public override void Update(float diff)
         {
-            if (_game.GameTime - lastDrawTime > 30.0f)
+            if (_game.GameTime - lastDrawTime > 60.0f)
             {
                 if (_debugMode == 1)
                 {
@@ -167,19 +146,11 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
                 }
                 if (_debugMode == 3)
                 {
-                    DrawMinions(_userId);
+                    DrawLaneMinions(_userId);
                 }
                 if (_debugMode == 4)
                 {
                     DrawProjectiles(_userId);
-                }
-                if (_debugMode == 5)
-                {
-                    DrawSectors(_userId);
-                }
-                if (_debugMode == 6)
-                {
-                    DrawAll(_userId);
                 }
 
                 lastDrawTime = _game.GameTime;
@@ -369,94 +340,94 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
             }
         }
 
-        // Draws the collision radius and waypoints of all Minions
-        public void DebugMinions(int userId)
+        // Draws the collision radius and waypoints of all LaneMinions
+        public void DebugLaneMinions(int userId)
         {
             // Arbitrary ratio is required for the DebugCircle particle to look accurate
             var circlesize = (1f / 100f) * _userChampion.CollisionRadius;
 
-            _logger.Debug($"Started debugging minions. Your Debug Circle Radius: " + "(1 / 100) * " + _userChampion.CollisionRadius + " = " + "(" + (1f / 100f) + ") * " + _userChampion.CollisionRadius + " = " + circlesize);
-            var startdebugmsg = $"Started debugging minions. Your Debug Circle Radius: " + "(1 / 100) * " + _userChampion.CollisionRadius + " = " + "(" + (1f / 100f) + ") * " + _userChampion.CollisionRadius + " = " + circlesize;
+            _logger.Debug($"Started debugging lane minions. Your Debug Circle Radius: " + "(1 / 100) * " + _userChampion.CollisionRadius + " = " + "(" + (1f / 100f) + ") * " + _userChampion.CollisionRadius + " = " + circlesize);
+            var startdebugmsg = $"Started debugging lane minions. Your Debug Circle Radius: " + "(1 / 100) * " + _userChampion.CollisionRadius + " = " + "(" + (1f / 100f) + ") * " + _userChampion.CollisionRadius + " = " + circlesize;
             ChatCommandManager.SendDebugMsgFormatted(DebugMsgType.NORMAL, startdebugmsg);
 
             // Creates a blue flashing highlight around your unit
             _game.PacketNotifier.NotifyCreateUnitHighlight(userId, _userChampion);
         }
 
-        public void DrawMinions(int userId)
+        public void DrawLaneMinions(int userId)
         {
             if (_debugMode != 3)
             {
                 return;
             }
 
-            List<IAttackableUnit> minions = new List<IAttackableUnit>(_game.ObjectManager.GetVisionUnits().Values.ToList().Where(x => x is IMinion));
+            List<IAttackableUnit> laneMinions = new List<IAttackableUnit>(_game.ObjectManager.GetVisionUnits().Values.ToList().Where(x => x is ILaneMinion));
 
             // Same method as DebugSelf just for every champion
-            foreach (var minion in minions)
+            foreach (var laneMinion in laneMinions)
             {
                 // Arbitrary ratio is required for the DebugCircle particle to look accurate
-                var circlesize = (1f / 100f) * minion.CollisionRadius;
+                var circlesize = (1f / 100f) * laneMinion.CollisionRadius;
 
-                if (minion.CollisionRadius < 5)
+                if (laneMinion.CollisionRadius < 5)
                 {
                     circlesize = (1f / 100f) * 35;
                 }
 
                 // Clear circle particles every draw in case the unit changes its position
-                if (_circleParticles.ContainsKey(minion.NetId))
+                if (_circleParticles.ContainsKey(laneMinion.NetId))
                 {
-                    if (_circleParticles[minion.NetId] != null)
+                    if (_circleParticles[laneMinion.NetId] != null)
                     {
-                        _circleParticles.Remove(minion.NetId);
+                        _circleParticles.Remove(laneMinion.NetId);
                     }
                 }
 
-                var circleparticle = new Particle(_game, null, null, minion.Position, "DebugCircle_green.troy", circlesize, "", "", 0, default, false, 0.1f, false, false);
-                _circleParticles.Add(minion.NetId, circleparticle);
+                var circleparticle = new Particle(_game, null, null, laneMinion.Position, "DebugCircle_green.troy", circlesize, "", "", 0, default, false, 0.1f, false, false);
+                _circleParticles.Add(laneMinion.NetId, circleparticle);
                 _game.PacketNotifier.NotifyFXCreateGroup(circleparticle, userId);
 
-                if (minion.Waypoints.Count > 0)
+                if (laneMinion.Waypoints.Count > 0)
                 {
                     // Clear arrow particles every draw in case the unit changes its waypoints
-                    if (_arrowParticlesList.ContainsKey(minion.NetId))
+                    if (_arrowParticlesList.ContainsKey(laneMinion.NetId))
                     {
-                        if (_arrowParticlesList[minion.NetId].Count != 0)
+                        if (_arrowParticlesList[laneMinion.NetId].Count != 0)
                         {
                             lock (_particlesLock)
                             {
-                                _arrowParticlesList[minion.NetId].Clear();
+                                _arrowParticlesList[laneMinion.NetId].Clear();
                             }
-                            _arrowParticlesList.Remove(minion.NetId);
+                            _arrowParticlesList.Remove(laneMinion.NetId);
                         }
                     }
 
-                    for (int waypoint = minion.CurrentWaypoint.Key; waypoint < minion.Waypoints.Count; waypoint++)
+                    for (int waypoint = laneMinion.CurrentWaypoint.Key; waypoint < laneMinion.Waypoints.Count; waypoint++)
                     {
-                        var current = minion.Waypoints[waypoint - 1];
+                        var current = laneMinion.Waypoints[waypoint - 1];
 
-                        var wpTarget = minion.Waypoints[waypoint];
+                        var wpTarget = laneMinion.Waypoints[waypoint];
 
                         // Makes the arrow point to the next waypoint
                         var to = Vector2.Normalize(new Vector2(wpTarget.X, wpTarget.Y) - current);
-                        if (minion.Waypoints.Count - 1 > waypoint)
+                        if (laneMinion.Waypoints.Count - 1 > waypoint)
                         {
-                            var nextTargetWp = minion.Waypoints[waypoint + 1];
-                            to = Vector2.Normalize(new Vector2(nextTargetWp.X, nextTargetWp.Y) - minion.Waypoints[waypoint]);
+                            var nextTargetWp = laneMinion.Waypoints[waypoint + 1];
+                            to = Vector2.Normalize(new Vector2(nextTargetWp.X, nextTargetWp.Y) - laneMinion.Waypoints[waypoint]);
                         }
                         var direction = new Vector3(to.X, 0, to.Y);
 
-                        if (!_arrowParticlesList.ContainsKey(minion.NetId))
+                        if (!_arrowParticlesList.ContainsKey(laneMinion.NetId))
                         {
-                            _arrowParticlesList.Add(minion.NetId, new List<Particle>());
+                            _arrowParticlesList.Add(laneMinion.NetId, new List<Particle>());
                         }
 
                         var arrowparticle = new Particle(_game, null, null, wpTarget, "DebugArrow_green.troy", 0.5f, "", "", 0, direction, false, 0.1f, false, false);
-                        _arrowParticlesList[minion.NetId].Add(arrowparticle);
+                        _arrowParticlesList[laneMinion.NetId].Add(arrowparticle);
 
                         _game.PacketNotifier.NotifyFXCreateGroup(arrowparticle, userId);
 
-                        if (waypoint >= minion.Waypoints.Count)
+                        if (waypoint >= laneMinion.Waypoints.Count)
                         {
                             _logger.Debug("Waypoints Drawn: " + waypoint);
                         }
@@ -481,7 +452,7 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
 
         public void DrawProjectiles(int userId)
         {
-            if (_debugMode != 4)
+            if (_debugMode != 3)
             {
                 return;
             }
@@ -589,148 +560,6 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
                         }
                     }
                 }
-            }
-        }
-
-        // Draws the effected area of all sectors
-        public void DebugSectors(int userId)
-        {
-            // Arbitrary ratio is required for the DebugCircle particle to look accurate
-            var circlesize = (1f / 100f) * _userChampion.CollisionRadius;
-
-            _logger.Debug($"Started debugging sectors. Your Debug Circle Radius: " + "(1 / 100) * " + _userChampion.CollisionRadius + " = " + "(" + (1f / 100f) + ") * " + _userChampion.CollisionRadius + " = " + circlesize);
-            var startdebugmsg = $"Started debugging sectors. Your Debug Circle Radius: " + "(1 / 100) * " + _userChampion.CollisionRadius + " = " + "(" + (1f / 100f) + ") * " + _userChampion.CollisionRadius + " = " + circlesize;
-            ChatCommandManager.SendDebugMsgFormatted(DebugMsgType.NORMAL, startdebugmsg);
-
-            // Creates a blue flashing highlight around your unit
-            _game.PacketNotifier.NotifyCreateUnitHighlight(userId, _userChampion);
-        }
-
-        public void DrawSectors(int userId)
-        {
-            if (_debugMode != 5)
-            {
-                return;
-            }
-
-            var tempObjects = Game.ObjectManager.GetObjects();
-
-            foreach (KeyValuePair<uint, IGameObject> obj in tempObjects)
-            {
-                if (obj.Value is ISpellSector sector)
-                {
-                    // Arbitrary ratio is required for the DebugCircle particle to look accurate
-                    var circlesize = (1f / 100f) * sector.CollisionRadius;
-
-                    if (sector.Parameters.Width < 5)
-                    {
-                        circlesize = (1f / 100f) * 35;
-                    }
-
-                    // Clear circle particles every draw in case the unit changes its position
-                    if (_circleParticles.ContainsKey(sector.NetId))
-                    {
-                        if (_circleParticles[sector.NetId] != null)
-                        {
-                            _circleParticles.Remove(sector.NetId);
-                        }
-                    }
-
-                    if (sector.CastInfo.Targets[0] != null || (sector.CastInfo.TargetPosition != Vector3.Zero && sector.CastInfo.TargetPositionEnd != Vector3.Zero))
-                    {
-                        // Clear arrow particles every draw in case the unit changes its waypoints
-                        if (_arrowParticlesList.ContainsKey(sector.NetId))
-                        {
-                            if (_arrowParticlesList[sector.NetId].Count != 0)
-                            {
-                                lock (_particlesLock)
-                                {
-                                    _arrowParticlesList[sector.NetId].Clear();
-                                }
-                                _arrowParticlesList.Remove(sector.NetId);
-                            }
-                        }
-
-                        if (sector is ISpellSectorPolygon polygon)
-                        {
-                            if (!_arrowParticlesList.ContainsKey(polygon.NetId))
-                            {
-                                _arrowParticlesList.Add(polygon.NetId, new List<Particle>());
-                            }
-
-                            var current = polygon.Position;
-                            var bindObj = polygon.Parameters.BindObject;
-                            var wpTarget = polygon.CastInfo.TargetPositionEnd;
-
-                            if (bindObj == null)
-                            {
-                                return;
-                            }
-
-                            var circleparticle = new Particle(_game, null, null, polygon.Position, "DebugCircle_green.troy", circlesize, "", "", 0, default, false, 0.1f, false, false);
-                            _circleParticles.Add(polygon.NetId, circleparticle);
-                            _game.PacketNotifier.NotifyFXCreateGroup(circleparticle, userId);
-
-                            foreach (Vector2 vert in polygon.GetPolygonVertices())
-                            {
-                                var truePos = bindObj.Position + Extensions.Rotate(vert, -Extensions.UnitVectorToAngle(new Vector2(bindObj.Direction.X, bindObj.Direction.Z)) + 90f);
-                                var arrowParticleVert = new Particle(_game, null, null, truePos, "DebugArrow_green.troy", 0.5f, "", "", 0, bindObj.Direction, false, 0.1f, false, false);
-                                _arrowParticlesList[polygon.NetId].Add(arrowParticleVert);
-                                _game.PacketNotifier.NotifyFXCreateGroup(arrowParticleVert, userId);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Draws the effected area of all game objects
-        public void DebugAll(int userId)
-        {
-            // Arbitrary ratio is required for the DebugCircle particle to look accurate
-            var circlesize = (1f / 100f) * _userChampion.CollisionRadius;
-
-            _logger.Debug($"Started debugging all. Your Debug Circle Radius: " + "(1 / 100) * " + _userChampion.CollisionRadius + " = " + "(" + (1f / 100f) + ") * " + _userChampion.CollisionRadius + " = " + circlesize);
-            var startdebugmsg = $"Started debugging all. Your Debug Circle Radius: " + "(1 / 100) * " + _userChampion.CollisionRadius + " = " + "(" + (1f / 100f) + ") * " + _userChampion.CollisionRadius + " = " + circlesize;
-            ChatCommandManager.SendDebugMsgFormatted(DebugMsgType.NORMAL, startdebugmsg);
-
-            // Creates a blue flashing highlight around your unit
-            _game.PacketNotifier.NotifyCreateUnitHighlight(userId, _userChampion);
-        }
-
-        public void DrawAll(int userId)
-        {
-            if (_debugMode != 6)
-            {
-                return;
-            }
-
-            var tempObjects = Game.ObjectManager.GetObjects();
-
-            foreach (IGameObject obj in tempObjects.Values)
-            {
-                // Arbitrary ratio is required for the DebugCircle particle to look accurate
-                var circlesize = (1f / 100f) * obj.CollisionRadius;
-
-                if (obj.CollisionRadius < 5)
-                {
-                    circlesize = (1f / 100f) * 35;
-                }
-
-                // Clear circle particles every draw in case the unit changes its position
-                if (_circleParticles.ContainsKey(obj.NetId))
-                {
-                    if (_circleParticles[obj.NetId] != null)
-                    {
-                        _circleParticles.Remove(obj.NetId);
-                    }
-                }
-
-                var circleparticle = new Particle(_game, null, null, obj.Position, "DebugCircle_green.troy", circlesize, "", "", 0, default, false, 0.1f, false, false);
-                _circleParticles.Add(obj.NetId, circleparticle);
-                _game.PacketNotifier.NotifyFXCreateGroup(circleparticle, userId);
-
-                // TODO: Add check for AttackableUnit and draw waypoints.
             }
         }
     }

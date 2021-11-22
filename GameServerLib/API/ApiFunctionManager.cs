@@ -2,11 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
-using GameServerLib.GameObjects.AttackableUnits;
 using LeagueSandbox.GameServer.GameObjects;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
 using LeagueSandbox.GameServer.GameObjects.Spell;
@@ -93,12 +91,10 @@ namespace LeagueSandbox.GameServer.API
 
         /// <summary>
         /// Creates a new instance of a GameScriptTimer with the specified arguments.
-        /// This should only be used for debug purposes.
         /// </summary>
         /// <param name="duration">Time till the timer ends.</param>
         /// <param name="callback">Action to perform when the timer ends.</param>
         /// <returns>New GameScriptTimer instance.</returns>
-        [Obsolete("CreateTimer should only be used for debug purposes.")]
         public static GameScriptTimer CreateTimer(float duration, Action callback)
         {
             var newTimer = new GameScriptTimer(duration, callback);
@@ -202,7 +198,7 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="from">Owner of the buff.</param>
         /// <param name="infiniteduration">Whether or not the buff should last forever.</param>
         /// <returns>New buff instance.</returns>
-        public static IBuff AddBuff(string buffName, float duration, byte stacks, ISpell originspell, IAttackableUnit onto, IObjAiBase from, bool infiniteduration = false)
+        public static IBuff AddBuff(string buffName, float duration, byte stacks, ISpell originspell, IAttackableUnit onto, IAttackableUnit from, bool infiniteduration = false)
         {
             IBuff buff;
 
@@ -277,29 +273,6 @@ namespace LeagueSandbox.GameServer.API
         /// Creates a new particle with the specified parameters.
         /// </summary>
         /// <param name="caster">GameObject that caused this particle to spawn.</param>
-        /// <param name="particle">Internal name of the particle.</param>
-        /// <param name="start">Position to spawn at.</param>
-        /// <param name="end">Position to end at.</param>
-        /// <param name="lifetime">Time in seconds the particle should last.</param>
-        /// <param name="size">Scale.</param>
-        /// <param name="bone">Bone on the owner the particle should be attached to.</param>
-        /// <param name="targetBone">Bone on the target the particle should be attached to.</param>
-        /// <param name="direction">3D direction the particle should face.</param>
-        /// <param name="followGroundTilt">Whether or not the particle should be titled along the ground towards its end position.</param>
-        /// <param name="reqVision">Whether or not the particle can be obstructed by terrain.</param>
-        /// <param name="teamOnly">The only team which should be able to see the particle.</param>
-        /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
-        /// <returns>New particle instance.</returns>
-        public static IParticle AddParticlePos(IGameObject caster, string particle, Vector2 start, Vector2 end, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, bool reqVision = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.BindDirection)
-        {
-            var p = new Particle(_game, caster, start, end, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, reqVision, true, teamOnly, flags);
-            return p;
-        }
-
-        /// <summary>
-        /// Creates a new particle with the specified parameters.
-        /// </summary>
-        /// <param name="caster">GameObject that caused this particle to spawn.</param>
         /// <param name="bindObj">GameObject that the particle should bind to.</param>
         /// <param name="particle">Internal name of the particle.</param>
         /// <param name="position">Position to spawn at.</param>
@@ -310,12 +283,10 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="direction">3D direction the particle should face.</param>
         /// <param name="followGroundTilt">Whether or not the particle should be titled along the ground towards its end position.</param>
         /// <param name="reqVision">Whether or not the particle can be obstructed by terrain.</param>
-        /// <param name="teamOnly">The only team which should be able to see the particle.</param>
-        /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
         /// <returns>New particle instance.</returns>
-        public static IParticle AddParticle(IGameObject caster, IGameObject bindObj, string particle, Vector2 position, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, bool reqVision = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.BindDirection)
+        public static IParticle AddParticle(IGameObject caster, IGameObject bindObj, string particle, Vector2 position, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, bool reqVision = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL)
         {
-            var p = new Particle(_game, caster, bindObj, position, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, reqVision, true, teamOnly, flags);
+            var p = new Particle(_game, caster, bindObj, position, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, reqVision, true, teamOnly);
             return p;
         }
 
@@ -334,12 +305,10 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="direction">3D direction the particle should face.</param>
         /// <param name="followGroundTilt">Whether or not the particle should be titled along the ground towards its end position.</param>
         /// <param name="reqVision">Whether or not the particle can be obstructed by terrain.</param>
-        /// <param name="teamOnly">The only team which should be able to see the particle.</param>
-        /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
         /// <returns>New particle instance.</returns>
-        public static IParticle AddParticleTarget(IGameObject caster, IGameObject bindObj, string particle, IGameObject target, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, bool reqVision = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.BindDirection)
+        public static IParticle AddParticleTarget(IGameObject caster, IGameObject bindObj, string particle, IGameObject target, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, bool reqVision = true)
         {
-            var p = new Particle(_game, caster, bindObj, target, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, reqVision, true, teamOnly, flags);
+            var p = new Particle(_game, caster, bindObj, target, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, reqVision);
             return p;
         }
 
@@ -362,35 +331,33 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="model">Internal name of the model of this minion.</param>
         /// <param name="name">Internal name of the minion.</param>
         /// <param name="position">Position to spawn at.</param>
-        /// <param name="skinId">ID of the skin the minion should use for its model.</param>
-        /// <param name="ignoreCollision">Whether or not the minion should ignore collisions.</param>
-        /// <param name="targetable">Whether or not the minion should be targetable.</param>
-        /// <param name="targetingFlags">Flags determining targetability.</param>
-        /// <param name="visibilityOwner">Specifies the only unit which should be able to see the minion.</param>
         /// <param name="isVisible">Whether or not this minion should be visible.</param>
         /// <param name="aiPaused">Whether or not this minion's AI is inactive.</param>
         /// <returns>New Minion instance.</returns>
-        public static IMinion AddMinion
-        (
-            IObjAiBase owner,
-            string model,
-            string name,
-            Vector2 position,
-            int skinId = 0,
-            bool ignoreCollision = false,
-            bool targetable = true,
-            SpellDataFlags targetingFlags = 0,
-            IObjAiBase visibilityOwner = null,
-            bool isVisible = true,
-            bool aiPaused = true
-        )
+        public static IMinion AddMinion(IObjAiBase owner, string model, string name, Vector2 position, Vector2 facingDirection = new Vector2(), bool isVisible = true, bool aiPaused = true)
         {
-            var m = new Minion(_game, owner, position, model, name, 0, owner.Team, skinId, ignoreCollision, targetable, visibilityOwner);
-            m.Stats.IsTargetableToTeam = targetingFlags;
+            var m = new Minion(_game, owner, position, model, name, 0, owner.Team);
             _game.ObjectManager.AddObject(m);
             m.SetVisibleByTeam(owner.Team, isVisible);
             m.PauseAi(aiPaused);
             return m;
+        }
+
+        /// <summary>
+        /// Creates a new Minion with the specified parameters.
+        /// Minion will spawn at the given target's position.
+        /// </summary>
+        /// <param name="owner">AI unit that owns this minion.</param>
+        /// <param name="model">Internal name of the minion's model.</param>
+        /// <param name="name">Internal name of the minion.</param>
+        /// <param name="target">Target to spawn the minion on.</param>
+        /// <param name="isVisible">Whether or not this minion should be visible.</param>
+        /// <param name="aiPaused">Whether or not this minion's AI is inactive.</param>
+        /// <returns>New Minion instance.</returns>
+        public static IMinion AddMinionTarget(IObjAiBase owner, string model, string name, IGameObject target, bool isVisible = true, bool aiPaused = true)
+        {
+            // TODO: Implement attachable Minions/GameObjects.
+            return AddMinion(owner, model, name, target.Position, isVisible: isVisible, aiPaused: aiPaused);
         }
 
         /// <summary>
@@ -644,34 +611,9 @@ namespace LeagueSandbox.GameServer.API
             unit.SetAnimStates(animPairs);
         }
 
-        /// <summary>
-        /// Toggles the visual auto cast indicator for the given spell.
-        /// </summary>
-        /// <param name="spell">Spell to auto cast.</param>
-        /// TODO: Verify if this works.
-        public static void SetAutocast(ISpell spell)
-        {
-            spell.SetAutocast();
-        }
-
-        /// <summary>
-        /// Sets the state of the given status for the given unit.
-        /// </summary>
-        /// <param name="unit">Unit to set status.</param>
-        /// <param name="status">Status to set.</param>
-        /// <param name="enabled">Whether or not the status should be enabled.</param>
         public static void SetStatus(IAttackableUnit unit, StatusFlags status, bool enabled)
         {
-            // Loop over all possible status flags and set them individually.
-            for (int i = 0; i < 30; i++)
-            {
-                StatusFlags currentFlag = (StatusFlags)(1 << i);
-
-                if (status.HasFlag(currentFlag))
-                {
-                    unit.SetStatus(currentFlag, enabled);
-                }
-            }
+            unit.SetStatus(status, enabled);
         }
 
         public static void SetTargetingType(IObjAiBase target, SpellSlotType slotType, int slot, TargetingType newType)
@@ -767,7 +709,7 @@ namespace LeagueSandbox.GameServer.API
                 UseAttackCastTime = useAutoAttackSpell,
                 UseAttackCastDelay = false,
                 IsForceCastingOrChannel = isForceCastingOrChanneling,
-
+                
                 SpellSlot = (byte)slot,
                 SpellCastLaunchPosition = caster.GetPosition3D()
             };
@@ -815,31 +757,6 @@ namespace LeagueSandbox.GameServer.API
         public static void StopChanneling(IObjAiBase target, ChannelingStopCondition stopCondition, ChannelingStopSource stopSource)
         {
             target.StopChanneling(stopCondition, stopSource);
-        }
-
-        /// <summary>
-        /// Creates a DeathData variable for use with the IAttackableUnit.Die() function.
-        /// </summary>
-        /// <param name="zombify">Whether or not the unit should become a zombie after death.</param>
-        /// <param name="deathType">Type of death. Values unknown.</param>
-        /// <param name="unit">Unit that died.</param>
-        /// <param name="killer">Killer of the unit.</param>
-        /// <param name="dmgType">Type of damage that caused the death.</param>
-        /// <param name="dmgSource">Source of the damage that caused the death.</param>
-        /// <param name="duration">Time until the death completes (fade-out?).</param>
-        /// <returns></returns>
-        public static IDeathData CreateDeathData(bool zombify, byte deathType, IAttackableUnit unit, IAttackableUnit killer, DamageType dmgType, DamageSource dmgSource, float duration)
-        {
-            return new DeathData
-            {
-                BecomeZombie = zombify,
-                DieType = deathType,
-                Unit = unit,
-                Killer = killer,
-                DamageType = dmgType,
-                DamageSource = dmgSource,
-                DeathDuration = duration
-            };
         }
     }
 }

@@ -32,11 +32,10 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
             ISpell originSpell,
             ICastInfo castInfo,
             float moveSpeed,
-            Vector2 overrideEndPos,
             SpellDataFlags overrideFlags = 0, // TODO: Find a use for these
             uint netId = 0,
             bool serverOnly = false
-        ) : base(game, collisionRadius, originSpell, castInfo, moveSpeed, overrideFlags, netId, serverOnly)
+        ) : base(game, collisionRadius, originSpell, castInfo, moveSpeed,  overrideFlags, netId, serverOnly)
         {
             // TODO: Verify if there is a case which contradicts this.
             // Line and Circle Missiles are location targeted only.
@@ -64,11 +63,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
                 CastInfo.TargetPositionEnd = new Vector3(endPos.X, 0, endPos.Y);
             }
 
-            if (overrideEndPos != default)
-            {
-                endPos = overrideEndPos;
-            }
-
+            // TODO: Verify if CastRangeDisplayOverride is the correct variable to use.
             Destination = endPos;
 
             ObjectsHit = new List<IGameObject>();

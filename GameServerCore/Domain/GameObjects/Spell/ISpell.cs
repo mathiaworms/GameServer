@@ -114,11 +114,6 @@ namespace GameServerCore.Domain.GameObjects.Spell
         float GetCurrentCastRange();
 
         /// <summary>
-        /// Toggles the auto cast state for this spell.
-        /// </summary>
-        void SetAutocast();
-
-        /// <summary>
         /// Sets the state of the spell to the specified state. Often used when reseting time between spell casts.
         /// </summary>
         /// <param name="state"></param>

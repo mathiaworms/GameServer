@@ -7,7 +7,6 @@ using System.Numerics;
 using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.API;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
-using GameServerCore.Domain.GameObjects.Spell.Missile;
 
 namespace Spells
 {
@@ -23,7 +22,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellSectorHit.AddListener(this, new System.Collections.Generic.KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -47,7 +46,7 @@ namespace Spells
 
             var sector = spell.CreateSpellSector(new SectorParameters
             {
-                Length = 625f,
+                HalfLength = 625f,
                 SingleTick = true,
                 ConeAngle = 24.76f,
                 Type = SectorType.Cone
@@ -57,7 +56,7 @@ namespace Spells
             AddParticleTarget(owner, owner, "Incinerate_cas.troy", owner);
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner;
 

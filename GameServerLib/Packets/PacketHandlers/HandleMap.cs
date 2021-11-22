@@ -26,9 +26,9 @@ namespace LeagueSandbox.GameServer.Packets.PacketHandlers
             {
                 if (!player.Item2.IsStartedClient) continue; //Don't inform about not started clients
                 // Giving the UserId in loading screen a name
-                 _game.PacketNotifier.NotifyRequestRename(userId, player);
+                 _game.PacketNotifier.NotifyLoadScreenPlayerName(userId, player);
                 // Giving the UserId in loading screen a champion
-                 _game.PacketNotifier.NotifyRequestReskin(userId, player);
+                 _game.PacketNotifier.NotifyLoadScreenPlayerChampion(userId, player);
             }
 
             return true;
