@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
 
-namespace ItemSpells
+namespace Spells
 {
     public class DeathfireGrasp : ISpellScript
     {

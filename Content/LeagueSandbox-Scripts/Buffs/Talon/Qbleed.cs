@@ -29,7 +29,9 @@ namespace Buffs
         {
             owner = ownerSpell.CastInfo.Owner as IChampion;
             Unit = unit;
-            var ADratio = owner.Stats.AttackDamage.TotalBonus;
+
+            var ADratio = 1;
+
             damage = (10 * ownerSpell.CastInfo.SpellLevel + ADratio) / 6f;
 
             p = AddParticleTarget(owner, unit, "talon_Q_bleed_indicator.troy", unit, 1, buff.Duration);
