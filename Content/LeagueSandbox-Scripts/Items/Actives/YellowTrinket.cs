@@ -7,7 +7,7 @@ using System.Numerics;
 using GameServerCore.Scripting.CSharp;
 
 
-namespace Spells
+namespace ItemSpells
 {
     public class TrinketTotemLvl1 : ISpellScript
     {
@@ -43,7 +43,7 @@ namespace Spells
                 truecoords = Cursor;
             }
 
-            ward = AddMinion(owner, "YellowTrinket", "YellowTrinket", truecoords);
+            ward = AddMinion(owner, "YellowTrinket", "YellowTrinket", truecoords, isWard : true);
             AddBuff("YellowTriket", 65f, 1, spell, ward, ward);
         }
 

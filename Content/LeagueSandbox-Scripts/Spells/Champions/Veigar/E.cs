@@ -7,14 +7,17 @@ using System.Numerics;
 using LeagueSandbox.GameServer.API;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
-
+using System.Collections.Generic;
 
 namespace Spells
 {
     public class VeigarEventHorizon : ISpellScript
     {
-        
         Vector2 truecoords;
+        float timeSinceCast;
+        IObjAiBase Owner;
+        ISpell Spell;
+        List<uint> stunnedUnits;
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
             TriggersSpellCasts = true,
@@ -24,6 +27,8 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
+            Owner = owner;
+            Spell = spell;
         }
 
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
@@ -41,7 +46,8 @@ namespace Spells
 
         public void OnSpellCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner;
+            stunnedUnits = new List<uint>();
+            var owner = spell.CastInfo.Owner as IChampion;
             var ownerSkinID = owner.SkinID;
             truecoords = new Vector2(spell.CastInfo.TargetPosition.X, spell.CastInfo.TargetPosition.Z);
             var distance = Vector2.Distance(spell.CastInfo.Owner.Position, truecoords);
@@ -67,11 +73,12 @@ namespace Spells
                     break;
             }
             AddParticle(owner, null, cage, truecoords, lifetime: 3f);
+            timeSinceCast = 0;
 
             //TODO: Stun Hitbox & Buff
         }
 
-        public void OnSpellPostCast(ISpell sepll)
+        public void OnSpellPostCast(ISpell spell)
         {
         }
 
@@ -87,23 +94,38 @@ namespace Spells
         {
         }
 
+        
         public void OnUpdate(float diff)
         {
-            //ticks++;
+            if (truecoords.X == 0)
+                return;
 
-            //if (ticks <= 180)
-            //{
-            //    var units = GetUnitsInRange(truecoords, 350f, true);
-            //    for (int i = 0; i < units.Count; i++)
-            //    {
-            //        if (Vector2.Distance(units[i].Position, truecoords) >= 350f && Vector2.Distance(units[i].Position, truecoords) <= 370f)
-            //        {
-            //            units[i].ApplyCrowdControl(stun, Owner);
-            //            AddBuff("VeigarEventHorizon", duration, 1, SPELL, units[i], Owner);
+            timeSinceCast += diff;
+            if (timeSinceCast <= 3000)
+            {
+                var units = GetUnitsInRange(truecoords, 400f, true);
 
-            //        }
-            //    }
+                for (int i = 0; i < units.Count; i++)
+                {
+                    if (units[i].NetId == Owner.NetId)
+                        continue;
 
+                    if (Vector2.Distance(units[i].Position, truecoords) >= 300f && Vector2.Distance(units[i].Position, truecoords) <= 370f)
+                    {
+                        //units[i].ApplyCrowdControl(stun, Owner);
+                        if (!stunnedUnits.Contains(units[i].NetId))
+                        {
+                            stunnedUnits.Add(units[i].NetId);
+                            float duration = 1.5f + (0.25f * Spell.CastInfo.SpellLevel);
+                            AddBuff("VeigarEventHorizon", duration, 1, Spell, units[i], Owner);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                truecoords = new Vector2(0,0);
+            }
         }
     }
 }

@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using GameServerCore.Enums;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
@@ -79,7 +78,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            //ApiEventManager.OnSpellMissileHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -90,12 +89,12 @@ namespace Spells
         {
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
         {
             var owner = spell.CastInfo.Owner;
             float damage = 20 + (spell.CastInfo.SpellLevel * 40) + owner.Stats.AbilityPower.Total * 0.9f;
             
-            AddParticle(owner, owner, "Lucian_W_blowup.troy", missile.Position, 1f, 0.5f); //Double Check the size
+            AddParticle(owner, null, "Lucian_W_blowup.troy", missile.Position, 1f, 0.5f); //Double Check the size
             
             var units = GetUnitsInRange(missile.Position, 200f, true); //TODO: Make it a cross hitbox, not a circle
             for (int i = 0; i < units.Count; i++)

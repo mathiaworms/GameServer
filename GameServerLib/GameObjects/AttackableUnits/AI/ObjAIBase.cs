@@ -370,7 +370,29 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             return ClassifyUnit.DEFAULT;
         }
+        /// <summary>
+        /// Called when this AI collides with the terrain or with another GameObject. Refer to CollisionHandler for exact cases.
+        /// </summary>
+        /// <param name="collider">GameObject that collided with this AI. Null if terrain.</param>
+        /// <param name="isTerrain">Whether or not this AI collided with terrain.</param>
+        public override void OnCollision(IGameObject collider, bool isTerrain = false)
+        {
+            // If we were trying to path somewhere before colliding, then repath from our new position.
+            //if (!IsPathEnded())
+            //{
+            //    List<Vector2> safePath = _game.Map.NavigationGrid.GetPath(Position, _game.Map.NavigationGrid.GetClosestTerrainExit(Waypoints.Last()));
 
+            //    // TODO: When using this safePath, sometimes we collide with the terrain again, so we use an unsafe path the next collision, however,
+            //    // sometimes we collide again before we can finish the unsafe path, so we end up looping collisions between safe and unsafe paths, never actually escaping (ex: sharp corners).
+            //    // Edit the current method to fix the above problem.
+            //    if (safePath != null)
+            //    {
+            //        SetWaypoints(safePath);
+            //    }
+            //}
+
+            base.OnCollision(collider, isTerrain);
+        }
         public override bool Move(float diff)
         {
             // If we have waypoints, but our move order is one of these, we shouldn't move.
@@ -465,11 +487,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         public bool RecalculateAttackPosition()
         {
             // If we are already where we should be, which means we are in attack range, then keep our current position.
-            if (TargetUnit == null || TargetUnit.IsDead || Vector2.DistanceSquared(Position, TargetUnit.Position) <= Stats.Range.Total * Stats.Range.Total)
+        //    if (TargetUnit == null || TargetUnit.IsDead || Vector2.DistanceSquared(Position, TargetUnit.Position) <= Stats.Range.Total * Stats.Range.Total)
+       //     {
+        //        return false;
+        //    }
+            if (TargetUnit == null || TargetUnit.IsDead)
             {
                 return false;
             }
-
             var nearestObjects = _game.Map.CollisionHandler.QuadDynamic.GetNearestObjects(this);
 
             foreach (var gameObject in nearestObjects)
@@ -490,7 +515,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 if (GameServerCore.Extensions.IsVectorWithinRange(closestPoint, Position, CollisionRadius))
                 {
                     var exitPoint = GameServerCore.Extensions.GetCircleEscapePoint(Position, CollisionRadius + 1, gameObject.Position, gameObject.CollisionRadius);
-                    SetWaypoints(new List<Vector2> { Position, exitPoint });
+                   // SetWaypoints(new List<Vector2> { Position, exitPoint });
+                   TeleportTo(exitPoint.X, exitPoint.Y);
                     return true;
                 }
             }
@@ -522,24 +548,24 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 return;
             }
 
-            if (MoveOrder == OrderType.AttackMove
-                || MoveOrder == OrderType.AttackTo
-                || MoveOrder == OrderType.AttackTerrainOnce
-                || MoveOrder == OrderType.AttackTerrainSustained)
-            {
-                idealRange = Stats.Range.Total;
-            }
+          //  if (MoveOrder == OrderType.AttackMove
+          //      || MoveOrder == OrderType.AttackTo
+          //      || MoveOrder == OrderType.AttackTerrainOnce
+         //       || MoveOrder == OrderType.AttackTerrainSustained)
+         //   {
+         //       idealRange = Stats.Range.Total;
+         //   }
 
             if (MoveOrder != OrderType.AttackTo && TargetUnit != null)
             {
                 UpdateMoveOrder(OrderType.AttackTo, true);
-                idealRange = Stats.Range.Total;
+              //  idealRange = Stats.Range.Total;
             }
 
-            if (SpellToCast != null)
-            {
-                idealRange = SpellToCast.GetCurrentCastRange();
-            }
+         //   if (SpellToCast != null)
+         //   {
+         //       idealRange = SpellToCast.GetCurrentCastRange();
+         //   }
 
             Vector2 targetPos = Vector2.Zero;
 
@@ -939,15 +965,17 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 return;
             }
 
+            var idealRange = Stats.Range.Total;
+
             if (MovementParameters != null)
             {
-                RefreshWaypoints(0);
+                RefreshWaypoints(idealRange);
                 return;
             }
 
-            var idealRange = Stats.Range.Total;
+   
 
-            if (TargetUnit is IObjBuilding)
+            if (TargetUnit is IObjBuilding || TargetUnit is IBaseTurret)
             {
                 idealRange = Stats.Range.Total + TargetUnit.CollisionRadius;
             }
@@ -1013,7 +1041,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                         if (AutoAttackSpell.State == SpellState.STATE_READY)
                         {
                             // Stops us from continuing to move towards the target.
-                            RefreshWaypoints(Stats.Range.Total);
+                          //  RefreshWaypoints(Stats.Range.Total);
+                          RefreshWaypoints(idealRange);
 
                             if (CanAttack())
                             {

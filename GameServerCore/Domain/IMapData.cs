@@ -1,4 +1,4 @@
-﻿using GameServerCore.Domain.GameObjects;
+using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using System.Collections.Generic;
 using System.Numerics;
@@ -22,6 +22,7 @@ namespace GameServerCore.Domain
         /// </summary>
         List<float> ExpCurve { get; }
         /// <summary>
+        //string GetBuffFor(IAttackableUnit u);
         /// Amount of time death should last depending on level.
         /// </summary>
         List<float> DeathTimes { get; }

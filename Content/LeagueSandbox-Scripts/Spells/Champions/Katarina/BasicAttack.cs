@@ -4,8 +4,6 @@ using LeagueSandbox.GameServer.Scripting.CSharp;
 using System.Numerics;
 using LeagueSandbox.GameServer.API;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Enums;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 
 
 namespace Spells
@@ -28,7 +26,7 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            ApiEventManager.OnLaunchAttack.AddListener(this, owner, OnLaunchAttack, true);
+            ApiEventManager.OnLaunchAttack.AddListener(this, owner, OnLaunchAttack, false);
         }
 
         public void OnLaunchAttack(ISpell spell)
@@ -80,7 +78,7 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            ApiEventManager.OnLaunchAttack.AddListener(this, owner, OnLaunchAttack, true);
+            ApiEventManager.OnLaunchAttack.AddListener(this, owner, OnLaunchAttack, false);
         }
 
         public void OnLaunchAttack(ISpell spell)

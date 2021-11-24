@@ -8,7 +8,7 @@ using LeagueSandbox.GameServer.API;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
+
 
 namespace Spells
 {
@@ -28,12 +28,12 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            //ApiEventManager.OnSpellMissileHit.AddListener(this, new System.Collections.Generic.KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
         {
-            var owner = spell.CastInfo.Owner;
+            var owner = spell.CastInfo.Owner as IChampion;
             var ownerSkinID = owner.SkinID;
             var APratio = owner.Stats.AbilityPower.Total * 1.2f;
             var targetAP = target.Stats.AbilityPower.Total * 0.8f;
@@ -58,10 +58,6 @@ namespace Spells
             }
             else
             {
-                var buffer = owner.Stats.AbilityPower.FlatBonus;
-
-                statsModifier.AbilityPower.FlatBonus += (StacksPerLevel + 2) - buffer;
-                owner.AddStatModifier(statsModifier);
 
                 if (ownerSkinID == 8)
                 {

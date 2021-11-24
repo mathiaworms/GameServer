@@ -1,4 +1,4 @@
-﻿using ENet;
+using ENet;
 using GameServerCore;
 using GameServerCore.Content;
 using GameServerCore.Domain;
@@ -605,7 +605,26 @@ namespace PacketDefinitions420
             }
             _packetHandlerManager.BroadcastPacketVision(u, cdPacket.GetBytes(), Channel.CHL_S2C);
         }
+         public void S2C_AmmoUpdate(IObjAiBase u, byte slotId, int currentAmmo, int maxAmmo, float ammoRecharge, float ammoRechargeTotalTime)
+        {
 
+            var cdPacket = new S2C_AmmoUpdate
+            {
+                SenderNetID = u.NetId,
+                SpellSlot = slotId,
+                CurrentAmmo = currentAmmo,
+                MaxAmmo = maxAmmo,
+                AmmoRecharge = ammoRecharge,
+                AmmoRechargeTotalTime = ammoRechargeTotalTime,
+                IsSummonerSpell = false, 
+            };
+
+            //if (u is IChampion && (slotId == 4 || slotId == 5))
+            //{
+            //    cdPacket.IsSummonerSpell = true; // TODO: Verify functionality
+            //}
+            _packetHandlerManager.BroadcastPacketVision(u, cdPacket.GetBytes(), Channel.CHL_S2C);
+        }
         /// <summary>
         /// Sends a packet to the specified user that highlights the specified GameObject.
         /// </summary>
@@ -2739,7 +2758,19 @@ namespace PacketDefinitions420
                     NotifyMonsterSpawned(monster);
                     break;
                 case IMinion minion:
-                    visionPackets.Add(NotifyMinionSpawned(minion, false));
+                  //  visionPackets.Add(NotifyMinionSpawned(minion, false));
+                  NotifyMinionSpawned(minion);
+                   if (minion.IsWard)
+                    {
+                        NotifyAddRegion
+                        (
+                            0,0, minion.Team, minion.Position,
+                            60.0f, 800.0f, -2,
+                            null, minion, minion.CharData.PathfindingCollisionRadius,
+                            130.0f, 1.0f, 0,
+                            true, false
+                        );
+                    }
                     break;
                 case IAzirTurret azirTurret:
                     NotifyAzirTurretSpawned(azirTurret);
@@ -3260,6 +3291,11 @@ namespace PacketDefinitions420
             };
 
             _packetHandlerManager.BroadcastPacketVision(u, speedWpGroup.GetBytes(), Channel.CHL_S2C);
+        }
+        public void NotifyTransparency(IAttackableUnit u, float transparency, float transitionTime)
+        {
+            var transparent = new SetModelTransparency(u, transparency, transitionTime);
+            _packetHandlerManager.BroadcastPacket(transparent, Channel.CHL_S2C);
         }
 
         public void NotifyCreateMonsterCamp(Vector2 pos, byte campId, TeamId team, string icon)

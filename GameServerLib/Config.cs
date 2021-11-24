@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -151,11 +151,12 @@ namespace LeagueSandbox.GameServer
         /// </summary>
         public List<float> DeathTimes { get; private set; }
         /// <summary>
+        //string GetBuffFor(IAttackableUnit u);
         /// Potential progression of stats per-level of jungle monsters.
         /// </summary>
         /// TODO: Figure out what this is and how to implement it.
         public List<float> StatsProgression { get; private set; }
-
+        
         public MapData(int mapId)
         {
             Id = mapId;
@@ -247,7 +248,8 @@ namespace LeagueSandbox.GameServer
 
                 return team;
             }
-
+           
+            
             public string GetTeamName()
             {
                 string teamName = "";

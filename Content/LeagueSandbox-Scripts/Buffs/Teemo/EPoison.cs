@@ -6,7 +6,7 @@ using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 
-namespace Buffs
+namespace ToxicShot
 
 {
     internal class ToxicShot : IBuffGameScript
@@ -26,9 +26,10 @@ namespace Buffs
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
             owner = ownerSpell.CastInfo.Owner;
+            var e = owner.GetSpell(2);
             Unit = unit;
             float APratio = owner.Stats.AbilityPower.Total * 0.1f;
-            damage = 6 * ownerSpell.CastInfo.SpellLevel + APratio;
+            damage = 6 * e.CastInfo.SpellLevel + APratio;
 
             p = AddParticleTarget(owner, unit, "Global_Poison.troy", unit, buff.Duration, bone: "BUFFBONE_GLB_CHANNEL_LOC");
         }

@@ -9,7 +9,7 @@ using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
 using System;
 using LeagueSandbox.GameServer.API;
 
-namespace Spells
+namespace ItemSpells
 {
     public class TearsDummySpell : ISpellScript
     {

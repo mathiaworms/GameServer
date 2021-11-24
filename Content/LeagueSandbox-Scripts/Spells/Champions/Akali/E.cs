@@ -11,20 +11,24 @@ using LeagueSandbox.GameServer.API;
 using System.Collections.Generic;
 using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
+using LeagueSandbox.GameServer.GameObjects.Stats;
 
+   
+using GameServerCore.Domain.GameObjects.Spell.Sector;
 namespace Spells
 {
     public class AkaliShadowSwipe : ISpellScript
     {
-        public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
-            TriggersSpellCasts = true
+            TriggersSpellCasts = true,
+            NotSingleTargetSpell = true
             // TODO
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+           // ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -38,6 +42,9 @@ namespace Spells
 
         public void OnSpellCast(ISpell spell)
         {
+            var owner = spell.CastInfo.Owner;
+            AddBuff("AkaliTwilightShroudCD", 0.65f, 1, spell, owner, owner);
+            RemoveBuff(owner, "AkaliTwilightShroud");
         }
 
         public void OnSpellPostCast(ISpell spell)
@@ -49,27 +56,25 @@ namespace Spells
                 Type = SectorType.Area
             });
         }
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner;
-            if (!(target is IBaseTurret || target is ILaneTurret || target.Team == owner.Team || target == owner))
+            var AP = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.3f;
+            var AD = spell.CastInfo.Owner.Stats.AttackDamage.Total * 0.6f;
+            var damage = 40 + spell.CastInfo.SpellLevel * 30 + AP + AD;
+            var MarkAPratio = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.5f;
+            var MarkDamage = 45 + 25 * (owner.GetSpell("AkaliMota").CastInfo.SpellLevel - 1) + MarkAPratio;
+
+            if (target.HasBuff("AkaliMota"))
             {
-                var AP = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.3f;
-                var AD = spell.CastInfo.Owner.Stats.AttackDamage.Total * 0.6f;
-                var damage = 40 + spell.CastInfo.SpellLevel * 30 + AP + AD;
-                var MarkAPratio = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.5f;
-                var MarkDamage = 45 + 25 * (owner.GetSpell("AkaliMota").CastInfo.SpellLevel - 1) + MarkAPratio;
-
-                if (target.HasBuff("AkaliMota"))
-                {
-                    target.TakeDamage(owner, MarkDamage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_PROC, false);
-                    AddParticleTarget(owner, target, "akali_mark_impact_tar.troy", target, 1f);
-                    RemoveBuff(target, "AkaliMota");
-                }
-
-                target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
-                AddParticleTarget(owner, target, "akali_shadowSwipe_tar.troy", target, 1f);
+                target.TakeDamage(owner, MarkDamage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_PROC, false);
+                AddParticleTarget(owner, target, "akali_mark_impact_tar.troy", target, 1f);
+                RemoveBuff(target, "AkaliMota");
+                owner.Stats.CurrentMana += (15f + (5 * owner.GetSpell(0).CastInfo.SpellLevel));
             }
+            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
+            AddParticleTarget(owner, target, "akali_shadowSwipe_tar.troy", target, 1f);
         }
 
 
@@ -89,4 +94,6 @@ namespace Spells
         {
         }
     }
+
+    
 }

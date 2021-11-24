@@ -63,13 +63,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             int skinId = 0,
             bool ignoreCollision = false,
             bool targetable = true,
-            IObjAiBase visibilityOwner = null
+            IObjAiBase visibilityOwner = null,
+            bool isWard = false
         ) : base(game, model, new Stats.Stats(), 40, position, 1100, skinId, netId, team)
         {
             Name = name;
 
             Owner = owner;
-
+            IsWard = isWard;
             IsPet = false;
             if (Owner != null)
             {
@@ -138,7 +139,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         }
 
         // AI tasks
-        protected bool ScanForTargets()
+        public virtual bool ScanForTargets()
         {
             if (TargetUnit != null && !TargetUnit.IsDead)
             {

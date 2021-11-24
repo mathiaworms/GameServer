@@ -12,6 +12,7 @@ using LeagueSandbox.GameServer.Packets;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using System.Collections.Generic;
 using System.Numerics;
+using System;
 
 namespace LeagueSandbox.GameServer.GameObjects.Spell
 {
@@ -33,6 +34,9 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         /// </summary>
         public float CurrentCooldown { get; protected set; }
         /// <summary>
+
+         public float CurrentAmmoRechargeTime { get; protected set; }
+        public int CurrentAmmo { get; protected set; }
         /// Time until casting will end for this spell.
         /// </summary>
         public float CurrentCastTime { get; protected set; }
@@ -176,7 +180,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             var attackType = AttackType.ATTACK_TYPE_RADIAL;
             var stats = CastInfo.Owner.Stats;
 
-            if ((SpellData.ManaCost[CastInfo.SpellLevel] * (1 - stats.SpellCostReduction) >= stats.CurrentMana && !CastInfo.IsAutoAttack) || State != SpellState.STATE_READY)
+            if ((SpellData.ManaCost[CastInfo.SpellLevel] * (1 - stats.SpellCostReduction) > stats.CurrentMana && !CastInfo.IsAutoAttack) || State != SpellState.STATE_READY)
             {
                 return false;
             }
@@ -202,6 +206,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             // TODO: Unhardcode (wind down? If so, make it cancelable via casting a different spell and via changing move order to AttackTo or MoveTo.)
             CastInfo.ExtraCastTime = 0.0f;
             CastInfo.Cooldown = GetCooldown();
+            CastInfo.AmmoRechargeTime = GetAmmoRechargeTime();
             // TODO: Unhardcode (extra windup?)
             CastInfo.StartCastTime = 0.0f;
 
@@ -216,7 +221,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             else
             {
                 CastInfo.DesignerCastTime = SpellData.GetCastTime();
-                CastInfo.DesignerTotalTime = SpellData.GetCastTime() + SpellData.ChannelDuration[CastInfo.SpellLevel];
+                CastInfo.DesignerTotalTime = SpellData.GetCastTime() + Script.ScriptMetadata.ChannelDuration;
             }
 
             if (SpellData.OverrideCastTime > 0)
@@ -241,7 +246,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             else
             {
                 CastInfo.AmmoUsed = 1; // TODO: Verify
-                CastInfo.AmmoRechargeTime = CastInfo.Cooldown; // TODO: Verify
+               // CastInfo.AmmoRechargeTime = CastInfo.Cooldown; // TODO: Verify
             }
 
             // TODO: Account for multiple targets
@@ -371,7 +376,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 if (CastInfo.UseAttackCastTime)
                 {
                     // TODO: Verify
-                    CastInfo.DesignerTotalTime = CastInfo.DesignerCastTime + SpellData.ChannelDuration[CastInfo.SpellLevel];
+                    CastInfo.DesignerTotalTime = CastInfo.DesignerCastTime + Script.ScriptMetadata.ChannelDuration;
                 }
             }
 
@@ -429,7 +434,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
 
             if (cast)
             {
-                if ((SpellData.ManaCost[CastInfo.SpellLevel] * (1 - stats.SpellCostReduction) >= stats.CurrentMana && !CastInfo.IsAutoAttack) || State != SpellState.STATE_READY)
+                if ((SpellData.ManaCost[CastInfo.SpellLevel] * (1 - stats.SpellCostReduction) > stats.CurrentMana && !CastInfo.IsAutoAttack) || State != SpellState.STATE_READY)
                 {
                     return false;
                 }
@@ -459,7 +464,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             else
             {
                 CastInfo.DesignerCastTime = SpellData.GetCastTime();
-                CastInfo.DesignerTotalTime = SpellData.GetCastTime() + SpellData.ChannelDuration[CastInfo.SpellLevel];
+                CastInfo.DesignerTotalTime = SpellData.GetCastTime() + Script.ScriptMetadata.ChannelDuration;
             }
 
             if (SpellData.OverrideCastTime > 0)
@@ -483,7 +488,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             else
             {
                 CastInfo.AmmoUsed = 1; // TODO: Verify
-                CastInfo.AmmoRechargeTime = CastInfo.Cooldown; // TODO: Verify
+               // CastInfo.AmmoRechargeTime = CastInfo.Cooldown; // TODO: Verify
             }
 
             // TODO: implement check for IsForceCastingOrChannel and IsOverrideCastPosition
@@ -571,7 +576,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 if (CastInfo.UseAttackCastTime)
                 {
                     // TODO: Verify
-                    CastInfo.DesignerTotalTime = CastInfo.DesignerCastTime + SpellData.ChannelDuration[CastInfo.SpellLevel];
+                    CastInfo.DesignerTotalTime = CastInfo.DesignerCastTime + Script.ScriptMetadata.ChannelDuration;
                 }
             }
 
@@ -635,7 +640,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         public void Channel()
         {
             State = SpellState.STATE_CHANNELING;
-            CurrentChannelDuration = SpellData.ChannelDuration[CastInfo.SpellLevel];
+            CurrentChannelDuration = Script.ScriptMetadata.ChannelDuration;
             if (Script.ScriptMetadata.ChannelDuration > 0)
             {
                 CurrentChannelDuration = Script.ScriptMetadata.ChannelDuration;
@@ -703,15 +708,17 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             }
             else
             {
-                if (SpellData.ChannelDuration[CastInfo.SpellLevel] <= 0)
+                if (Script.ScriptMetadata.ChannelDuration <= 0)
                 {
                     State = SpellState.STATE_COOLDOWN;
 
                     CurrentCooldown = GetCooldown();
+                     UseCurrentAmmo(SpellData.AmmoUsed[CastInfo.SpellLevel]);
 
                     if (CastInfo.SpellSlot < 4)
                     {
                         _game.PacketNotifier.NotifyCHAR_SetCooldown(CastInfo.Owner, CastInfo.SpellSlot, CurrentCooldown, GetCooldown());
+                        _game.PacketNotifier.S2C_AmmoUpdate(CastInfo.Owner, CastInfo.SpellSlot, GetCurrentAmmo(), GetMaxAmmo(), CurrentAmmoRechargeTime, GetAmmoRechargeTime());
                     }
                 }
             }
@@ -968,7 +975,36 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         {
             return _game.Config.CooldownsEnabled ? SpellData.Cooldown[CastInfo.SpellLevel] * (1 - CastInfo.Owner.Stats.CooldownReduction.Total) : 0;
         }
+         public float GetAmmoRechargeTime()
+        {
+            return _game.Config.CooldownsEnabled ? SpellData.AmmoRechargeTime[CastInfo.SpellLevel] * (1 - CastInfo.Owner.Stats.CooldownReduction.Total) : 0;
 
+        }
+
+        public int GetCurrentAmmo()
+        {
+            return CurrentAmmo;
+        }
+
+        public void AddCurrentAmmo(int ammo)
+        {
+            CurrentAmmo += ammo;
+            CurrentAmmo = Math.Clamp(CurrentAmmo, 0, GetMaxAmmo());
+            CurrentAmmoRechargeTime = GetAmmoRechargeTime();
+            _game.PacketNotifier.S2C_AmmoUpdate(CastInfo.Owner, CastInfo.SpellSlot, GetCurrentAmmo(), GetMaxAmmo(), CurrentAmmoRechargeTime, GetAmmoRechargeTime());
+        }
+
+        public void UseCurrentAmmo(int ammo)
+        {
+            CurrentAmmo -= ammo;
+            CurrentAmmo = Math.Clamp(CurrentAmmo, 0, GetMaxAmmo());
+            _game.PacketNotifier.S2C_AmmoUpdate(CastInfo.Owner, CastInfo.SpellSlot, GetCurrentAmmo(), GetMaxAmmo(), CurrentAmmoRechargeTime, GetAmmoRechargeTime());
+        }
+
+        public int GetMaxAmmo()
+        {
+            return SpellData.MaxAmmo[CastInfo.SpellLevel];
+        }
         public float GetCurrentCastRange()
         {
             if (_overrrideCastRange > 0)
@@ -1132,7 +1168,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 _game.PacketNotifier.NotifyS2C_UpdateSpellToggle((int)clientInfo.PlayerId, this);
             }
         }
-
+        float time = 0;
         /// <summary>
         /// Called every diff milliseconds to update the spell
         /// </summary>
@@ -1142,7 +1178,15 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             {
                 Script.OnUpdate(diff);
             }
+             CurrentAmmoRechargeTime -= diff / 1000.0f;
+            CurrentAmmoRechargeTime = Math.Clamp(CurrentAmmoRechargeTime, 0, GetAmmoRechargeTime());
 
+            if (CurrentAmmo < GetMaxAmmo() && CurrentAmmoRechargeTime == 0)
+            {
+                AddCurrentAmmo(1);
+            } else if (CurrentAmmoRechargeTime == 0){
+                CurrentAmmoRechargeTime = GetAmmoRechargeTime();
+            }
             switch (State)
             {
                 case SpellState.STATE_READY:
@@ -1155,7 +1199,8 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                         if (CurrentCastTime <= 0)
                         {
                             FinishCasting();
-                            if (SpellData.ChannelDuration[CastInfo.SpellLevel] > 0 || Script.ScriptMetadata.ChannelDuration > 0)
+                         //   if (SpellData.ChannelDuration[CastInfo.SpellLevel] > 0 || Script.ScriptMetadata.ChannelDuration > 0)
+                          if (Script.ScriptMetadata.ChannelDuration > 0)
                             {
                                 Channel();
                             }

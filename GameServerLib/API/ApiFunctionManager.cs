@@ -382,10 +382,11 @@ namespace LeagueSandbox.GameServer.API
             SpellDataFlags targetingFlags = 0,
             IObjAiBase visibilityOwner = null,
             bool isVisible = true,
-            bool aiPaused = true
+            bool aiPaused = true,
+            bool isWard = false
         )
         {
-            var m = new Minion(_game, owner, position, model, name, 0, owner.Team, skinId, ignoreCollision, targetable, visibilityOwner);
+            var m = new Minion(_game, owner, position, model, name, 0, owner.Team, skinId, ignoreCollision, targetable, visibilityOwner, isWard : isWard);
             m.Stats.IsTargetableToTeam = targetingFlags;
             _game.ObjectManager.AddObject(m);
             m.SetVisibleByTeam(owner.Team, isVisible);

@@ -28,7 +28,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+           // ApiEventManager.OnSpellSectorHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -37,6 +37,7 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
+            owner.StopChanneling(ChannelingStopCondition.Cancel, ChannelingStopSource.Move);
             spell.CreateSpellSector(new SectorParameters
             {
                 Length = 400f,
@@ -56,14 +57,11 @@ namespace Spells
         public void OnSpellPostCast(ISpell spell)
         {
         }
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner;
-            if(owner != target)
-            {
-
             var AP = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.25f;
-            var AD =  0.6f;
+            var AD = spell.CastInfo.Owner.Stats.AttackDamage.TotalBonus * 0.6f;
             float damage = 5f + spell.CastInfo.SpellLevel * 35f + AP + AD;
             var MarkAP = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.15f;
             float MarkDamage = 15f * (owner.GetSpell("KatarinaQ").CastInfo.SpellLevel) + MarkAP;
@@ -76,7 +74,6 @@ namespace Spells
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
             AddParticleTarget(owner, target, "katarina_w_tar.troy", target, 1f);
             AddBuff("KatarinaWHaste", 1f, 1, spell, owner, owner);
-            }
         }
 
 

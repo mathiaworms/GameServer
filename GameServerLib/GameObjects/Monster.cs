@@ -63,15 +63,17 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             if (MinionSpawnType == MonsterSpawnType.ELDER_LIZARD)
             {
                 // TODO : Give infinite version of buff
-                var buff = new Buff(_game, "RedBuff", 60f, 1, this.AutoAttackSpell, this, this, true);
-                AddBuff(buff);
+               // var buff = new Buff(_game, "RedBuff", 60f, 1, this.AutoAttackSpell, this, this, true);
+                //AddBuff(buff);
+                AddParticleTarget(this, this, "NeutralMonster_buf_red_offense_big.troy", this, 300f);
             }
 
             if (MinionSpawnType == MonsterSpawnType.ANCIENT_GOLEM)
             {
                 // TODO : Give infinite version of buff
-                var buff = new Buff(_game, "BlueBuff", 60f, 1, this.AutoAttackSpell, this, this, true);
-                AddBuff(buff);
+              //  var buff = new Buff(_game, "BlueBuff", 60f, 1, this.AutoAttackSpell, this, this, true);
+              //  AddBuff(buff);
+              AddParticleTarget(this, this, "NeutralMonster_buf_blue_defense_big.troy", this);
             }
 
             SetPosition(position.X, position.Y);

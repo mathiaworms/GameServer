@@ -28,7 +28,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         private IDeathData _death;
 
         // Utility Vars.
-        internal const float DETECT_RANGE = 475.0f;
+        internal const float DETECT_RANGE = 800.0f;
         internal const int EXP_RANGE = 1400;
         protected readonly ILog Logger;
 
@@ -88,6 +88,10 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         /// <summary>
         /// Waypoints that make up the path a game object is walking in.
         /// </summary>
+        /// Time in milliseconds unit last took damage.
+        /// </summary>
+        private float _lastAttackedTime;
+        /// <summary>
         public List<Vector2> Waypoints { get; protected set; }
         /// <summary>
         /// Index of the waypoint in the list of waypoints that the object is currently on.
@@ -285,7 +289,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 // We should not teleport here because Pathfinding should handle it.
                 // TODO: Implement a PathfindingHandler, and remove currently implemented manual pathfinding.
                 Vector2 exit = Extensions.GetCircleEscapePoint(Position, CollisionRadius + 1, collider.Position, collider.CollisionRadius);
-                TeleportTo(exit.X, exit.Y, true);
+               // TeleportTo(exit.X, exit.Y, true);
             }
         }
 
@@ -397,6 +401,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 case DamageSource.DAMAGE_SOURCE_DEFAULT:
                     break;
                 case DamageSource.DAMAGE_SOURCE_SPELLAOE:
+                regain = attackerStats.SpellVamp.Total * 0.33f;
                     break;
                 case DamageSource.DAMAGE_SOURCE_SPELLPERSIST:
                     break;
@@ -473,6 +478,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 // TODO: send this in one place only (preferably a central EventHandler class)
                 _game.PacketNotifier.NotifyUpdatedStats(attacker, false);
             }
+            _lastAttackedTime = _game.GameTime;
         }
 
         /// <summary>
@@ -502,7 +508,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
         /// TODO: Implement this.
         public virtual bool IsInDistress()
         {
-            return false; //return DistressCause;
+            return _game.GameTime - _lastAttackedTime < 4f * 1000f;
+          //  return false; //return DistressCause;
         }
 
         /// <summary>
