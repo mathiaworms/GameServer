@@ -11,7 +11,7 @@ using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
-    public class Disintegrate : ISpellScript
+    public class SeismicShard : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
@@ -31,37 +31,15 @@ namespace Spells
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner as IChampion;
-            var ownerSkinID = owner.SkinID;
-            var ap = owner.Stats.AbilityPower.Total * spell.SpellData.MagicDamageCoefficient;
-            var damage = 45 + spell.CastInfo.SpellLevel * 35 + ap;
-            var stunduration = 1.25f + 0.25f * owner.GetSpell("InfernalGuardian").CastInfo.SpellLevel;
+            float  APratio = owner.Stats.AbilityPower.Total * 0.6f;
+            var damage = 20 + spell.CastInfo.SpellLevel * 50 + APratio;
+            var spellpos = new Vector2(spell.CastInfo.TargetPosition.X, spell.CastInfo.TargetPosition.Z);
+
+            AddParticle(owner, null, "Malphite_Base_SeismicShard_mis.troy", spellpos, lifetime: 0.5f , reqVision: false);
+       AddParticleTarget(owner, target, "Malphite_Base_SeismicShard_tar.troy", owner); 
+		AddParticle(owner, null, "Malphite_Base_Landslide_nova.troy", spellpos, lifetime: 0.5f , reqVision: false);
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-
-            if (ownerSkinID == 5)
-            {
-                AddParticleTarget(owner, target, "DisintegrateHit_tar_frost.troy", target);
-            }
-            else
-            {
-                AddParticleTarget(owner, target, "DisintegrateHit_tar.troy", target);
-            }
-
-            if( spell.CastInfo.Owner.HasBuff("Pyromania"))
-             
-             {  
-                 if (owner.GetBuffWithName("Pyromania").StackCount == 4)
-                  {
-                      AddBuff("Stun", stunduration, 1, spell, owner, owner);
-                    owner.RemoveBuffsWithName("Pyromania");
-                   }
-                   else {
-                    AddBuff("Pyromania", 25000f, 1, spell, owner, owner);
-                   }
-            }
-             else {
-                 AddBuff("Pyromania", 25000f, 1, spell, spell.CastInfo.Owner, spell.CastInfo.Owner);
-             }
-            
+            AddBuff("SeismicShard", 3f, 1, spell, target, owner);// create the same for malph
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)

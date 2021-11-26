@@ -47,7 +47,7 @@ namespace Spells
             var owner = spell.CastInfo.Owner as IChampion;
             var targetPos = GetPointFromUnit(owner, 900.0f);
             SpellCast(owner, 0, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
-            SpellCast(owner, 4, SpellSlotType.ExtraSlots, owner.Position, owner.Position, false, Vector2.Zero);
+            SpellCast(owner, 1, SpellSlotType.ExtraSlots, owner.Position, owner.Position, false, Vector2.Zero);
         }
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {

@@ -81,6 +81,7 @@ namespace Spells
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -106,7 +107,10 @@ namespace Spells
 
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
             AddBuff("Chilled", 3.0f, 1, spell, target, owner);
+
             AddParticleTarget(owner, target, "cryo_ice_impact.troy", target, size: 0.5f);
+
+           
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -118,9 +122,7 @@ namespace Spells
         }
         public void OnSpellPostChannel(ISpell spell)
         {
-
         }
-
         public void OnUpdate(float diff)
         {
         }
