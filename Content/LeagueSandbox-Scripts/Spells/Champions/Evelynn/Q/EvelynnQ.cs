@@ -1,31 +1,25 @@
-﻿using System.Collections.Generic;
 using System.Numerics;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
-using GameServerCore.Domain.GameObjects.Spell.Missile;
 using GameServerCore.Enums;
-using LeagueSandbox.GameServer.API;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
-using LeagueSandbox.GameServer.Scripting.CSharp;
 using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.Scripting.CSharp;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 
 namespace Spells
 {
-    public class FrostShot : ISpellScript
+    public class EvelynnQ : ISpellScript
     {
-        IObjAiBase Owner;
-
-        ISpell Spell;
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
-            TriggersSpellCasts = true,
-            SpellToggleSlot = 1
+            CastingBreaksStealth = true,
+            AutoFaceDirection = false,
+            IsDamagingSpell = true,
+            TriggersSpellCasts = true
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            Owner = owner;
-            Spell = spell;
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -34,16 +28,6 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-             if (!Owner.HasBuff("AsheQAttack"))
-            {
-                AddBuff("AsheQAttack", 250000f, 1, spell, Owner, Owner, true);
-
-                
-            }
-            else
-            {
-                RemoveBuff(Owner, "AsheQAttack");
-            }
         }
 
         public void OnSpellCast(ISpell spell)
@@ -52,9 +36,20 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
-           
+            var owner = spell.CastInfo.Owner as IChampion;
+            var targetPos = new Vector2(spell.CastInfo.TargetPosition.X, spell.CastInfo.TargetPosition.Z);
+            var ownerPos = owner.Position;
+            var distance = Vector2.Distance(ownerPos, targetPos);
+
+            if (distance > 450.0)
+            {
+                targetPos = GetPointFromUnit(owner, 400.0f);
+            }
+
+            SpellCast(owner, 0, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
+
         }
-        
+
         public void OnSpellChannel(ISpell spell)
         {
         }
@@ -69,7 +64,6 @@ namespace Spells
 
         public void OnUpdate(float diff)
         {
-            
         }
     }
 }

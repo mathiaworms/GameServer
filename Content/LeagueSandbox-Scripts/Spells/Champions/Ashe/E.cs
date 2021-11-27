@@ -15,64 +15,75 @@ namespace Spells
 { 
      public class AsheSpiritOfTheHawkCast : ISpellScript
     {
-        public ISpellSector DamageSector;
-        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
+          public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
             TriggersSpellCasts = true,
-            IsDamagingSpell = true
+            CastingBreaksStealth = true,
+            DoesntBreakShields = true,
+            IsDamagingSpell = true,
+            NotSingleTargetSpell = true,
+
+
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
+             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
+
+        public ISpellSector DamageSector;
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
-           //  AddBuff("AsheSpiritOfTheHawk", 2500000f, 1, spell, owner, owner);
         }
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
+         
         }
 
         public void OnSpellCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner;
-            AddParticleTarget(owner, owner, "Ashe_Base_E_mis.troy", owner, bone: "L_HAND");
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner as IChampion;
-            float distance = 1750.0f + spell.CastInfo.SpellLevel * 750.0f;
-            var targetPos = GetPointFromUnit(owner, distance);
-            
-        SpellCast(owner, 2, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
-           
+            var owner = spell.CastInfo.Owner;
+            var targetPos = GetPointFromUnit(owner, 825.0f);
+            SpellCast(owner, 1, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
+            var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);        
+          
 
-            var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);
+                AddParticle(owner, null, "Ashe_Base_E_tar_explode.troy", spellpos, lifetime: 0.5f , reqVision: false);
+                AddParticle(owner, null, "Ashe_Base_E_tar_linger.troy", spellpos, lifetime: 0.5f , reqVision: false);
 
-
-               
-                AddParticle(owner, null, "Ashe_Base_E_tar_explode.troy", spellpos, lifetime: 7f , reqVision: false);
-                AddParticle(owner, null, "Ashe_Base_E_tar_linger.troy", spellpos, lifetime: 7f , reqVision: false);
-                
                 DamageSector = spell.CreateSpellSector(new SectorParameters
                 {
                     Length = 250f,
-
                     Tickrate = 2,
-                    CanHitSameTargetConsecutively = true,
+                    CanHitSameTargetConsecutively = false,
                     OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
                     Type = SectorType.Area,
-                    Lifetime = 5.0f
+                    Lifetime = 0.5f
                 });
+
+          
+             
+     // ajouter test cube avec ward buff pour avoir la vision pendant 6 seconde 
+         //   ward = AddMinion(owner, "YellowTrinket", "YellowTrinket", truecoords);
+         //   AddBuff("YellowTriket", 6f, 1, spell, ward, ward);
+
         }
 
         public void OnSpellChannel(ISpell spell)
         {
         }
+          public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        {  
+         
+          
 
+        }
         public void OnSpellChannelCancel(ISpell spell)
         {
         }
@@ -84,7 +95,7 @@ namespace Spells
         public void OnUpdate(float diff)
         {
         }
-    } /* 
+    } 
     public class AsheSpiritOfTheHawk : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
@@ -124,10 +135,10 @@ namespace Spells
           //  RemoveBuff(Owner, "AsheSpiritOfTheHawk");
             var owner = spell.CastInfo.Owner;
             var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);
+            var wallduration = 5.0f;
 
 
-               
-                AddParticle(owner, null, "Ashe_Base_E_tar_explode.troy", spellpos, lifetime: 7f , reqVision: false);
+            AddParticle(owner, null, "Ashe_Base_E_tar_explode.troy", spellpos, lifetime: 7f , reqVision: false);
                 AddParticle(owner, null, "Ashe_Base_E_tar_linger.troy", spellpos, lifetime: 7f , reqVision: false);
                 
                 DamageSector = spell.CreateSpellSector(new SectorParameters
@@ -140,7 +151,19 @@ namespace Spells
                     Type = SectorType.Area,
                     Lifetime = 5.0f
                 });
-
+               var ward8 = AddMinion(owner, "TestCubeRender", "TestCubeRender", spellpos, ignoreCollision: true, targetable: false);
+                AddBuff("YellowTriket", 6f, 1, spell, ward8, ward8);
+                   if (!ward8.IsDead)
+                    {
+                        CreateTimer(wallduration, () =>
+                        {
+                            if (!ward8.IsDead)
+                            {
+                                //TODO: Fix targeting issues
+                                ward8.TakeDamage(ward8.Owner, 1000f, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, DamageResultType.RESULT_NORMAL);
+                            }
+                        });
+                    }
             
 
         }
@@ -164,5 +187,5 @@ namespace Spells
         public void OnUpdate(float diff)
         {
         }
-    }*/
+    }
 }

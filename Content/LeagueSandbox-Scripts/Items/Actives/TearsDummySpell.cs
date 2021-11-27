@@ -28,8 +28,9 @@ namespace ItemSpells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            _owner = owner;
-            ApiEventManager.OnSpellCast.AddListener(owner, spell, TargetExecute);
+         _owner = owner;
+        ApiEventManager.OnSpellCast.AddListener(owner, spell, TargetExecute);
+
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -38,11 +39,15 @@ namespace ItemSpells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            //AddBuff("RegenerationPotion", 15.0f, 1, spell, owner, owner);
+            //;
         }
 
         private void TargetExecute(ISpell spell)
         {
+          /*AddBuff("TearsDummySpell", 9999999.0f, 1, spell, owner, owner)
+          AddBuff("TearsDummySpell", 9999999.0f, 1, spell, owner, owner)
+          AddBuff("TearsDummySpell", 9999999.0f, 1, spell, owner, owner)
+          AddBuff("TearsDummySpell", 9999999.0f, 1, spell, owner, owner)*/
             spell.CastInfo.Owner.Stats.ManaPoints.FlatBonus += 4f;
         }
 
@@ -52,9 +57,7 @@ namespace ItemSpells
 
         public void OnSpellPostCast(ISpell spell)
         {
-            // TODO: Remove item without selling
-            //var champion = spell.CastInfo.Owner as Champion;
-            //champion.Shop.HandleItemSellRequest(Convert.ToByte(spell.CastInfo.SpellSlot - 6));
+      
         }
 
         public void OnSpellChannel(ISpell spell)

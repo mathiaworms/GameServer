@@ -1,0 +1,18 @@
+patchnote : 
+
+Champion : 
+
+amumu work / need find particle of ulti
+Annivia / manque passive et reactivation du Q 
+Annie / Z ne cumule pas le passive 
+Ashe / Q ne consome pas de mana , peut etre activée mais pas desactivé 
+
+Items : 
+
+all items apply movements speed correctly 
+
+
+Maps : 
+
+Jungle : 
+

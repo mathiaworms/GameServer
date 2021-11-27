@@ -50,12 +50,17 @@ namespace Spells
         {
             var owner = spell.CastInfo.Owner;
             var trueCoords = GetPointFromUnit(owner, 800f);
-
+            var semiCoords = GetPointFromUnit(owner, 400f);
             ForceMovement(owner, "Spell2", trueCoords, 600, 0, 0, 0);
             var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);
 
-	    AddParticle(owner, null, "corki_valkrie_speed.troy", spellpos, lifetime: 5.0f , reqVision: false);
-	    AddParticle(owner, null, "corki_valkrie_impact_cas.troy", spellpos, lifetime: 5.0f , reqVision: false);
+	    AddParticle(owner, null, "corki_valkrie_speed.troy", owner.Position, lifetime: 5.0f , reqVision: false);
+	    AddParticle(owner, null, "corki_valkrie_impact_cas.troy", owner.Position, lifetime: 5.0f , reqVision: false);
+       AddParticle(owner, null, "corki_valkrie_speed.troy", semiCoords, lifetime: 5.0f , reqVision: false);
+	    AddParticle(owner, null, "corki_valkrie_impact_cas.troy", semiCoords, lifetime: 5.0f , reqVision: false);
+       AddParticle(owner, null, "corki_valkrie_speed.troy", trueCoords, lifetime: 5.0f , reqVision: false);
+	    AddParticle(owner, null, "corki_valkrie_impact_cas.troy", trueCoords, lifetime: 5.0f , reqVision: false);
+       
             DamageSector = spell.CreateSpellSector(new SectorParameters
             {
                 

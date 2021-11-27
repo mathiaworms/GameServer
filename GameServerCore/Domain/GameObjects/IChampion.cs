@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using GameServerCore.Domain.GameObjects.Spell;
 
 namespace GameServerCore.Domain.GameObjects

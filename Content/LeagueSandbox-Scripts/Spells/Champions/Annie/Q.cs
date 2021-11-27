@@ -51,7 +51,7 @@ namespace Spells
              {  
                  if (owner.GetBuffWithName("Pyromania").StackCount == 4)
                   {
-                      AddBuff("Stun", stunduration, 1, spell, owner, owner);
+                      AddBuff("Stun", stunduration, 1, spell, target, owner);
                     owner.RemoveBuffsWithName("Pyromania");
                    }
                    else {

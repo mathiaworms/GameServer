@@ -51,7 +51,7 @@ namespace Buffs
         {
             
             AddBuff("FrostShot", 2f, 1, Owner.GetSpell("FrostShot"), target, Owner);
-            Owner.Stats.CurrentMana -= manaCost[spelll.CastInfo.SpellLevel - 1];
+         //   Owner.Stats.CurrentMana -= manaCost[spelll.CastInfo.SpellLevel - 1];
             AddBuff("AsheQAttack", 2f, 1, Owner.GetSpell("FrostShot"), Owner, Owner);
         }
 

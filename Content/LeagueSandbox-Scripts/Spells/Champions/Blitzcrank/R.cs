@@ -1,3 +1,13 @@
+using System.Linq;
+using GameServerCore;
+using GameServerCore.Domain.GameObjects;
+using GameServerCore.Domain.GameObjects.Spell;
+using GameServerCore.Domain.GameObjects.Spell.Missile;
+using GameServerCore.Enums;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using LeagueSandbox.GameServer.Scripting.CSharp;
+using System.Numerics;
+using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
@@ -9,39 +19,53 @@ using System.Collections.Generic;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
 using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
-using System.Linq;
-using GameServerCore;
-
 namespace Spells
 {
-    public class StaticField : ISpellScript
+ public class StaticField : ISpellScript
     {
-        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
-                TriggersSpellCasts = true
-            // TODO
+            TriggersSpellCasts = true,
+            CastingBreaksStealth = true,
+            DoesntBreakShields = true,
+            IsDamagingSpell = true,
+            NotSingleTargetSpell = true,
+
+
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
+             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
-        IBuff thisBuff;
+
         public ISpellSector DamageSector;
+
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
         }
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            var ownerr = spell.CastInfo.Owner as IChampion;
-            var spellLevel = ownerr.GetSpell("StaticField").CastInfo.SpellLevel;
-            
-            var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 1.0f;
-            var damage = 125 + spellLevel * 125 + ap;
+         
+        }
 
-                AddParticle(owner, null, "StaticField_nova.troy", ownerr.Position, lifetime: 0.5f , reqVision: false);
-                AddParticle(owner, null, "StaticField_hit.troy", ownerr.Position, lifetime: 0.5f , reqVision: false);
+        public void OnSpellCast(ISpell spell)
+        {
+        }
+
+        public void OnSpellPostCast(ISpell spell)
+        {
+            var owner = spell.CastInfo.Owner;
+            var targetPos = owner.Position;
+            SpellCast(owner, 3, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
+            var spellpos = owner.Position;        
+            var wallduration = 6.0f;
+
+                AddParticle(owner, null, "StaticField_nova.troy", spellpos, lifetime: 0.5f , reqVision: false);
+                 AddParticle(owner, null, "StaticField_hit.troy", ownerr.Position, lifetime: 0.5f , reqVision: false);
                 AddParticle(owner, null, "StaticField_ready.troy", ownerr.Position, lifetime: 0.5f , reqVision: false);
+
                 DamageSector = spell.CreateSpellSector(new SectorParameters
                 {
                     Length = 600f,
@@ -51,36 +75,26 @@ namespace Spells
                     Type = SectorType.Area,
                     Lifetime = 0.5f
                 });
-        
-            
-            
-            foreach (var enemy in GetUnitsInRange(ownerr.Position, 600, true)
-                .Where(x => x.Team == CustomConvert.GetEnemyTeam(ownerr.Team)))
-            {
-      
-                if (enemy is IObjAiBase)
-                {
-                    enemy.TakeDamage(ownerr, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
 
-                     AddBuff("Stun", 0.01f, 1, spell, target, ownerr);
-                    AddParticleTarget(enemy, enemy, "StaticField_tar.troy", enemy, 1f);
-                }
-            }
           
-        }
-
-        public void OnSpellCast(ISpell spell)
-        {
-        }
-
-        public void OnSpellPostCast(ISpell spell)
-        {
+          
         }
 
         public void OnSpellChannel(ISpell spell)
         {
         }
+          public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        {  
+          var ownerr = spell.CastInfo.Owner as IChampion;
+            var spellLevel = ownerr.GetSpell("StaticField").CastInfo.SpellLevel;
+            
+            var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 1.0f;
+            var damage = 125 + spellLevel * 125 + ap;
+                AddBuff("Stun", 0.1f, 1, spell, target, ownerr);
+               AddParticleTarget(enemy, enemy, "StaticField_tar.troy", enemy, 1f);
+          
 
+        }
         public void OnSpellChannelCancel(ISpell spell)
         {
         }
