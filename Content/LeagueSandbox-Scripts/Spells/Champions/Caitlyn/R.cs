@@ -1,21 +1,19 @@
+using System.Numerics;
 using GameServerCore.Enums;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
-using LeagueSandbox.GameServer.Scripting.CSharp;
-using System.Numerics;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
-using LeagueSandbox.GameServer.API;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
-using LeagueSandbox.GameServer.GameObjects.Stats;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.API;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
+using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
 
 namespace Spells
 {
     public class CaitlynAceintheHole : ISpellScript
     {
-        IObjAiBase Owner;
-        IAttackableUnit Target;
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
             ChannelDuration = 1.25f,
@@ -30,16 +28,16 @@ namespace Spells
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
         }
-
+        static internal IAttackableUnit targ;
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            Owner = owner;
-            Target = target as IChampion;
+            targ = target;
+            owner.Stats.SetActionState(ActionState.CAN_MOVE, false);
+            CreateTimer(1.5f, () => { owner.Stats.SetActionState(ActionState.CAN_MOVE, true); });
         }
 
         public void OnSpellCast(ISpell spell)
         {
-            AddBuff("CaitlynAceintheHole", 1.5f, 1, spell, Target, Owner);
         }
 
         public void OnSpellPostCast(ISpell spell)
@@ -56,13 +54,14 @@ namespace Spells
 
         public void OnSpellPostChannel(ISpell spell)
         {
-            SpellCast(Owner, 0, SpellSlotType.ExtraSlots, true, Target, Vector2.Zero);
+            SpellCast(spell.CastInfo.Owner, 0, SpellSlotType.ExtraSlots, targ.Position, targ.Position, true, Vector2.Zero);
         }
 
         public void OnUpdate(float diff)
         {
         }
     }
+
     public class CaitlynAceintheHoleMissile : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
@@ -70,7 +69,7 @@ namespace Spells
             TriggersSpellCasts = true,
             MissileParameters = new MissileParameters
             {
-                Type = MissileType.Target
+                Type = MissileType.Circle
             }
             // TODO
         };
@@ -98,17 +97,13 @@ namespace Spells
 
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
-            var owner = spell.CastInfo.Owner;
-            var spellLevel = owner.GetSpell("CaitlynAceintheHole").CastInfo.SpellLevel;
-            if (target != null && !target.IsDead)
+            if (target != null && !target.IsDead && target is Champion)
             {
-                var ADratio = owner.Stats.AttackDamage.FlatBonus * 2f;
-                var damage = 25f + (225f * spellLevel) + ADratio;
-
-                target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-                AddParticleTarget(owner, target, "caitlyn_ace_tar.troy", target, lifetime: 1f);
+                // 250/475/700
+                var damage = 250 + spell.CastInfo.Owner.Stats.AttackDamage.Total * 2;
+                target.TakeDamage(spell.CastInfo.Owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+                missile.SetToRemove();
             }
-            missile.SetToRemove();
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -127,4 +122,5 @@ namespace Spells
         {
         }
     }
+
 }

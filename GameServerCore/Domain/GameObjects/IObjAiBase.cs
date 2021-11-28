@@ -67,6 +67,10 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         IAttackableUnit TargetUnit { get; set; }
 
+
+         void ApplyShield(IAttackableUnit unit, float amount, bool IsPhysic, bool IsMagic, bool StopShieldFade);
+
+
         void LoadPassiveScript(ISpell spell);
         /// <summary>
         /// Function called by this AI's auto attack projectile when it hits its target.
@@ -176,5 +180,7 @@ namespace GameServerCore.Domain.GameObjects
         /// <param name="order">OrderType to set.</param>
         /// <param name="publish">Whether or not to trigger the move order update event.</param>
         void UpdateMoveOrder(OrderType order, bool publish = true);
+         void SetInvisible(int netId, IObjAiBase obj, float swag, float swag2);
+        void SetHealthbarVisibility(int playerId, IAttackableUnit unit, bool show);
     }
 }

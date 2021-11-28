@@ -3012,7 +3012,21 @@ namespace PacketDefinitions420
             };
             _packetHandlerManager.BroadcastPacket(tint.GetBytes(), Channel.CHL_S2C);
         }
-
+          public void NotifyModelTransparency(int playerId, IAttackableUnit u, float transparency, float transitionTime)
+        {
+            var trans = new SetModelTransparency(u, transparency, transitionTime);
+            _packetHandlerManager.SendPacket(playerId, trans.GetBytes(), Channel.CHL_S2C);
+        }
+        public void NotifyHealthbarVisibility(int playerId, IAttackableUnit unit, bool show)
+        {
+            var trans = new ShowHpAndName(unit, show);
+            _packetHandlerManager.SendPacket(playerId, trans.GetBytes(), Channel.CHL_S2C);
+        }
+        /// <summary>
+        /// Sends a packet to the specified player detailing that the specified LaneTurret has spawned.
+        /// </summary>
+        /// <param name="userId">User to send the packet to.</param>
+        /// <param name="turret">LaneTurret that spawned.</param>
         /// <summary>
         /// Sends a packet to all players detailing that the specified event has occurred.
         /// </summary>

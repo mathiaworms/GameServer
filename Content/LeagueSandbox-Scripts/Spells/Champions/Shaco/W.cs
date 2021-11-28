@@ -31,6 +31,13 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
+            owner.SetStatus(StatusFlags.Targetable, true);
+            var Champs = GetChampionsInRange(owner.Position, 50000, true);
+            foreach (IChampion player in Champs)
+            {
+                owner.SetHealthbarVisibility((int)player.GetPlayerId(), owner, true);
+                owner.SetInvisible((int)player.GetPlayerId(), owner, 1f, 0.1f);
+            }
         }
 
         public void OnSpellCast(ISpell spell)

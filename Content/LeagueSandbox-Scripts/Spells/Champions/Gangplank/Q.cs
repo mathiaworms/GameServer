@@ -5,11 +5,19 @@ using LeagueSandbox.GameServer.Scripting.CSharp;
 using System.Numerics;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
+using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.API;
+using GameServerCore.Domain.GameObjects.Spell.Sector;
+using GameServerCore.Enums;
+using GameServerCore.Domain.GameObjects;
+using GameServerCore.Domain.GameObjects.Spell;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using LeagueSandbox.GameServer.Scripting.CSharp;
+using System.Numerics;
 using LeagueSandbox.GameServer.API;
 using System.Collections.Generic;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using GameServerCore.Domain.GameObjects.Spell.Missile;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
@@ -17,18 +25,17 @@ namespace Spells
     {
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
+            TriggersSpellCasts = true,
+            IsDamagingSpell = true,
             MissileParameters = new MissileParameters
             {
                 Type = MissileType.Target
-            },
-            IsDamagingSpell = true,
-            TriggersSpellCasts = true
-            // TODO
+            }
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellHit.AddListener(this, spell, ApplyEffects, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -41,36 +48,45 @@ namespace Spells
 
         public void OnSpellCast(ISpell spell)
         {
-         //TODO:Fix broken SpellCast animation
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
+            //spell.AddProjectileTarget("pirate_parley_mis", spell.CastInfo.SpellCastLaunchPosition, target);
         }
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+
+        public void ApplyEffects(ISpell spell, IAttackableUnit target, ISpellMissile mis, ISpellSector sec)
         {
             var owner = spell.CastInfo.Owner;
-            var damage = -5f + (25f * spell.CastInfo.SpellLevel) + owner.Stats.AttackDamage.Total;
-            var isCrit = new Random().Next(0, 100) <= (owner.Stats.CriticalChance.Total * 100f);
-            var goldIncome = new[] { 4, 5, 6, 7, 8 }[spell.CastInfo.SpellLevel];
-            bool IsCritBool = false;
-
-            if (isCrit == true)
+            var isCrit = new Random().Next(0, 100) < owner.Stats.CriticalChance.Total;
+            var baseDamage = new[] { 20, 45, 70, 95, 120 }[spell.CastInfo.SpellLevel - 1] + owner.Stats.AttackDamage.Total;
+            var damage = isCrit ? baseDamage * owner.Stats.CriticalDamage.Total / 100 : baseDamage;
+            var goldIncome = new[] { 4, 5, 6, 7, 8 }[spell.CastInfo.SpellLevel - 1];
+            if (target != null && !target.IsDead)
             {
-                damage *= owner.Stats.CriticalDamage.Total;
-                IsCritBool = true;
+                target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_ATTACK,
+                    false);
+
+                AddBuff("GangplankBleed", 3f, 1, spell, target, owner);
+
+                if (target.IsDead)
+                {
+                    owner.Stats.Gold += goldIncome;
+                    var manaCost = new float[] { 50, 55, 60, 65, 70 }[spell.CastInfo.SpellLevel - 1];
+                    var newMana = owner.Stats.CurrentMana + manaCost / 2;
+                    var maxMana = owner.Stats.ManaPoints.Total;
+                    if (newMana >= maxMana)
+                    {
+                        owner.Stats.CurrentMana = maxMana;
+                    }
+                    else
+                    {
+                        owner.Stats.CurrentMana = newMana;
+                    }
+                }
+
+                mis.SetToRemove();
             }
-
-            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_ATTACK, IsCritBool);
-            AddParticleTarget(owner, target, "pirate_parley_tar.troy", target, lifetime: 1f); //TODO: Fix particles that for some reason aren't spawning ||||| Test if particles now work
-
-            if (target.IsDead)
-            {
-                owner.Stats.Gold += goldIncome;
-                owner.Stats.CurrentMana += spell.CastInfo.ManaCost;
-            }
-
-            missile.SetToRemove();
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -83,7 +99,6 @@ namespace Spells
 
         public void OnSpellPostChannel(ISpell spell)
         {
-
         }
 
         public void OnUpdate(float diff)

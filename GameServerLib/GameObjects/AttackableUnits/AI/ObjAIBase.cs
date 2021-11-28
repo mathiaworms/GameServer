@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -28,6 +28,10 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         private Random _random = new Random();
         private readonly CSharpScriptEngine _charScriptEngine;
         protected ItemManager _itemManager;
+
+         public static float ApplyShieldAmount { get; set; }
+        public static bool IsPhysical { get; set; }
+        public static bool IsMagical { get; set; }
 
         /// <summary>
         /// Variable storing all the data related to this AI's current auto attack. *NOTE*: Will be deprecated as the spells system gets finished.
@@ -208,7 +212,13 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 IsMelee = true;
             }
         }
-
+         public void ApplyShield(IAttackableUnit unit, float amount, bool IsPhysic, bool IsMagic, bool StopShieldFade)
+        {
+            ApplyShieldAmount += amount;
+            IsPhysical = IsPhysic;
+            IsMagical = IsMagic;
+            _game.PacketNotifier.NotifyModifyShield(this, amount, IsPhysical, IsMagical, false);
+        }
         /// <summary>
         /// Loads the Passive Script
         /// </summary>
@@ -1143,6 +1153,16 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             {
                 ApiEventManager.OnUnitUpdateMoveOrder.Publish(this, order);
             }
+
+        }
+        public void SetInvisible(int netId, IObjAiBase obj, float swag, float swag2)
+        {
+            _game.PacketNotifier.NotifyModelTransparency(netId, obj, swag, swag2);
+        }
+
+        public void SetHealthbarVisibility(int playerId, IAttackableUnit unit, bool show)
+        {
+            _game.PacketNotifier.NotifyHealthbarVisibility(playerId, unit, show);
         }
     }
 }

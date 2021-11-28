@@ -1,27 +1,27 @@
-using System.Numerics;
-using GameServerCore.Domain.GameObjects;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Enums;
-using LeagueSandbox.GameServer.Scripting.CSharp;
+using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
+using LeagueSandbox.GameServer.Scripting.CSharp;
+using System.Numerics;
 using LeagueSandbox.GameServer.API;
-using System.Collections.Generic;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
+using System;
 
 namespace Spells
 {
     public class LuxLightBinding : ISpellScript
     {
-        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
             TriggersSpellCasts = true
-            // TODO
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
+
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -34,20 +34,12 @@ namespace Spells
 
         public void OnSpellCast(ISpell spell)
         {
-            AddParticleTarget(spell.CastInfo.Owner, spell.CastInfo.Owner, "LuxLightBinding_cas.troy", spell.CastInfo.Owner, 1f, bone: "L_HAND");
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner as IChampion;
-            var trueCoords = GetPointFromUnit(owner, 1300f);
-
-            SpellCast(owner, 0, SpellSlotType.ExtraSlots, trueCoords, trueCoords, false, Vector2.Zero);
-        }
-
-        public void ApplyEffects(IObjAiBase owner, IAttackableUnit target, ISpell spell, ISpellMissile missile)
-        {
-
+            var endPos = GetPointFromUnit(spell.CastInfo.Owner, 10);
+            SpellCast(spell.CastInfo.Owner, 1, SpellSlotType.ExtraSlots, endPos, endPos, true, Vector2.Zero);
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -66,18 +58,18 @@ namespace Spells
         {
         }
     }
+
     public class LuxLightBindingMis : ISpellScript
     {
-        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
+            TriggersSpellCasts = true,
             MissileParameters = new MissileParameters
             {
                 Type = MissileType.Circle
-            },
-            IsDamagingSpell = true
+            }
             // TODO
         };
-
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
@@ -92,27 +84,36 @@ namespace Spells
         {
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
-        {
-
-            var owner = spell.CastInfo.Owner as IChampion;
-            var spellLevel = owner.GetSpell("LuxLightBinding").CastInfo.SpellLevel;
-
-                var APratio = owner.Stats.AbilityPower.Total * 0.6f;
-                var damage = 35 + (45 * spellLevel) + APratio;
-
-                target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-                AddBuff("Stun", 2f, 1, spell, owner, owner);
-    
-            AddParticleTarget(owner, target, "LuxLightBinding_tar.troy", target, lifetime: 1f);
-        }
-
         public void OnSpellCast(ISpell spell)
         {
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
+        }
+
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        {
+            if (missile is ISpellCircleMissile skillshot)
+            {
+                var owner = spell.CastInfo.Owner;
+                var hitobj = skillshot.ObjectsHit.Count;
+                //target.TakeDamage(owner, 50, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_RAW, true);
+                var ap = owner.Stats.AbilityPower.Total * 0.70;
+                float damage = (float)(ap + 10 + (owner.Spells[0].CastInfo.SpellLevel * 50));
+                if (hitobj == 1)
+                {
+                    AddBuff("LuxQ", 2.0f, 1, spell, target, spell.CastInfo.Owner);
+                    target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, true);
+                }
+
+                if (hitobj == 2)
+                {
+                    AddBuff("LuxQ", 1.0f, 1, spell, target, spell.CastInfo.Owner);
+                    target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, true);
+                    missile.SetToRemove();
+                }
+            }
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -131,4 +132,5 @@ namespace Spells
         {
         }
     }
+
 }

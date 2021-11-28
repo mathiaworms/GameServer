@@ -13,7 +13,7 @@ using GameServerLib.GameObjects.AttackableUnits;
 using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.Logging;
 using log4net;
-
+using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
 {
     /// <summary>
@@ -410,7 +410,23 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                 default:
                     throw new ArgumentOutOfRangeException(nameof(source), source, null);
             }
+             if (ObjAiBase.ApplyShieldAmount >= 0)
+            {
+                float amount = ObjAiBase.ApplyShieldAmount;
+                if (type == DamageType.DAMAGE_TYPE_MAGICAL && ObjAiBase.IsMagical)
+                {
+                    ObjAiBase.ApplyShieldAmount -= damage;
+                    _game.PacketNotifier.NotifyModifyShield(this, -damage, ObjAiBase.IsPhysical, ObjAiBase.IsMagical, false);
+                    damage -= amount;
+                }
+                if (type == DamageType.DAMAGE_TYPE_PHYSICAL && ObjAiBase.IsPhysical)
+                {
+                    ObjAiBase.ApplyShieldAmount -= damage;
+                    _game.PacketNotifier.NotifyModifyShield(this, -damage, ObjAiBase.IsPhysical, ObjAiBase.IsMagical, false);
+                    damage -= amount;
+                }
 
+            }
             IDamageData damageData = new DamageData
             {
                 IsAutoAttack = source == DamageSource.DAMAGE_SOURCE_ATTACK,
@@ -441,6 +457,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits
                     DamageSource = source,
                     DeathDuration = 0 // TODO: Unhardcode
                 };
+                 _game.PacketNotifier.NotifyModifyShield(this, -ObjAiBase.ApplyShieldAmount, ObjAiBase.IsPhysical, ObjAiBase.IsMagical, false);
             }
 
             int attackerId = 0, targetId = 0;

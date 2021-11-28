@@ -28,7 +28,7 @@ namespace Buffs
             owner = ownerSpell.CastInfo.Owner;
             Unit = unit;
             var hp = unit.Stats.HealthPoints.Total;
-            float Maxhp = hp * 0.08f ;
+            float Maxhp = hp * 0.02f ; // hit 4 times  = 0.8 
             damage = Maxhp;
 
             p = AddParticleTarget(owner, unit, "Global_SS_Ignite.troy", unit, buff.Duration, bone: "BUFFBONE_GLB_CHANNEL_LOC");

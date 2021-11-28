@@ -48,6 +48,29 @@ namespace Spells
             var owner = spell.CastInfo.Owner;
             TeleportTo(spell.CastInfo.Owner, teleportTo.X, teleportTo.Y);
             AddBuff("Deceive", 3.5f, 1, spell, owner, owner);
+            CreateTimer(3.5f, () => { owner.SetStatus(StatusFlags.Targetable, true); });
+            owner.SetStatus(StatusFlags.Targetable, false);
+            var Champs = GetChampionsInRange(owner.Position, 50000, true);
+            foreach (IChampion player in Champs)
+            {
+                CreateTimer(3.5f, () => { owner.SetHealthbarVisibility((int)player.GetPlayerId(), owner, true); });
+                if (player.Team.Equals(owner.Team))
+                {
+                    CreateTimer(3.5f, () => { owner.SetInvisible((int)player.GetPlayerId(), owner, 1f, 0.1f); });
+                    owner.SetInvisible((int)player.GetPlayerId(), owner, 0.5f, 0.1f);
+                    AddParticleTarget(owner, owner, "Khazix_Base_R_Cas.troy", owner);
+                }
+                if (!(player.Team.Equals(owner.Team)))
+                {
+                    if (player.IsAttacking)
+                    {
+                        player.CancelAutoAttack(false);
+                    }
+                    CreateTimer(3.5f, () => { owner.SetInvisible((int)player.GetPlayerId(), owner, 1f, 0.1f); });
+                    owner.SetInvisible((int)player.GetPlayerId(), owner, 0f, 0.1f);
+                    owner.SetHealthbarVisibility((int)player.GetPlayerId(), owner, false);
+                }
+            }
         }
 
         public void OnSpellChannel(ISpell spell)
