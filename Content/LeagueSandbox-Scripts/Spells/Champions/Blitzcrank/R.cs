@@ -62,9 +62,9 @@ namespace Spells
             var spellpos = owner.Position;        
             var wallduration = 6.0f;
 
-                AddParticle(owner, null, "StaticField_nova.troy", spellpos, lifetime: 0.5f , reqVision: false);
-                 AddParticle(owner, null, "StaticField_hit.troy", ownerr.Position, lifetime: 0.5f , reqVision: false);
-                AddParticle(owner, null, "StaticField_ready.troy", ownerr.Position, lifetime: 0.5f , reqVision: false);
+                AddParticle(owner, null, "StaticField_nova.troy", owner.Position, lifetime: 0.5f , reqVision: false);
+                 AddParticle(owner, null, "StaticField_hit.troy", owner.Position, lifetime: 0.5f , reqVision: false);
+                AddParticle(owner, null, "StaticField_ready.troy", owner.Position, lifetime: 0.5f , reqVision: false);
 
                 DamageSector = spell.CreateSpellSector(new SectorParameters
                 {
@@ -91,7 +91,7 @@ namespace Spells
             var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 1.0f;
             var damage = 125 + spellLevel * 125 + ap;
                 AddBuff("Stun", 0.1f, 1, spell, target, ownerr);
-               AddParticleTarget(enemy, enemy, "StaticField_tar.troy", enemy, 1f);
+               AddParticleTarget(ownerr, target, "StaticField_tar.troy", ownerr, 1f);
           
 
         }

@@ -22,7 +22,7 @@ using GameServerCore.Scripting.CSharp;
 
 namespace Spells
 {
-    public class BrandConflagration : ISpellScript
+    public class BrandWildfire : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
@@ -42,35 +42,28 @@ namespace Spells
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner as IChampion;
-            var APratio = owner.Stats.AbilityPower.Total * 0.55f;
-            var damage = 35 + spell.CastInfo.SpellLevel * 35 + APratio;
-            AddParticleTarget(owner, target, "BrandConflagration_tar.troy", target, 1f);
+            var APratio = owner.Stats.AbilityPower.Total * 0.5f;
+            var damage = 50 + spell.CastInfo.SpellLevel * 100 + APratio;
+            AddParticleTarget(owner, target, "BrandWildfire_mis.troy", target, 1f);
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
             
 
            
            
             
-           if (target.HasBuff("Blaze"))
-            {
-               foreach (var enemy in GetUnitsInRange(target.Position, 550, true)
+          
+               foreach (var enemy in GetUnitsInRange(target.Position, 350, true)
                 .Where(x => x.Team == CustomConvert.GetEnemyTeam(owner.Team)))
                 {
       
                       if (enemy is IObjAiBase)
                       {
                         enemy.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-                        AddParticleTarget(owner, enemy, "BrandConflagration_tar.troy", enemy, 1f);
+                        AddParticleTarget(owner, enemy, "BrandWildfire_mis.troy", enemy, 1f);
                         AddBuff("Blaze", 4f, 1, spell, enemy, owner);
                       }
                  }
                 AddBuff("Blaze", 4f, 1, spell, target, owner);
-            }
-            else
-            { 
-                
-                AddBuff("Blaze", 4f, 1, spell, target, owner);
-            }
 
         }
 
