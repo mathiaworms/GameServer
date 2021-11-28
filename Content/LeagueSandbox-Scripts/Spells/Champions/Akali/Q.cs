@@ -8,14 +8,12 @@ using GameServerCore.Domain.GameObjects.Spell.Missile;
 using LeagueSandbox.GameServer.API;
 using System.Collections.Generic;
 using GameServerCore.Scripting.CSharp;
-using System;
+using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
     public class AkaliMota : ISpellScript
     {
-        IObjAiBase _owner;
-        float _prevModifier;
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
             MissileParameters = new MissileParameters
@@ -29,8 +27,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            _owner = owner;
-          //  ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -43,22 +40,19 @@ namespace Spells
 
         public void OnSpellCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner;
-            AddBuff("AkaliTwilightShroudCD", 0.65f, 1, spell, owner, owner);
-            RemoveBuff(owner, "AkaliTwilightShroud");
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner;
             var AP = owner.Stats.AbilityPower.Total * 0.4f;
             var damage = 15f + spell.CastInfo.SpellLevel * 20f + AP;
             
-            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_ATTACK, false);
             AddBuff("AkaliMota", 6f, 1, spell, target, owner);
             missile.SetToRemove();
         }
@@ -77,13 +71,6 @@ namespace Spells
 
         public void OnUpdate(float diff)
         {
-            // Passive
-            var bonusAd = _owner.Stats.AttackDamage.TotalBonus;
-            float modifier = (float)Math.Floor(6 + bonusAd / 6);
-            modifier /= 100f;
-            _owner.Stats.SpellVamp.FlatBonus -= _prevModifier;
-            _owner.Stats.SpellVamp.FlatBonus += modifier;
-            _prevModifier = modifier;
         }
     }
 }

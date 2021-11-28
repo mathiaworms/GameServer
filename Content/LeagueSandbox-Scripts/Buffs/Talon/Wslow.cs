@@ -19,17 +19,21 @@ namespace Buffs
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
-        IParticle p;
+        IParticle pbuff;
+        IParticle pbuff2;
+        IBuff thisBuff;
+
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
             StatsModifier.MoveSpeed.PercentBonus -= 0.05f + 0.15f * (ownerSpell.CastInfo.SpellLevel);
             unit.AddStatModifier(StatsModifier);
-            p = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "Global_Slow.troy", unit, buff.Duration);
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            RemoveParticle(p);
+            //RemoveParticle(pbuff);
+            //RemoveParticle(pbuff2);
+
         }
 
         public void OnPreAttack(ISpell spell)

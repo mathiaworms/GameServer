@@ -1,23 +1,18 @@
-using System.Collections.Generic;
-using System.Numerics;
-using GameServerCore.Domain.GameObjects;
+﻿using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
-using GameServerCore.Enums;
-using LeagueSandbox.GameServer.API;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
+using System.Numerics;
 using GameServerCore.Scripting.CSharp;
 
 namespace Spells
 {
-    public class TalonCutthroat : ISpellScript
+    public class VayneInquisition : ISpellScript
     {
-        IAttackableUnit Target;
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
-            TriggersSpellCasts = true,
-            IsDamagingSpell = true
+            // TODO
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
@@ -30,7 +25,8 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            Target = target;
+            var x =(new float[] { 8f, 10f, 12f}[spell.CastInfo.SpellLevel - 1]);
+            AddBuff("VayneUlt", x, 1, spell, owner, owner);
         }
 
         public void OnSpellCast(ISpell spell)
@@ -39,17 +35,6 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner;
-            AddParticle(owner, owner, "talon_E_cast.troy", owner.Position, lifetime: 1f);
-
-            var to = Vector2.Normalize(Target.Position - owner.Position);
-
-
-            TeleportTo(owner,Target.Position.X + to.X * 175f, Target.Position.Y + to.Y * 175f) ;
-            AddBuff("TalonESlow", 0.25f, 1, spell, Target, owner);
-
-            AddParticleTarget(owner, Target, "talon_E_tar.troy", Target, 1f);
-            AddParticleTarget(owner, Target, "talon_E_tar_dmg.troy", Target, 0.25f);
         }
 
         public void OnSpellChannel(ISpell spell)

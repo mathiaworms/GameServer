@@ -32,7 +32,7 @@ namespace Spells
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
             //var owner = spell.CastInfo.Owner as IChampion;
-            //AddBuff("TalonNoxianDiplomacyBuff", 6.0f, 1, spell, owner, owner);
+            AddBuff("TalonNoxianDiplomacyBuff", 6.0f, 1, spell, owner, owner);
         }
 
         public void OnSpellCast(ISpell spell)
@@ -71,23 +71,35 @@ namespace Spells
             // TODO
         };
 
-        IAttackableUnit Target;
+        ISpell originspell;
+        IObjAiBase ownermain;
+        int Applied = 1;
         public void OnActivate(IObjAiBase owner, ISpell spell)
-        {   //Disabled Until i have the time to fix it
-            //ApiEventManager.OnLaunchAttack.AddListener(this, owner, TargetExecute, true);
+        {
+            originspell = spell;
+            ownermain = owner;
+            ApiEventManager.OnHitUnit.AddListener(this, owner, TargetExecute, false);
         }
 
-        public void TargetExecute(IObjAiBase owner, ISpell spell)
+        public void TargetExecute(IAttackableUnit unit, bool arg2)
         {
-            if (owner.HasBuff("TalonNoxianDiplomacyBuff"))
-                {
-                var spellLevel = owner.GetSpell("TalonNoxianDiplomacy").CastInfo.SpellLevel;
+            var owner = ownermain;
+            owner.SetStatus(StatusFlags.Targetable, true);
+            var Champs = GetChampionsInRange(owner.Position, 50000, true);
+            foreach (IChampion player in Champs)
+            {
+                owner.SetInvisible((int)player.GetPlayerId(), owner, 1f, 0.1f);
+                owner.SetHealthbarVisibility((int)player.GetPlayerId(), owner, true);
+            }
 
-                var ADratio =  0.3f;
-                var damage = 40f + (30f * (spellLevel - 1)) + ADratio;
-
-                Target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-                AddBuff("TalonBleedDebuff", 6f, 1, spell, Target, owner);
+            var ADratio = owner.Stats.AttackDamage.PercentBonus * 0.3f;
+            var damage = 40f + (30f * (originspell.CastInfo.SpellLevel - 1)) + ADratio;
+            if (Applied != 1)
+            {
+                unit.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+                AddBuff("TalonBleedDebuff", 6f, 1, originspell, unit, owner);
+                Applied = 1;
+                //CreateTimer((float)6, () => { Applied = 1; });
             }
         }
 
@@ -97,7 +109,7 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            Target = target;
+            Applied = 0;
         }
 
         public void OnSpellCast(ISpell spell)

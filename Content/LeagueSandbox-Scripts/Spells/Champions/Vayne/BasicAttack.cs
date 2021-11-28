@@ -1,45 +1,52 @@
-using GameServerCore.Domain.GameObjects;
+﻿using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
-using GameServerCore.Domain.GameObjects.Spell.Missile;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using System.Numerics;
+using LeagueSandbox.GameServer.API;
 using GameServerCore.Scripting.CSharp;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Enums;
+using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
 
 namespace Spells
 {
-    public class YasuoDashWrapper : ISpellScript
+    public class VayneBasicAttack : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
-            // TODO
+            MissileParameters = new MissileParameters
+            {
+            }
         };
-
-        public static IAttackableUnit _target = null;
-
+        IObjAiBase ownerMain;
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
+            ownerMain = spell.CastInfo.Owner;
+            ApiEventManager.OnHitUnit.AddListener(this, owner, OnLaunchAttack, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
-            //here's empty
         }
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            _target = target;
-            if (!target.HasBuff("YasuoEBlockFIX"))
+        }
+
+        public void OnLaunchAttack(IAttackableUnit unit, bool swag)
+        {
+            var owner = ownerMain;
+            var Champs = GetChampionsInRange(owner.Position, 50000, true);
+            foreach (IChampion player in Champs)
             {
-                AddBuff("YasuoEFIX", 0.395f - spell.CastInfo.SpellLevel * 0.012f, 1, spell, owner, owner);
-                AddBuff("YasuoEBlockFIX", 11f - spell.CastInfo.SpellLevel * 1f, 1, spell, target, owner);
+                owner.SetInvisible((int)player.GetPlayerId(), owner, 1f, 0f);
+                owner.SetStatus(StatusFlags.Targetable, true);
+                owner.SetHealthbarVisibility((int)player.GetPlayerId(), owner, true);
             }
         }
 
         public void OnSpellCast(ISpell spell)
         {
-            //here's empty, maybe will add some functions?
         }
 
         public void OnSpellPostCast(ISpell spell)
@@ -60,7 +67,6 @@ namespace Spells
 
         public void OnUpdate(float diff)
         {
-            //here's empty because it's not working
         }
     }
 }

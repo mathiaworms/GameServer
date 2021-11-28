@@ -6,7 +6,7 @@ using GameServerCore.Scripting.CSharp;
 
 namespace Buffs
 {
-    internal class YasuoEBlock : IBuffGameScript
+    internal class YasuoEBlockFIX : IBuffGameScript
     {
         public BuffType BuffType => BuffType.INTERNAL;
         public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;

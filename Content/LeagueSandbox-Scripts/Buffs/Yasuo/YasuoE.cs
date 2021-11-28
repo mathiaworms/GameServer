@@ -7,7 +7,7 @@ using GameServerCore.Scripting.CSharp;
 
 namespace Buffs
 {
-    internal class YasuoE : IBuffGameScript
+    internal class YasuoEFIX : IBuffGameScript
     {
         public BuffType BuffType => BuffType.INTERNAL;
         public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
@@ -23,10 +23,15 @@ namespace Buffs
             var owner = ownerSpell.CastInfo.Owner;
             var time = 0.6f - ownerSpell.CastInfo.SpellLevel * 0.1f;
             var damage = 50f + ownerSpell.CastInfo.SpellLevel * 20f + unit.Stats.AbilityPower.Total * 0.6f;
+            owner.SetTargetUnit(null);
             AddParticleTarget(owner, unit, "Yasuo_Base_E_Dash.troy", unit);
             AddParticleTarget(owner, target, "Yasuo_Base_E_dash_hit.troy", target);
             var to = Vector2.Normalize(target.Position - unit.Position);
+            unit.SetStatus(StatusFlags.Ghosted, true);
             ForceMovement(unit, "Spell3", new Vector2(target.Position.X + to.X * 175f, target.Position.Y + to.Y * 175f), 750f + unit.Stats.MoveSpeed.Total * 0.6f, 0, 0, 0);
+            CancelDash(unit);
+            owner.PlayAnimation("Spell3", 0.45f, 0, 1);
+            CreateTimer(2.5f, () => { unit.SetStatus(StatusFlags.Ghosted, false); });
             target.TakeDamage(unit, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
         }
 

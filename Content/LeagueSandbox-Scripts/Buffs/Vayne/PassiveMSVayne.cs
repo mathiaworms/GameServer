@@ -1,46 +1,37 @@
-﻿using System.Numerics;
+﻿using GameServerCore.Enums;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
-using GameServerCore.Enums;
-using GameServerCore.Scripting.CSharp;
-using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
-using LeagueSandbox.GameServer.Scripting.CSharp;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using GameServerCore.Scripting.CSharp;
 
 namespace Buffs
 {
-    class TalonDisappear : IBuffGameScript
+    internal class PassiveMSVayne : IBuffGameScript
     {
         public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
-        public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
+        public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
         public int MaxStacks => 1;
         public bool IsHidden => false;
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
-        IParticle pbuff;
-        IParticle pbuff2;
-        IBuff thisBuff;
+        IParticle highlander;
 
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            
-            StatsModifier.MoveSpeed.PercentBonus += 0.4f;
+            var owner = ownerSpell.CastInfo.Owner;
+            StatsModifier.MoveSpeed.BaseBonus += 30;
             unit.AddStatModifier(StatsModifier);
-
+            // TODO: add immunity to slows
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            //RemoveParticle(pbuff);
-            //RemoveParticle(pbuff2);
-
         }
 
-        public void OnPreAttack(ISpell spell)
+        private void OnAutoAttack(IAttackableUnit target, bool isCrit)
         {
-
         }
 
         public void OnUpdate(float diff)

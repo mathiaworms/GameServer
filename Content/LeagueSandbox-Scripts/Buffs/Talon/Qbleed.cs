@@ -29,13 +29,11 @@ namespace Buffs
         {
             owner = ownerSpell.CastInfo.Owner as IChampion;
             Unit = unit;
-
-            var ADratio = 1;
-
+            var ADratio = owner.Stats.AttackDamage.PercentBonus;
             damage = (10 * ownerSpell.CastInfo.SpellLevel + ADratio) / 6f;
 
-            p = AddParticleTarget(owner, unit, "talon_Q_bleed_indicator.troy", unit, 1, buff.Duration);
-            p2 = AddParticle(owner, unit, "talon_Q_bleed.troy", unit.Position, 1, buff.Duration);
+            p = AddParticleTarget(owner, unit, "talon_Q_bleed_indicator.troy", unit, 1, (float)1.5);
+            //p2 = AddParticle(owner, unit, "talon_Q_bleed.troy", unit.Position, 1, (float)1.5);
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
@@ -43,6 +41,12 @@ namespace Buffs
             RemoveParticle(p);
             RemoveParticle(p2);
         }
+
+        public void OnPreAttack(ISpell spell)
+        {
+
+        }
+
         public void OnUpdate(float diff)
         {
             timeSinceLastTick += diff;
