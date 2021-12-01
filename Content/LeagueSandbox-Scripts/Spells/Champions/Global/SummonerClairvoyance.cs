@@ -56,9 +56,23 @@ namespace Spells
                AddParticle(owner, null, "ClairvoyanceEye.troy", spellpos, lifetime: 5f , reqVision: false);
                 AddParticle(owner, null, "ClairvoyanceEyeLong_green.troy", spellpos, lifetime: 5f , reqVision: false);
                 AddParticle(owner, null, "ClairvoyanceEyeLong_red.troy", spellpos, lifetime: 5f , reqVision: false);
-                 var tempMinion = AddMinion(owner, "TestCubeRender", "TestCubeRender", targetPos, ignoreCollision: true, targetable: false);
-                AddBuff("ExpirationTimer", 5.0f, 1, spell, tempMinion, tempMinion);
-                AddBuff("Clairvoyance", 5.0f, 1, spell, tempMinion, tempMinion);
+                  var wallduration = 5.0f;
+                 var tempMinion = AddMinion(owner, "TestCubeRender", "TestCubeRender", spellpos, ignoreCollision: true, targetable: false);
+             AddBuff("YellowTriket", 5f, 1, spell, tempMinion, tempMinion);
+            if (!tempMinion.IsDead)
+                    {
+                        CreateTimer(wallduration, () =>
+                        {
+                            if (!tempMinion.IsDead)
+                            {
+                                //TODO: Fix targeting issues
+                                tempMinion.TakeDamage(tempMinion.Owner, 1000f, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, DamageResultType.RESULT_NORMAL);
+                            }
+                        });
+                    }
+            
+             //   AddBuff("ExpirationTimer", 5.0f, 1, spell, tempMinion, tempMinion);
+             //   AddBuff("Clairvoyance", 5.0f, 1, spell, tempMinion, tempMinion);
                
         }
           public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)

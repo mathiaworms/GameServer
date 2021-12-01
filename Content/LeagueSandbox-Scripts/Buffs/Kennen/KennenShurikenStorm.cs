@@ -48,13 +48,13 @@ namespace Buffs
             var spellPos = owner.Position;
 
 
-             red = AddParticleTarget(owner, unit, "kennen_ss_aoe_red.troy", unit, buff.Duration); //Take a look at whi the particles disapear later
-             green = AddParticleTarget(owner, unit, "kennen_ss_aoe_green.troy", unit, buff.Duration);
-            StatsModifier.Armor.FlatBonus += 20.0f * ownerSpell.CastInfo.SpellLevel ;
-            StatsModifier.MagicResist.FlatBonus += 20.0f * ownerSpell.CastInfo.SpellLevel ;
+            red = AddParticleTarget(owner, unit, "kennen_ss_aoe_red.troy", unit, buff.Duration); //Take a look at whi the particles disapear later
+            green = AddParticleTarget(owner, unit, "kennen_ss_aoe_green.troy", unit, buff.Duration);
+            StatsModifier.Armor.FlatBonus += 20.0f * ownerSpell.CastInfo.SpellLevel;
+            StatsModifier.MagicResist.FlatBonus += 20.0f * ownerSpell.CastInfo.SpellLevel;
             unit.AddStatModifier(StatsModifier);
 
-             ApiEventManager.OnSpellHit.AddListener(this, ownerSpell, TargetExecute, false);
+            ApiEventManager.OnSpellHit.AddListener(this, ownerSpell, TargetExecute, false);
 
 
 
@@ -70,22 +70,22 @@ namespace Buffs
 
         }
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
-        {   
-                        var ap = Owner.Stats.AbilityPower.Total * 0.2f;
-                           var damage = 5.0f + (35f * spell.CastInfo.SpellLevel ) + ap;
-                           target.TakeDamage(Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
+        {
+            var ap = Owner.Stats.AbilityPower.Total * 0.2f;
+            var damage = 5.0f + (35f * spell.CastInfo.SpellLevel) + ap;
+            target.TakeDamage(Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
 
-                       
-                    if(target.GetBuffWithName("KennenMarkOfStorm").StackCount == 3) //remove mos if stacks reach 3
-                    {
-                                    target.RemoveBuffsWithName("KennenMarkOfStorm");
-                    AddBuff("Stun", 1.5f, 1, spell, target, Owner); //stun target for 1 second after 3 stacks
 
-                     }
-                                else 
-                    {
-                        AddBuff("KennenMarkOfStorm", 6f, 1, spell, target, Owner);    
-                    }
+            if (target.GetBuffWithName("KennenMarkOfStorm").StackCount == 3) //remove mos if stacks reach 3
+            {
+                target.RemoveBuffsWithName("KennenMarkOfStorm");
+                AddBuff("Stun", 1.5f, 1, spell, target, Owner); //stun target for 1 second after 3 stacks
+
+            }
+            else
+            {
+                AddBuff("KennenMarkOfStorm", 6f, 1, spell, target, Owner);
+            }
         }
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
@@ -93,7 +93,7 @@ namespace Buffs
             ApiEventManager.OnSpellHit.RemoveListener(this);
             RemoveParticle(red);
             RemoveParticle(green);
-        AuraKennen.SetToRemove();
+            AuraKennen.SetToRemove();
 
         }
 

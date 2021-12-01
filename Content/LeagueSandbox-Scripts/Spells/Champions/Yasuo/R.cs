@@ -1,4 +1,4 @@
-using GameServerCore.Enums;
+﻿using GameServerCore.Enums;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
@@ -11,38 +11,43 @@ using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
-    public class Terrify : ISpellScript
+    public class YasuoRKnockUpComboW : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
-            TriggersSpellCasts = true,
-            IsDamagingSpell = true,
-            MissileParameters = new MissileParameters
-            {
-                Type = MissileType.Target
-            }
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnLevelUpSpell.AddListener(this, spell, HideE, false);
+            own = owner;
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void HideE(ISpell spell)
         {
+            CreateTimer((float)0.1, () => { SealSpellSlot(own, SpellSlotType.SpellSlots, 3, SpellbookType.SPELLBOOK_CHAMPION, true); });
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
         }
-
+        IObjAiBase own;
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-
-            var duration = 1.0f + spell.CastInfo.SpellLevel * 0.25f;
-
-            AddParticleTarget(owner, target, "Terrify_tar.troy", target, 1f);
-            AddBuff("Stun", duration, 1, spell, target, owner);
+            Vector2 xy = new Vector2(spell.CastInfo.TargetPosition.X, spell.CastInfo.TargetPosition.Z);
+            //var green = AddParticle(owner, null, "cryo_storm_green_team.troy", xy, lifetime: 1.0f, reqVision: false);
+            var ch = GetChampionsInRange(xy, 300, true);
+            foreach (var champ in ch)
+            {
+                if (champ.HasBuff("Pulverize"))
+                {
+                    var dmg = own.Stats.AttackDamage.Total * 1.5f;
+                    ForceMovement(champ, "RUN", new Vector2(champ.Position.X + 5f, champ.Position.Y + 5f), 13f, 0, 16.5f, 0);
+                    PlayAnimation(owner, "Spell4");
+                    TeleportTo(owner, xy.X, xy.Y);
+                    champ.TakeDamage(owner, dmg, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+                }
+            }
         }
 
         public void OnSpellCast(ISpell spell)

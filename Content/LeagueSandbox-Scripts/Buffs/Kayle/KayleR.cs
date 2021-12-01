@@ -1,16 +1,15 @@
-using GameServerCore.Enums;
+﻿using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects;
+using GameServerCore.Enums;
 using LeagueSandbox.GameServer.GameObjects.Stats;
-using GameServerCore.Domain.GameObjects.Spell;
-using GameServerCore.Scripting.CSharp;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
-
+using GameServerCore.Scripting.CSharp;
 
 namespace Buffs
 {
-    internal class GragasQ : IBuffGameScript
+    internal class KayleR : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.COMBAT_DEHANCER;
+        public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
         public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
         public int MaxStacks => 1;
         public bool IsHidden => false;
@@ -18,10 +17,11 @@ namespace Buffs
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
         IParticle p;
+
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-
-            StatsModifier.MoveSpeed.PercentBonus -= 0.35f + 0.05f * ownerSpell.CastInfo.SpellLevel;
+            StatsModifier.Armor.BaseBonus += 30000f;
+            StatsModifier.MagicResist.BaseBonus += 30000f;
             unit.AddStatModifier(StatsModifier);
         }
 
@@ -31,7 +31,7 @@ namespace Buffs
 
         public void OnUpdate(float diff)
         {
+
         }
     }
 }
-

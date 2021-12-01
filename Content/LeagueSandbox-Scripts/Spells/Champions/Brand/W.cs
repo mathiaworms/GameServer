@@ -10,28 +10,25 @@ using GameServerCore.Domain.GameObjects.Spell.Sector;
 using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
 
-
 namespace Spells
 {
     public class BrandFissure : ISpellScript
     {
-        public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
             TriggersSpellCasts = true,
             CastingBreaksStealth = true,
             DoesntBreakShields = true,
             IsDamagingSpell = true,
             NotSingleTargetSpell = true,
-
-
+            SpellToggleSlot = 4
         };
+        public ISpellSector DamageSector;
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
-
-        public ISpellSector DamageSector;
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
@@ -39,7 +36,17 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-         
+            var spellPos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);
+            var pre = AddParticle(owner, null, "BrandPOF_charge.troy", spellPos, lifetime: 1.5f, reqVision: false);
+            AddParticle(owner, null, "BrandPOF_tar_green.troy", spellPos, lifetime: 1f, reqVision: false);
+            DamageSector = spell.CreateSpellSector(new SectorParameters
+            {
+                Tickrate = 1,
+                Length = 250f,
+                OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
+                Type = SectorType.Area
+            });
+            CreateTimer(1.0f, () => { var pre = AddParticle(owner, null, "BrandPOF_tar.troy", spellPos, lifetime: 4.0f, reqVision: false); DamageSector.SetToRemove(); });
         }
 
         public void OnSpellCast(ISpell spell)
@@ -48,50 +55,33 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
+        }
+
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        {
+            //Graves_SmokeGrenade_Cloud_Team_Green.troy
+            //Graves_SmokeGrenade_Cloud_Team_Red.troy
             var owner = spell.CastInfo.Owner;
-            var targetPos = GetPointFromUnit(owner, 900.0f);
-            SpellCast(owner, 1, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
-            var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);        
-
-
-                AddParticle(owner, null, "BrandPOF_tar.troy", spellpos, lifetime: 0.5f , reqVision: false);
-                AddParticle(owner, null, "BrandPOF_cas.troy", spellpos, lifetime: 0.5f , reqVision: false);
-                AddParticle(owner, null, "BrandPOF_charge.troy", spellpos, lifetime: 0.5f , reqVision: false);
-                DamageSector = spell.CreateSpellSector(new SectorParameters
-                {
-                    Length = 250f,
-                    Tickrate = 2,
-                    CanHitSameTargetConsecutively = false,
-                    OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
-                    Type = SectorType.Area,
-                    Lifetime = 0.5f
-                });
-
+            if (target.HasBuff("BrandPassive"))
+            {
+                var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.75f;
+                var damage = 37.5f + (56.25f * spell.CastInfo.SpellLevel) + ap;
+                target.TakeDamage(spell.CastInfo.Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
+                AddBuff("BrandPassive", 4f, 1, spell, target, owner);
+            }
+            else
+            {
+                var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.6f;
+                var damage = 30 + (45 * spell.CastInfo.SpellLevel) + ap;
+                target.TakeDamage(spell.CastInfo.Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
+                AddBuff("BrandPassive", 4f, 1, spell, target, owner);
+            }
         }
 
         public void OnSpellChannel(ISpell spell)
         {
         }
-          public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
-        {  
-            var owner = spell.CastInfo.Owner;
-            if (target.HasBuff("Blaze"))
-            {
-                 var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.75f;
-                var damage = 37.5f + (56.25f * spell.CastInfo.SpellLevel ) + ap;
-                target.TakeDamage(spell.CastInfo.Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
-                AddBuff("Blaze", 4f, 1, spell, target, owner);
-            }
-            else
-            { 
-                 var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.6f;
-                var damage = 30 + (45 * spell.CastInfo.SpellLevel ) + ap;
-                target.TakeDamage(spell.CastInfo.Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
-                AddBuff("Blaze", 4f, 1, spell, target, owner);
-            }
 
-
-        }
         public void OnSpellChannelCancel(ISpell spell)
         {
         }

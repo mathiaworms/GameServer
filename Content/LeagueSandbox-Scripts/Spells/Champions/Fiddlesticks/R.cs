@@ -18,7 +18,7 @@ namespace Spells
         IBuff thisBuff;
         public ISpellSector DamageSector;
 
-         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
             TriggersSpellCasts = true,
             CastingBreaksStealth = true,
@@ -37,12 +37,22 @@ namespace Spells
         {
 
         }
-
+        Vector2 starte;
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-         
-             var current = new Vector2(owner.Position.X, owner.Position.Y);
-            var to = start - current;
+            starte = start;
+        }
+
+        public void OnSpellCast(ISpell spell)
+        {
+
+        }
+
+        public void OnSpellPostCast(ISpell spell)
+        {
+            var owner = spell.CastInfo.Owner;
+            var current = new Vector2(owner.Position.X, owner.Position.Y);
+            var to = starte - current;
             Vector2 trueCoords;
 
             if (to.Length() > 800)
@@ -53,7 +63,7 @@ namespace Spells
             }
             else
             {
-                trueCoords = start;
+                trueCoords = starte;
             }
 
             owner.FaceDirection(new Vector3(to.X, 0.0f, to.Y));
@@ -63,29 +73,18 @@ namespace Spells
             TeleportTo(owner, trueCoords.X, trueCoords.Y);
 
 
-            AddBuff("Crowstorm", 5, 1, spell, owner, owner, true);
-            
-        }
-
-        public void OnSpellCast(ISpell spell)
-        {
-           
-        }
-       
-      public void OnSpellPostCast(ISpell spell)
-        {
-          
+            AddBuff("Crowstorm", 5.0f, 1, spell, owner, owner, false);
         }
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
-         
+
 
 
         }
-         private void ApplyAuraDamage(IObjAiBase owner, ISpell spell, IAttackableUnit target)
+        private void ApplyAuraDamage(IObjAiBase owner, ISpell spell, IAttackableUnit target)
         {
-            
-         
+
+
         }
         public void OnSpellChannel(ISpell spell)
         {
@@ -101,12 +100,11 @@ namespace Spells
 
         public void OnUpdate(float diff)
         {
-            
 
 
-          
+
+
         }
     }
 }
 
- 

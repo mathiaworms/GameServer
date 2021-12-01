@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using GameServerCore.Enums;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
+using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
@@ -39,7 +40,7 @@ namespace Spells
         {
             var trueCoords = GetPointFromUnit(spell.CastInfo.Owner, 1000f);
             FaceDirection(trueCoords, spell.CastInfo.Owner, true); //Can't make Lucian turn in the right direction even with FaceDirection...
-
+            AddBuff("LucianPassiveBuff", 3.5f, 1, spell, spell.CastInfo.Owner, spell.CastInfo.Owner);
             SpellCast(spell.CastInfo.Owner, 8, SpellSlotType.ExtraSlots, trueCoords, trueCoords, true, Vector2.Zero);
         }
 
@@ -78,7 +79,7 @@ namespace Spells
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            //ApiEventManager.OnSpellMissileHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
+            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -89,13 +90,13 @@ namespace Spells
         {
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner;
             float damage = 20 + (spell.CastInfo.SpellLevel * 40) + owner.Stats.AbilityPower.Total * 0.9f;
-            
-            AddParticle(owner, null, "Lucian_W_blowup.troy", missile.Position, 1f, 0.5f); //Double Check the size
-            
+
+            AddParticle(owner, null, "Lucian_W_blowup.troy", missile.Position, 1f, 0.75f); //Double Check the size
+
             var units = GetUnitsInRange(missile.Position, 200f, true); //TODO: Make it a cross hitbox, not a circle
             for (int i = 0; i < units.Count; i++)
             {

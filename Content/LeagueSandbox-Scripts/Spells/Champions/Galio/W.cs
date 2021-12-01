@@ -42,13 +42,16 @@ namespace Spells
 
             if (Target != owner)
             {
-                AddBuff("GalioBulwark", 12f, 1, spell, Target, owner);
+                AddBuff("GalioBulwark", 4f, 1, spell, Target, owner);
             }
-            AddBuff("GalioBulwark", 12f, 1, spell, owner, owner);
+
+            AddParticle(owner, spell.CastInfo.Targets[0].Unit, "galio_bullwark_target_shield_01.troy", Vector2.Zero, lifetime: 4.0f);
+
+            AddBuff("GalioBulwark", 4f, 1, spell, owner, owner);
             PerformHeal(owner, spell, owner);
 
         }
-         private void PerformHeal(IObjAiBase owner, ISpell spell, IAttackableUnit target)
+        private void PerformHeal(IObjAiBase owner, ISpell spell, IAttackableUnit target)
         {
 
             var ap = owner.Stats.AbilityPower.Total * 0.3f;

@@ -92,11 +92,12 @@ namespace Spells
 
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
+
             var owner = spell.CastInfo.Owner;
 
             var APratio = owner.Stats.AttackDamage.Total;
             var spelllvl = (spell.CastInfo.SpellLevel * 20);
-            target.TakeDamage(owner, APratio/2 + spelllvl/2 + 1, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+            target.TakeDamage(owner, APratio / 2 + spelllvl / 2 + 1, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
             AddParticleTarget(owner, target, "Yasuo_Base_Q_hit_tar.troy", target);
             AddBuff("YasuoQ01", 10.0f, 1, spell, owner, owner);
         }

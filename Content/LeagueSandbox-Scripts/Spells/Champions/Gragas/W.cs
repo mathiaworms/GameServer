@@ -1,21 +1,20 @@
-using System;
+﻿using GameServerCore.Enums;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using System.Numerics;
+using LeagueSandbox.GameServer.API;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
+using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
-    public class JudicatorIntervention : ISpellScript
+    public class GragasW : ISpellScript
     {
-        IAttackableUnit Target;
-        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
-            TriggersSpellCasts = true
-            // TODO
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
@@ -28,8 +27,7 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            AddParticle(owner, target, "OdinShield_buf.troy", Vector2.Zero, lifetime: 2.0f);
-            AddBuff("KayleR", 2.0f, 1, spell, target, owner);
+            AddBuff("GragasW", 2.5f, 1, spell, target, owner);
         }
 
         public void OnSpellCast(ISpell spell)
@@ -38,7 +36,6 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
-
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -58,4 +55,3 @@ namespace Spells
         }
     }
 }
-

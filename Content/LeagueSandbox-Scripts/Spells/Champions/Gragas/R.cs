@@ -1,4 +1,4 @@
-using GameServerCore.Enums;
+﻿using GameServerCore.Enums;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
@@ -11,38 +11,50 @@ using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
-    public class Terrify : ISpellScript
+    public class GragasR : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
             TriggersSpellCasts = true,
-            IsDamagingSpell = true,
-            MissileParameters = new MissileParameters
-            {
-                Type = MissileType.Target
-            }
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
-
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
-        }
+            var owner = spell.CastInfo.Owner as IChampion;
+            var APratio = owner.Stats.AbilityPower.Total * 0.8f;
+            var damage = 100 + spell.CastInfo.SpellLevel * 100 + APratio;
+            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL , DamageSource.DAMAGE_SOURCE_SPELL, false);
+            FaceDirection(pos, target);
+            var pos2 = GetPointFromUnit(target, -500);
+            ForceMovement(target, "run", pos2, 1000, 0, 0, 0);
 
+        }
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
         }
-
+        Vector2 pos;
+        public ISpellSector DamageSector;
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
 
-            var duration = 1.0f + spell.CastInfo.SpellLevel * 0.25f;
+            var spellPos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);
+            var diff = new Vector2(owner.Position.X - spellPos.X, owner.Position.Y - spellPos.Y);
+            pos = spellPos;
 
-            AddParticleTarget(owner, target, "Terrify_tar.troy", target, 1f);
-            AddBuff("Stun", duration, 1, spell, target, owner);
+            DamageSector = spell.CreateSpellSector(new SectorParameters
+            {
+                Tickrate = 1,
+                Length = 350f,
+                OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
+                Type = SectorType.Area
+            });
+            CreateTimer(1.0f, () => { var pre = AddParticle(owner, null, "Gragas_Base_R_End.troy", spellPos, lifetime: 4.0f, reqVision: false);
+            
+             DamageSector.SetToRemove(); });
         }
 
         public void OnSpellCast(ISpell spell)

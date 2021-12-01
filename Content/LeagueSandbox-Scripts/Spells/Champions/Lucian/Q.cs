@@ -63,6 +63,9 @@ namespace Spells
             });
 
             AddParticle(owner, owner, "Lucian_Q_laser.troy", endPoint, bone: "C_BUFFBONE_GLB_CENTER_LOC", lifetime: 1.0f);
+
+            AddBuff("LucianPassiveBuff", 3.5f, 1, spell, spell.CastInfo.Owner, spell.CastInfo.Owner);
+
         }
 
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)

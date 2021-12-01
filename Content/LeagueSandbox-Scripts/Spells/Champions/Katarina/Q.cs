@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
 using GameServerCore.Scripting.CSharp;
 using System;
+using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
@@ -20,13 +21,26 @@ namespace Spells
             {
                 Type = MissileType.Target
             },
+            IsDamagingSpell = true,
             TriggersSpellCasts = true
             // TODO
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            //ApiEventManager.OnSpellMissileHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, owner), TargetExecute, false);
+            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+        }
+
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        {
+            var owner = spell.CastInfo.Owner as IChampion;
+            var ap = owner.Stats.AbilityPower.Total;
+            float damage = (float)(20 + ap * 0.4 + spell.CastInfo.SpellLevel * 20);
+            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+            //AddParticleTarget(owner, target, "katarina_bouncingBlades_tar.troy", target);
+            AddBuff("KatarinaQMark", 4f, 1, spell, target, owner, false);
+            var xx = GetClosestUnitInRange(target, 300, true);
+            SpellCast(owner, 2, SpellSlotType.ExtraSlots, true, xx, target.Position);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -35,7 +49,6 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            owner.StopChanneling(ChannelingStopCondition.Cancel, ChannelingStopSource.Move);
         }
 
         public void OnSpellCast(ISpell spell)
@@ -44,13 +57,6 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
-        }
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
-        {
-            var owner = spell.CastInfo.Owner;
-
-            SpellCast(owner, 2, SpellSlotType.ExtraSlots, false, target, missile.Position);
-
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -72,20 +78,22 @@ namespace Spells
 
     public class KatarinaQMis : ISpellScript
     {
-        IAttackableUnit firstTarget;
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
-            TriggersSpellCasts = false,
+            DoesntBreakShields = true,
+            TriggersSpellCasts = true,
+            IsDamagingSpell = true,
+            NotSingleTargetSpell = false,
+            PersistsThroughDeath = true,
+            SpellDamageRatio = 1.0f,
             MissileParameters = new MissileParameters
             {
-                Type = MissileType.Chained,
-                MaximumHits = 5
+                Type = MissileType.Target
             }
         };
-
+        IAttackableUnit firstTarget;
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
-            //ApiEventManager.OnSpellMissileHit.AddListener(this, new KeyValuePair<ISpell, IObjAiBase>(spell, spell.CastInfo.Owner), TargetExecute, false);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -95,30 +103,36 @@ namespace Spells
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
             firstTarget = target;
+            ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, true);
         }
-
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile)
+        int bounce = 1;
+        IAttackableUnit var1temp;
+        //CAN CRASH!!! CARE
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
-            var owner = spell.CastInfo.Owner;
-            var spellLevel = owner.GetSpell("KatarinaQ").CastInfo.SpellLevel;
-            var chainedMissile = missile as ISpellChainMissile;
-
-            var reduc = Math.Min((chainedMissile.HitCount - 1f), 4);
-            var baseDamage = 35f + 25f * spellLevel;
-            var AP = owner.Stats.AbilityPower.Total * 0.45f;
-            var MarkAP = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.15f;
-
-            float damage = baseDamage * (1f - reduc / 10f) + AP;
-            float MarkDamage = 15f * spellLevel + MarkAP;
-
-            if (target.HasBuff("KatarinaQMark"))
+           //if (firstTarget == target)
+           //{
+           //    return;
+           //}
+            var x = GetClosestUnitInRange(target, 600, true);
+            if (x.IsDead == false)
             {
-                target.TakeDamage(owner, MarkDamage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_PROC, false);
+                var owner = spell.CastInfo.Owner;
+                var ap = owner.Stats.AbilityPower.Total * 0.5f;
+                var damage = 45f + spell.CastInfo.SpellLevel * 35f + ap;
+                target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+                if (bounce != 3)
+                {
+                    bounce++;
+                    SpellCast(owner, 2, SpellSlotType.ExtraSlots, true, x, target.Position);
+                    AddBuff("KatarinaQMark", 4f, 1, spell, target, owner, false);
+                }
+                else
+                {
+                    bounce = 0;
+                }
             }
-            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-            AddParticleTarget(owner, target, "katarina_bouncingBlades_tar.troy", target);
 
-            AddBuff("KatarinaQMark", 4f, 1, spell, target, owner, false);
         }
 
         public void OnSpellCast(ISpell spell)

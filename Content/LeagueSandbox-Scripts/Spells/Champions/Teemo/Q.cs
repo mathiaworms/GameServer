@@ -5,9 +5,8 @@ using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
-using LeagueSandbox.GameServer.API;
-using System.Collections.Generic;
 using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.API;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
@@ -16,17 +15,25 @@ namespace Spells
     {
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
+            TriggersSpellCasts = true,
+            IsDamagingSpell = true,
             MissileParameters = new MissileParameters
             {
                 Type = MissileType.Target
-            },
-            TriggersSpellCasts = true
-            // TODO
+            }
         };
-
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
+        }
+
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        {
+            var owner = spell.CastInfo.Owner as IChampion;
+            var ap = owner.Stats.AbilityPower.Total;
+            var damage = ap;
+            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+            AddParticleTarget(owner, target, "BlindShot_tar.troy", target, 1f);
         }
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -43,21 +50,10 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
-
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        public void ApplyEffects(IObjAiBase owner, IAttackableUnit target, ISpell spell, ISpellMissile missile)
         {
-            var owner = spell.CastInfo.Owner;
-            var APratio = owner.Stats.AbilityPower.Total * 0.8f;
-            var damage = 35 + spell.CastInfo.SpellLevel * 45 + APratio;
-            var time = 1.25f + 0.25f * spell.CastInfo.SpellLevel;
-
-            target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-            AddBuff("BlindingDart", time, 1, spell, target, owner);
-            AddParticleTarget(owner, target, "BlindShot_tar.troy", target, 1f);
-
-            missile.SetToRemove();
         }
 
         public void OnSpellChannel(ISpell spell)

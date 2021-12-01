@@ -40,10 +40,10 @@ namespace Spells
             var x2 = GetPointFromUnit(owner, 1);
             var mushroom2 = AddMinion(owner, "TeemoMushroom", "TeemoMushroom", x);             //
             mushroom2.SetStatus(StatusFlags.Ghosted, true);                                                               //FOR Particle
-            var mushroom = AddChampion(owner.Team, (int)owner.NetId, "TeemoMushroom", x);  //MIDDLE MUSHROOM
-
+            var mushroom = AddMinion(owner, "TestCubeRender", "TestCubeRender",x, ignoreCollision: true, targetable: false);  //MIDDLE MUSHROOM
+                            
             mushroom.SetStatus(StatusFlags.Ghosted, true);
-            Vector2 LPos1 = GetPointFromUnit(owner, 3050, 30); 
+            Vector2 LPos1 = GetPointFromUnit(owner, 3050, 30);
             Vector2 RPos1 = GetPointFromUnit(owner, 3050, 30);
 
             Vector2 LPos1L = GetPointFromUnit(owner, 3050, 30);
@@ -92,11 +92,12 @@ namespace Spells
                 RPos1L = GetPointFromUnit(owner, 300, -37);
 
             }
-            var Lmushroom = AddChampion(owner.Team, (int)owner.NetId, "TeemoMushroom", LPos1);
-            var Rmushroom = AddChampion(owner.Team, (int)owner.NetId, "TeemoMushroom", RPos1);
+            
+            var Lmushroom = AddMinion(owner, "TestCubeRender", "TestCubeRender",LPos1 , ignoreCollision: true, targetable: false);
+            var Rmushroom = AddMinion(owner,  "TestCubeRender", "TestCubeRender",RPos1 , ignoreCollision: true, targetable: false);
 
-            var LLmushroom = AddChampion(owner.Team, (int)owner.NetId, "TeemoMushroom", LPos1L);
-            var LRmushroom = AddChampion(owner.Team, (int)owner.NetId, "TeemoMushroom", RPos1L);
+            var LLmushroom = AddMinion(owner,  "TestCubeRender", "TestCubeRender",LPos1L , ignoreCollision: true, targetable: false);
+            var LRmushroom = AddMinion(owner,  "TestCubeRender", "TestCubeRender",RPos1L, ignoreCollision: true, targetable: false );
 
             mushroom.Stats.HealthPoints.PercentBonus += 200f;
             Rmushroom.Stats.HealthPoints.PercentBonus += 200f;
@@ -111,7 +112,7 @@ namespace Spells
             LLmushroom.SetStatus(StatusFlags.Ghosted, true);
 
             mushroom2.SetStatus(StatusFlags.Targetable, false);
-            mushroom.SetStatus(StatusFlags.Targetable, false) ;
+            mushroom.SetStatus(StatusFlags.Targetable, false);
             Rmushroom.SetStatus(StatusFlags.Targetable, false);
             Lmushroom.SetStatus(StatusFlags.Targetable, false);
             LRmushroom.SetStatus(StatusFlags.Targetable, false);
@@ -119,7 +120,7 @@ namespace Spells
 
             var Champs = GetChampionsInRange(owner.Position, 50000, true);
 
-            foreach (IChampion player in Champs)
+          /*  foreach (IChampion player in Champs)
             {
                 mushroom.SetInvisible((int)player.GetPlayerId(), mushroom, 0f, 0.0f);
                 mushroom.SetHealthbarVisibility((int)player.GetPlayerId(), mushroom, false);
@@ -134,23 +135,23 @@ namespace Spells
                 mushroom2.SetInvisible((int)player.GetPlayerId(), mushroom2, 0f, 0.0f);
                 mushroom2.SetHealthbarVisibility((int)player.GetPlayerId(), mushroom2, false);
 
-            }
-                CreateTimer(4.0f, () => 
-            {
-                TeleportTo(mushroom, 0,0);
-                TeleportTo(Lmushroom, 0, 0);
-                TeleportTo(Rmushroom, 0, 0);
-                TeleportTo(LLmushroom, 0, 0);
-                TeleportTo(LRmushroom, 0, 0);
-                //mushroom.TakeDamage(mushroom, 500000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
-                //Lmushroom.TakeDamage(mushroom, 50000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
-                //Rmushroom.TakeDamage(mushroom, 5000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
-                //LLmushroom.TakeDamage(mushroom, 50000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
-                //LRmushroom.TakeDamage(mushroom, 5000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
-            });
-            CreateTimer(4.0f, () => { mushroom2.TakeDamage(mushroom, 5000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false); });
+            }*/
+            CreateTimer(4.0f, () =>
+        {
+           // TeleportTo(mushroom, 0, 0);
+          //  TeleportTo(Lmushroom, 0, 0);
+          //  TeleportTo(Rmushroom, 0, 0);
+         //   TeleportTo(LLmushroom, 0, 0);
+          //  TeleportTo(LRmushroom, 0, 0);
+            mushroom.TakeDamage(owner, 500000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
+            Lmushroom.TakeDamage(owner, 50000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
+            Rmushroom.TakeDamage(owner, 5000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
+            LLmushroom.TakeDamage(owner, 50000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
+            LRmushroom.TakeDamage(owner, 5000000000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false);
+        });
+            CreateTimer(4.0f, () => { mushroom2.TakeDamage(owner, 5000, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_INTERNALRAW, false); });
             FaceDirection(x1, mushroom2);
-            var y = AddParticle(owner, mushroom2,  "Yasuo_Base_W_windwall" + spellLvl + ".troy", x, lifetime: 4.0f, flags: FXFlags.BindDirection, followGroundTilt: true);
+            var y = AddParticle(owner, mushroom2, "Yasuo_Base_W_windwall" + spellLvl + ".troy", x, lifetime: 4.0f, flags: FXFlags.BindDirection, followGroundTilt: true);
         }
 
         public void WallHit(IAttackableUnit unit, IAttackableUnit unit1)

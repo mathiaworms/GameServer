@@ -31,8 +31,8 @@ namespace Spells
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
             var owner = spell.CastInfo.Owner as IChampion;
-            
-             var ad = owner.Stats.AttackDamage.Total * spell.SpellData.AttackDamageCoefficient;
+
+            var ad = owner.Stats.AttackDamage.Total * spell.SpellData.AttackDamageCoefficient;
             var ap = owner.Stats.AbilityPower.Total * spell.SpellData.MagicDamageCoefficient;
             var damage = 10 + spell.CastInfo.SpellLevel * 50 + ad + ap;
 

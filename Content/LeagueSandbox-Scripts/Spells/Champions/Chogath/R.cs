@@ -38,18 +38,38 @@ namespace Spells
             AddParticleTarget(owner, target, "Feast_tar_bloodless", target, 1f);
             AddParticleTarget(owner, target, "feast_tar_indicator", target, 1f);
             target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+
+            
      //       AddBuff("IceBlast", 3f, 1, spell, target, owner);
              if (target is IMonster)
             {
+            float mitdamage = target.Stats.GetPostMitigationDamage(damagetrue, DamageType.DAMAGE_TYPE_PHYSICAL, owner);
                target.TakeDamage(owner, damagetrue, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_SPELL, false);
+               if (target.Stats.CurrentHealth - mitdamage < 0 || target.IsDead)
+                    {
+                        AddBuff("Feast", 25000f, 1, spell, owner, owner, true);
+                        
+                    }
             }
             if (target is IMinion)
             {
+                float mitdamage = target.Stats.GetPostMitigationDamage(damagetrue, DamageType.DAMAGE_TYPE_PHYSICAL, owner);
                target.TakeDamage(owner, damagetrue, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_SPELL, false);
+               if (target.Stats.CurrentHealth - mitdamage < 0 || target.IsDead)
+                    {
+                        AddBuff("Feast", 25000f, 1, spell, owner, owner, true);
+                        
+                    }
             }
             if (target is IChampion)
             {
+                float mitdamage = target.Stats.GetPostMitigationDamage(damage, DamageType.DAMAGE_TYPE_PHYSICAL, owner);
                target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_TRUE, DamageSource.DAMAGE_SOURCE_SPELL, false);
+               if (target.Stats.CurrentHealth - mitdamage < 0 || target.IsDead)
+                    {
+                        AddBuff("Feast", 25000f, 1, spell, owner, owner, true);
+                        
+                    }
             }
         }
 

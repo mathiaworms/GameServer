@@ -36,22 +36,33 @@ namespace Spells
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
         }
-
+        IMinion Shadow;
         public void OnSpellCast(ISpell spell)
         {
             var owner = spell.CastInfo.Owner;
-
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
             var owner = spell.CastInfo.Owner;
             var ownerSkinID = owner.SkinID;
-
-            var targetPos = GetPointFromUnit(owner, 1150.0f);
+            var targetPos = GetPointFromUnit(owner, 500.0f);
             FaceDirection(targetPos, owner);
-
             SpellCast(owner, 1, SpellSlotType.ExtraSlots, targetPos, targetPos, true, Vector2.Zero);
+            var units = GetUnitsInRange(owner.Position, 1500, true);
+            foreach (IAttackableUnit unit in units)
+            {
+                if (unit.HasBuff("ZedWShadowBuff"))
+                {
+                    if (unit.Team.Equals(owner.Team))
+                    {
+                        FaceDirection(new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z), unit);
+                        unit.PlayAnimation("Spell1", 1, 0, 1);
+                        SpellCast(owner, 0, SpellSlotType.ExtraSlots, new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z), targetPos, true, unit.Position);
+                    }
+                }
+            }
+
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -102,7 +113,7 @@ namespace Spells
             var owner = spell.CastInfo.Owner;
             float ad = owner.Stats.AttackDamage.Total;
             float damage = 75 + (spell.CastInfo.SpellLevel - 1) * 40 + ad;
-            if(missile is ISpellCircleMissile circleMissle && circleMissle.ObjectsHit.Count > 1)
+            if (missile is ISpellCircleMissile circleMissle && circleMissle.ObjectsHit.Count > 1)
             {
                 damage *= 0.6f;
             }

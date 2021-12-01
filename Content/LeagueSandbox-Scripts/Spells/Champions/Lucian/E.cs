@@ -33,10 +33,13 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
+            var current = new Vector2(spell.CastInfo.Owner.Position.X, spell.CastInfo.Owner.Position.Y);
             var trueCoords = GetPointFromUnit(spell.CastInfo.Owner, spell.SpellData.CastRangeDisplayOverride);
 
-            FaceDirection(trueCoords, spell.CastInfo.Owner, true);
-            ForceMovement(spell.CastInfo.Owner, "Spell3", trueCoords, 1350, 0, 0, 0, movementOrdersFacing: GameServerCore.Enums.ForceMovementOrdersFacing.KEEP_CURRENT_FACING);
+            AddBuff("LucianPassiveBuff", 3.5f, 1, spell, spell.CastInfo.Owner, spell.CastInfo.Owner);
+
+            FaceDirection(current, spell.CastInfo.Owner, true);
+            CreateTimer(0.01f, () => { ForceMovement(spell.CastInfo.Owner, "Spell3", trueCoords, 1350, 0, 0, 0); });
             AddParticleTarget(spell.CastInfo.Owner, spell.CastInfo.Owner, "Lucian_E_cas_trail.troy", spell.CastInfo.Owner, 1f);
 
         }

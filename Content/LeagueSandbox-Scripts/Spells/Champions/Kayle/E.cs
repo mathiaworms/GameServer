@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
@@ -9,7 +9,7 @@ using GameServerCore.Scripting.CSharp;
 
 namespace Spells
 {
-    public class JudicatorDivineBlessing : ISpellScript
+    public class JudicatorRighteousFury : ISpellScript
     {
         IAttackableUnit Target;
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
@@ -28,7 +28,11 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            Target = target;
+            owner.Stats.Range.FlatBonus += 400;
+            CreateTimer(10.0f, () => { owner.Stats.Range.FlatBonus = 0; });
+            AddParticle(owner, target, "RighteousFuryHalo_buf.troy", Vector2.Zero, lifetime: 10.0f, bone: "head");
+            //AddParticleTarget(ownerSpell.CastInfo.Owner, ownerSpell.CastInfo.Owner, "Kassadin_Netherblade.troy", unit, buff.Duration, 1, "R_hand", "R_hand");
+            AddBuff("KayleE", 10.0f, 1, spell, target, owner);
         }
 
         public void OnSpellCast(ISpell spell)
@@ -37,29 +41,9 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
-            var owner = spell.CastInfo.Owner;
-            
-            
-
-
-            AddBuff("JudicatorDivineBlessing", 3f, 1, spell, Target, owner);
-            PerformHeal( owner, spell, Target);
-
 
         }
-         private void PerformHeal(IObjAiBase owner, ISpell spell, IAttackableUnit target)
-        {
 
-            var ap = owner.Stats.AbilityPower.Total * spell.SpellData.MagicDamageCoefficient;
-            float healthGain = 15 + (spell.CastInfo.SpellLevel * 45) + ap;
-            if (target.HasBuff("HealCheck"))
-            {
-                healthGain *= 0.5f;
-            }
-            var newHealth = target.Stats.CurrentHealth + healthGain;
-            target.Stats.CurrentHealth = Math.Min(newHealth, target.Stats.HealthPoints.Total);
-
-        }
         public void OnSpellChannel(ISpell spell)
         {
         }

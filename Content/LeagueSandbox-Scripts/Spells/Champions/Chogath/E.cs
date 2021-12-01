@@ -1,22 +1,21 @@
-using System.Numerics;
-using GameServerCore.Enums;
+﻿using GameServerCore.Enums;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
+using System.Numerics;
 using LeagueSandbox.GameServer.API;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
 
 namespace Spells
 {
-    public class BrandBlaze : ISpellScript
+    public class VorpalSpikes : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
             TriggersSpellCasts = true
-            // TODO
         };
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
@@ -26,10 +25,20 @@ namespace Spells
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
         }
-
+        bool toggled = false;
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            FaceDirection(end, owner);
+            toggled = !toggled;
+            if (toggled == false)
+            {
+                RemoveBuff(owner, "ChogathSpikes");
+                LogDebug("toggled off");
+            }
+            if (toggled == true)
+            {
+                AddBuff("ChogathSpikes", 15f, 1, spell, target, owner);
+                LogDebug("toggled on");
+            }
         }
 
         public void OnSpellCast(ISpell spell)
@@ -38,8 +47,6 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
-            var endPos = GetPointFromUnit(spell.CastInfo.Owner, 925);
-            SpellCast(spell.CastInfo.Owner, 0, SpellSlotType.ExtraSlots, endPos, endPos, false, Vector2.Zero);
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -59,27 +66,41 @@ namespace Spells
         }
     }
 
-    public class BrandBlazeMissile : ISpellScript
+    public class VorpalSpikesMissle : ISpellScript
     {
-        public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
-            TriggersSpellCasts = true,
             MissileParameters = new MissileParameters
             {
                 Type = MissileType.Circle
-            }
+            },
+            IsDamagingSpell = true,
+            TriggersSpellCasts = true
+
             // TODO
         };
+
 
         public void OnActivate(IObjAiBase owner, ISpell spell)
         {
             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
 
+        private void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile arg3, ISpellSector arg4)
+        {
+            var owner = spell.CastInfo.Owner;
+            var ap = owner.Stats.AbilityPower.Total * 0.3f;
+            var damage = 5 + spell.CastInfo.SpellLevel * 15 + ap;
+            LogDebug("yo");
+            target.TakeDamage(spell.CastInfo.Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_ATTACK, false);
+        }
+
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
         {
         }
-
+        public void OnMissileEnd(ISpellMissile missile)
+        {
+        }
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
         }
@@ -90,25 +111,6 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
-        }
-
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
-        {
-            var owner = spell.CastInfo.Owner;
-            var ad = owner.Stats.AbilityPower.Total * 0.65 + spell.CastInfo.Owner.GetSpell(0).CastInfo.SpellLevel * 40 + 40;
-            target.TakeDamage(owner, (float)ad, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-            missile.SetToRemove();
-
-            if (target.HasBuff("BrandPassive"))
-            {
-                AddBuff("Stun", 2f, 1, spell, target, owner);
-                AddBuff("BrandPassive", 4f, 1, spell, target, owner);
-            }
-            else
-            {
-                AddBuff("BrandPassive", 4f, 1, spell, target, owner);
-            }
-
         }
 
         public void OnSpellChannel(ISpell spell)
@@ -127,5 +129,5 @@ namespace Spells
         {
         }
     }
-}
 
+}

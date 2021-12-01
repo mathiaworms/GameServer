@@ -60,10 +60,11 @@ namespace Spells
                     owner.RemoveBuffsWithName("YasuoQ02");
                 });
             }
-                else
-                {
+            else
+            {
                 v = spell.CreateSpellMissile(s.MissileParameters);
                 mushroom = AddMinion(owner, "TeemoMushroom", "TeemoMushroom", owner.Position);
+                mushroom.SetStatus(StatusFlags.Ghosted, true);
                 var Champs = GetChampionsInRange(owner.Position, 50000, true);
                 var spellPos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);
                 FaceDirection(spellPos, spell.CastInfo.Owner, true);
@@ -100,15 +101,20 @@ namespace Spells
 
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {
+            if (target is Champion)
+            {
+                SealSpellSlot(spell.CastInfo.Owner, SpellSlotType.SpellSlots, 3, SpellbookType.SPELLBOOK_CHAMPION, false);
+                CreateTimer(1.0f, () => { SealSpellSlot(spell.CastInfo.Owner, SpellSlotType.SpellSlots, 3, SpellbookType.SPELLBOOK_CHAMPION, true); });
+            }
             AddParticleTarget(spell.CastInfo.Owner, target, "Yasuo_Base_Q_hit_tar.troy", target);
             var owner = spell.CastInfo.Owner;
             var APratio = owner.Stats.AttackDamage.Total;
             var spelllvl = (spell.CastInfo.SpellLevel * 20);
-            target.TakeDamage(owner, APratio  + spelllvl + 2, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-            ForceMovement(target, "RUN", new Vector2(target.Position.X + 10f, target.Position.Y + 10f), 13f, 0, 16.5f, 0);
-            if(target is Champion)
+            target.TakeDamage(owner, APratio + spelllvl + 2, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+            ForceMovement(target, "RUN", new Vector2(target.Position.X + 5f, target.Position.Y + 5f), 13f, 0, 16.5f, 0);
+            if (target is Champion)
             {
-                AddBuff("Knockup", 1f, 1, spell, target, owner, false);
+                AddBuff("Pulverize", 1.0f, 1, spell, target, spell.CastInfo.Owner);
             }
         }
 

@@ -29,7 +29,7 @@ namespace Buffs
 
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            switch(unit.GetBuffWithName("KennenMarkOfStorm").StackCount) //switch using enemy target mark of storm buff stack count
+            switch (unit.GetBuffWithName("KennenMarkOfStorm").StackCount) //switch using enemy target mark of storm buff stack count
             {
                 case 1:
                     mos = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "kennen_mos1.troy", unit, buff.Duration);
@@ -40,7 +40,7 @@ namespace Buffs
                     break;
                 case 3:
                     RemoveParticle(mos2);
-                    mos3 = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "kennen_mos_tar.troy", unit, buff.Duration);                
+                    mos3 = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "kennen_mos_tar.troy", unit, buff.Duration);
 
                     break;
             }
@@ -49,9 +49,9 @@ namespace Buffs
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
 
         {
-           RemoveParticle(mos); //remove all particles upon deactivation
-           RemoveParticle(mos2);
-           RemoveParticle(mos3);
+            RemoveParticle(mos); //remove all particles upon deactivation
+            RemoveParticle(mos2);
+            RemoveParticle(mos3);
 
         }
 

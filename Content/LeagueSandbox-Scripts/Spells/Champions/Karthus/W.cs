@@ -45,7 +45,7 @@ namespace Spells
             FaceDirection(spellPos, owner);
             var x = GetPointFromUnit(owner, 2500);
 
-            var mushroom = AddMinion(owner, "TeemoMushroom", "TeemoMushroom", spellPos);
+            var mushroom = AddMinion(owner, "TestCubeRender", "TestCubeRender", spellPos,  ignoreCollision: true, targetable: false);
 
             var Champs = GetChampionsInRange(owner.Position, 50000, true);
 

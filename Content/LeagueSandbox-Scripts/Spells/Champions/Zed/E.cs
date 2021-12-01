@@ -34,7 +34,6 @@ namespace Spells
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
         }
-
         public void OnSpellCast(ISpell spell)
         {
             var owner = spell.CastInfo.Owner;
@@ -46,10 +45,37 @@ namespace Spells
                 SingleTick = true,
                 Type = SectorType.Area
             });
+            var units = GetUnitsInRange(owner.Position, 1500, true);
+            foreach (IAttackableUnit unit in units)
+            {
+                if (unit.HasBuff("ZedWShadowBuff"))
+                {
+                    if (unit.Team.Equals(owner.Team))
+                    {
+                        spell.CreateSpellSector(new SectorParameters
+                        {
+                            BindObject = unit,
+                            Length = 250f,
+                            SingleTick = true,
+                            Type = SectorType.Area,
+                            CanHitSameTargetConsecutively = true
+                        }); ;
+                    }
+                }
+            }
         }
 
         public void OnSpellPostCast(ISpell spell)
         {
+            var units = GetUnitsInRange(spell.CastInfo.Owner.Position, 1500, true);
+            foreach (IAttackableUnit unit in units)
+            {
+                if (unit.HasBuff("ZedWShadowBuff"))
+                {
+                    unit.PlayAnimation("Spell3", 1, 0, 1);
+                    AddParticleTarget(spell.CastInfo.Owner, unit, "Zed_E_cas.troy", spell.CastInfo.Owner);
+                }
+            }
         }
         public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
         {

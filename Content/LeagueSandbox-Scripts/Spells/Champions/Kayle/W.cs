@@ -9,7 +9,7 @@ using GameServerCore.Scripting.CSharp;
 
 namespace Spells
 {
-    public class JudicatorIntervention : ISpellScript
+    public class JudicatorDivineBlessing : ISpellScript
     {
         IAttackableUnit Target;
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
@@ -28,8 +28,7 @@ namespace Spells
 
         public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
-            AddParticle(owner, target, "OdinShield_buf.troy", Vector2.Zero, lifetime: 2.0f);
-            AddBuff("KayleR", 2.0f, 1, spell, target, owner);
+            Target = target;
         }
 
         public void OnSpellCast(ISpell spell)
@@ -38,9 +37,29 @@ namespace Spells
 
         public void OnSpellPostCast(ISpell spell)
         {
+            var owner = spell.CastInfo.Owner;
+
+
+            AddParticle(owner, spell.CastInfo.Targets[0].Unit, "Intervention_tar.troy", Vector2.Zero);
+
+            AddBuff("JudicatorDivineBlessing", 3f, 1, spell, Target, owner);
+            PerformHeal(owner, spell, Target);
+
 
         }
+        private void PerformHeal(IObjAiBase owner, ISpell spell, IAttackableUnit target)
+        {
 
+            var ap = owner.Stats.AbilityPower.Total * spell.SpellData.MagicDamageCoefficient;
+            float healthGain = 15 + (spell.CastInfo.SpellLevel * 45) + ap;
+            if (target.HasBuff("HealCheck"))
+            {
+                healthGain *= 0.5f;
+            }
+            var newHealth = target.Stats.CurrentHealth + healthGain;
+            target.Stats.CurrentHealth = Math.Min(newHealth, target.Stats.HealthPoints.Total);
+
+        }
         public void OnSpellChannel(ISpell spell)
         {
         }

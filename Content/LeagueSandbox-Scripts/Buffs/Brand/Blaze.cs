@@ -9,7 +9,7 @@ using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 namespace Buffs
 
 {
-    internal class Blaze: IBuffGameScript
+    internal class BrandPassive: IBuffGameScript
     {
         public BuffType BuffType => BuffType.POISON;
         public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;

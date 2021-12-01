@@ -1,11 +1,128 @@
 patchnote : 
 
 Champion : 
-
-amumu work / need find particle of ulti
+Aatrox   
+Ahri : fonctionne " anim casse" 
+akali : fonctionne 
+alistar : 
+amumu work / need find particle of ulti 
 Annivia / manque passive et reactivation du Q 
 Annie / Z ne cumule pas le passive 
-Ashe / Q ne consome pas de mana , peut etre activée mais pas desactivé 
+Ashe /manque passif /  Q ne consome pas de mana , peut etre activée mais pas desactivé 
+Azir
+Blitz / Pas de passive  / passif du R pas encore implementer 
+Brand / fonctionne
+Braum 
+Caitlyn : Fonctionne / pas de passif 
+Cassiopeia : / manque passif / fonctionne 
+Cho'gath: Fonctionne
+Corki : Manque R // ammocount a voir 
+Darius : 
+Diana :
+Draven :
+dr mundo : fonctionne / pas de passif 
+elise :
+evelynn : error 404 
+ezreal : fonctionne 
+fiddlestick : E pas les bon degats + rebond a faire // R particle fix  // a tester 
+Fiora : 
+fizz : fonctionne / manque le bump du R  
+Gazio : E changer champot en testcube / manque R  // a tester 
+gangplank : fonctionne  / animation cassé 
+Garen : fonctionne mais GAREN DOIT TOURNEE 
+Gnar :
+Gragas: fonctionne R pas de degats  // A TESTER 
+Graves : fonctionne
+hecarim : 
+Heimerdinger :
+Irelia :
+Janna : 
+Jarvan IV :
+Jax :
+jayce :
+jinx :
+kalista :
+karma :
+karthus : Fonctionne / e fix particle  
+Kassadin : Fonctionne
+katarina : Z and R does not dmg 
+kayle : Fonctionne / R pas invisibility but max armor magie 
+kennen : Patch E et R 
+khazix : fonctionne / ne peut pas evoluer .. 
+Kog maw 
+Leblanc 
+Lee sin : all spell " 1" work 
+leona 
+lissandra
+Lucian : Fonctionne 
+Lulu 
+Lux : fonctionne 
+malphite 
+Malzahar 
+Maokai 
+Master yi  
+Miss fortune 
+Wukong 
+Mordekaiser : Fonctionne
+morgana 
+nami 
+Nasus : R a voir 
+Nautilus 
+nidalee 
+nocturne 
+nunu 
+olaf 
+orianna 
+Pantheon 
+Poppy 
+Quinn 
+Rammus 
+Renekton 
+Rangar 
+riven 
+rumble 
+Ryze : R ne fonctionne pas  
+Sejuani 
+Shaco : R ne focntionne pas 
+shen 
+Shyvana 
+Singed 
+Sion 
+sivir 
+Skarner 
+sona 
+sorka 
+swain 
+Syndra 
+talon :  a tester 
+taric : fonctionne manque passif 
+Teemo : a tester 
+tresh 
+tristana 
+trundle 
+tryndamere 
+twisted fate 
+twitch 
+udyr 
+urgot 
+varus 
+vayne : a tester 
+veigar : a tester 
+velkoz 
+vi 
+Viktor 
+vladimir 
+volibear : a tester 
+warwick 
+Xerath 
+xin zahao 
+yasuo : a tester 
+yorick 
+Zac 
+Zed : a tester 
+Ziggs 
+Zilean 
+zyra 
 
 Items : 
 
