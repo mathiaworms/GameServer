@@ -1,3 +1,13 @@
+using System.Linq;
+using GameServerCore;
+using GameServerCore.Domain.GameObjects;
+using GameServerCore.Domain.GameObjects.Spell;
+using GameServerCore.Domain.GameObjects.Spell.Missile;
+using GameServerCore.Enums;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using LeagueSandbox.GameServer.Scripting.CSharp;
+using System.Numerics;
+using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
@@ -9,11 +19,9 @@ using System.Collections.Generic;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
 using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
-
-
 namespace Spells
 {
-    public class TormentedSoil : ISpellScript
+ public class SoulShackles : ISpellScript
     {
         public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
         {
@@ -30,7 +38,7 @@ namespace Spells
         {
              ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
-        IBuff thisBuff;
+
         public ISpellSector DamageSector;
 
         public void OnDeactivate(IObjAiBase owner, ISpell spell)
@@ -49,36 +57,45 @@ namespace Spells
         public void OnSpellPostCast(ISpell spell)
         {
             var owner = spell.CastInfo.Owner;
-            var targetPos = GetPointFromUnit(owner, 900.0f);
-            SpellCast(owner, 1, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
-            var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z);    
+            var targetPos = owner.Position;
+            SpellCast(owner, 3, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
+            var spellpos = owner.Position;        
+            var wallduration = 6.0f;
 
+              
+                
 
-                AddParticle(owner, null, "TormentedSoil_tar.troy", spellpos, lifetime: 5.0f , reqVision: false);
-                AddParticle(owner, null, "TormentedSoil_green_tar.troy", spellpos, lifetime: 5.0f , reqVision: false);
-                AddParticle(owner, null, "TormentedSoil_red_tar.troy", spellpos, lifetime: 5.0f , reqVision: false);
                 DamageSector = spell.CreateSpellSector(new SectorParameters
                 {
-                    Length = 275f,
+                    Length = 550f,
                     Tickrate = 2,
-                    CanHitSameTargetConsecutively = true,
+                    CanHitSameTargetConsecutively = false,
                     OverrideFlags = SpellDataFlags.AffectEnemies | SpellDataFlags.AffectNeutral | SpellDataFlags.AffectMinions | SpellDataFlags.AffectHeroes,
                     Type = SectorType.Area,
-                    Lifetime = 5.0f
+                    Lifetime = 3.0f
                 });
 
+          
+          
         }
 
         public void OnSpellChannel(ISpell spell)
         {
         }
           public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
-        {   
-             var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.125f;
-            var damage = 5 + (5 * spell.CastInfo.SpellLevel ) + ap;
-
-            target.TakeDamage(spell.CastInfo.Owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELLAOE, false);
-           
+        {  
+           var ownerr = spell.CastInfo.Owner as IChampion;
+            var spellLevel = ownerr.GetSpell("SoulShackles").CastInfo.SpellLevel;
+            
+            var ap = spell.CastInfo.Owner.Stats.AbilityPower.Total * 0.7f;
+            var damage = 75 + spellLevel * 75 + ap;
+               
+               // AddBuff("Blaze", 4f, 1, spell, target, owner);
+                target.TakeDamage(ownerr, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+                 AddParticleTarget(ownerr, target, "Morgana_Blackthorn_SoulShackle_tar.troy", target, lifetime: 3.0f , reqVision: false);
+             //   AddBuff("Stun", 1.5f, 1, spell, target, ownerr);
+              
+          
 
         }
         public void OnSpellChannelCancel(ISpell spell)

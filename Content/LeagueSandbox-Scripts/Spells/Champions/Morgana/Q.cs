@@ -42,7 +42,7 @@ namespace Spells
         public void OnSpellCast(ISpell spell)
         {
               var owner = spell.CastInfo.Owner;
-            AddParticleTarget(owner, owner, "DarkBinding_mis.troy", owner, bone: "L_HAND");
+            
             
         }
 
@@ -51,8 +51,9 @@ namespace Spells
             var owner = spell.CastInfo.Owner as IChampion;
             var ownerSkinID = owner.SkinID;
             var targetPos = GetPointFromUnit(owner, 1150.0f);
-
-           
+            var spellpos = new Vector2(spell.CastInfo.TargetPositionEnd.X, spell.CastInfo.TargetPositionEnd.Z); 
+             FaceDirection(spellpos, owner);
+           AddParticle(owner, owner, "DarkBinding_mis.troy", targetPos, bone: "L_HAND");
             SpellCast(owner, 0, SpellSlotType.ExtraSlots, targetPos, targetPos, false, Vector2.Zero);
 
         }
@@ -115,7 +116,8 @@ namespace Spells
 
             AddParticleTarget(owner, target, "DarkBinding_tar.troy", target);
             missile.SetToRemove();
-           AddBuff("Stun", 3f, 1, spell, target, owner);
+            AddBuff("MorganaQ", 3.0f, 1, spell, target, spell.CastInfo.Owner);
+          // AddBuff("Stun", 3f, 1, spell, target, owner);
         }
 
         public void OnSpellCast(ISpell spell)
