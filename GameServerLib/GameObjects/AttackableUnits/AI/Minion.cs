@@ -5,12 +5,12 @@ using System.Numerics;
 
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 {
-    public class Minion : ObjAiBase, IMinion
+    public class Minion : ObjAIBase, IMinion
     {
         /// <summary>
         /// Unit which spawned this minion.
         /// </summary>
-        public IObjAiBase Owner { get; }
+        public IObjAIBase Owner { get; }
         /// <summary>
         /// Whether or not this minion should ignore collisions.
         /// </summary>
@@ -34,7 +34,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// <summary>
         /// Only unit which is allowed to see this minion.
         /// </summary>
-        public IObjAiBase VisibilityOwner { get; }
+        public IObjAIBase VisibilityOwner { get; }
 
         //TODO: Implement these variables
         public int DamageBonus { get; protected set; }
@@ -43,7 +43,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
         public Minion(
             Game game,
-            IObjAiBase owner,
+            IObjAIBase owner,
             Vector2 position,
             string model,
             string name,
@@ -53,12 +53,13 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             bool ignoreCollision = false,
             bool targetable = true,
             bool isWard = false,
-            IObjAiBase visibilityOwner = null,
-            string aiScript = "",
+            IObjAIBase visibilityOwner = null,
+            IStats stats = null,
+            string AIScript = "",
             int damageBonus = 0,
             int healthBonus = 0,
             int initialLevel = 1
-        ) : base(game, model, new Stats.Stats(), 40, position, 1100, skinId, netId, team, aiScript)
+        ) : base(game, model, 40, position, 1100, skinId, netId, team, stats, AIScript)
         {
             Name = name;
             Owner = owner;

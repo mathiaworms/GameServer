@@ -1,13 +1,14 @@
-﻿using GameServerCore.Domain.GameObjects;
+﻿using System.Numerics;
+using GameServerCore.Enums;
+using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Domain.GameObjects.Spell.Missile;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
-using GameServerCore.Enums;
-using GameServerCore.Scripting.CSharp;
-using LeagueSandbox.GameServer.API;
-using LeagueSandbox.GameServer.Scripting.CSharp;
-using System.Numerics;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using LeagueSandbox.GameServer.Scripting.CSharp;
+using GameServerCore.Scripting.CSharp;
+using GameServerCore.Domain.GameObjects.Spell.Sector;
+using LeagueSandbox.GameServer.API;
+using Buffs;
 
 namespace Spells
 {
@@ -15,23 +16,21 @@ namespace Spells
     {
         public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
+            DoesntBreakShields = true,
             TriggersSpellCasts = true,
-            MissileParameters = new MissileParameters
-            {
-                Type = MissileType.Circle
-            }
-            // TODO
+            NotSingleTargetSpell = false,
+            SpellDamageRatio = 1.0f
         };
 
-        public void OnActivate(IObjAiBase owner, ISpell spell)
+        public void OnActivate(IObjAIBase owner, ISpell spell)
         {
         }
 
-        public void OnDeactivate(IObjAiBase owner, ISpell spell)
+        public void OnDeactivate(IObjAIBase owner, ISpell spell)
         {
         }
 
-        public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
+        public void OnSpellPreCast(IObjAIBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
         }
 
@@ -43,33 +42,26 @@ namespace Spells
         {
             var owner = spell.CastInfo.Owner;
             var spellPos = new Vector2(spell.CastInfo.TargetPosition.X, spell.CastInfo.TargetPosition.Z);
-            var current = new Vector2(owner.Position.X, owner.Position.Y);
-            var to = Vector2.Normalize(spellPos - current);
-            var dash = Vector2.Negate(to) * 500;
-            var dashCoords = current + dash;
-            SpellCast(spell.CastInfo.Owner, 1, SpellSlotType.ExtraSlots, spellPos, spellPos, true, Vector2.Zero);
-            owner.SetTargetUnit(null);
-            ForceMovement(owner, "RUN", dashCoords, 1000, 0, 0, 0, movementOrdersFacing: ForceMovementOrdersFacing.KEEP_CURRENT_FACING);
-            //var owner = spell.CastInfo.Owner;
-            //// Calculate net coords
-            //var current = new Vector2(owner.Position.X, owner.Position.Y);
-            //var spellPos = new Vector2(spell.CastInfo.TargetPosition.X, spell.CastInfo.TargetPosition.Z);
-            //var to = Vector2.Normalize(spellPos - current);
-            //var range = to * 750;
-            //var trueCoords = current + range;
-            //
-            //// Calculate dash coords/vector
-            //var dash = Vector2.Negate(to) * 500;
-            //var dashCoords = current + dash;
-            //ForceMovement(owner, "Spell3", dashCoords, 1000, 0, 0, 0, movementOrdersFacing: ForceMovementOrdersFacing.KEEP_CURRENT_FACING);
-            ////spell.AddProjectile("CaitlynEntrapmentMissile", current, current, trueCoords);
+
+            FaceDirection(spellPos, owner, true);
+
+            var misPos = GetPointFromUnit(owner, spell.SpellData.CastRangeDisplayOverride);
+            SpellCast(owner, 1, SpellSlotType.ExtraSlots, misPos, misPos, true, Vector2.Zero);
+
+            if (owner.CanMove())
+            {
+                AddBuff("CaitlynEntrapment", 0.25f, 1, spell, owner, owner);
+
+                // Distance is 500 - 10 = 490 (a point 10 units in front is used for MoveAway, decreasing the effective range by 10)
+                ForceMovement(owner, "", GetPointFromUnit(owner, 490f, 180f), 1000f, 0.0f, 3.0f, 0.0f, movementOrdersFacing: ForceMovementOrdersFacing.KEEP_CURRENT_FACING);
+            }
         }
 
         public void OnSpellChannel(ISpell spell)
         {
         }
 
-        public void OnSpellChannelCancel(ISpell spell, ChannelingStopSource source)
+        public void OnSpellChannelCancel(ISpell spell, ChannelingStopSource reason)
         {
         }
 
@@ -84,27 +76,95 @@ namespace Spells
 
     public class CaitlynEntrapmentMissile : ISpellScript
     {
-        public ISpellScriptMetadata ScriptMetadata => new SpellScriptMetadata()
+        public ISpellScriptMetadata ScriptMetadata { get; private set; } = new SpellScriptMetadata()
         {
+            DoesntBreakShields = true,
             TriggersSpellCasts = true,
+            NotSingleTargetSpell = false,
+            SpellDamageRatio = 1.0f,
             MissileParameters = new MissileParameters
             {
                 Type = MissileType.Circle
             }
-            // TODO
         };
 
-        public void OnActivate(IObjAiBase owner, ISpell spell)
+        //Vector2 direction;
+
+        public void OnActivate(IObjAIBase owner, ISpell spell)
         {
             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
 
-        public void OnDeactivate(IObjAiBase owner, ISpell spell)
+        public void OnDeactivate(IObjAIBase owner, ISpell spell)
         {
         }
 
-        public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
+        public void OnSpellPreCast(IObjAIBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
+        }
+
+        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
+        {
+            var owner = spell.CastInfo.Owner;
+
+            if (!target.Status.HasFlag(StatusFlags.Stealthed))
+            {
+                // BreakSpellShields(target);
+
+                var slowDuration = new[] { 0, 1, 1.25f, 1.5f, 1.75f, 2 }[spell.CastInfo.SpellLevel];
+                var slowBuffScript = AddBuff("Slow", slowDuration, 1, spell, target, owner).BuffScript as Slow;
+                slowBuffScript.SetSlowMod(0.5f);
+
+                AddBuff("CaitlynEntrapmentMissile", slowDuration, 1, spell, target, owner);
+
+                var ap = owner.Stats.AbilityPower.Total * 0.8f;
+                var damage = 80 + (spell.CastInfo.SpellLevel - 1) * 50 + ap;
+                target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+
+                AddParticleTarget(owner, target, "caitlyn_entrapment_tar", target);
+
+                missile.SetToRemove();
+            }
+            else
+            {
+                if (target is IChampion)
+                {
+                    // BreakSpellShields(target);
+
+                    var slowDuration = new[] { 0, 1, 1.25f, 1.5f, 1.75f, 2 }[spell.CastInfo.SpellLevel];
+                    var slowBuffScript = AddBuff("Slow", slowDuration, 1, spell, target, owner).BuffScript as Slow;
+                    slowBuffScript.SetSlowMod(0.5f);
+
+                    AddBuff("CaitlynEntrapmentMissile", slowDuration, 1, spell, target, owner);
+
+                    var ap = owner.Stats.AbilityPower.Total * 0.8f;
+                    var damage = 80 + (spell.CastInfo.SpellLevel - 1) * 50 + ap;
+                    target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+
+                    AddParticleTarget(owner, target, "caitlyn_entrapment_tar", target);
+
+                    missile.SetToRemove();
+                }
+                // TODO: Implement a CanSee function for specific unit->unit vision checking (things such as blinds need this)
+                else if (TeamHasVision(owner.Team, target))
+                {
+                    // BreakSpellShields(target);
+
+                    var slowDuration = new[] { 0, 1, 1.25f, 1.5f, 1.75f, 2 }[spell.CastInfo.SpellLevel];
+                    var slowBuffScript = AddBuff("Slow", slowDuration, 1, spell, target, owner).BuffScript as Slow;
+                    slowBuffScript.SetSlowMod(0.5f);
+
+                    AddBuff("CaitlynEntrapmentMissile", slowDuration, 1, spell, target, owner);
+
+                    var ap = owner.Stats.AbilityPower.Total * 0.8f;
+                    var damage = 80 + (spell.CastInfo.SpellLevel - 1) * 50 + ap;
+                    target.TakeDamage(owner, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
+
+                    AddParticleTarget(owner, target, "caitlyn_entrapment_tar", target);
+
+                    missile.SetToRemove();
+                }
+            }
         }
 
         public void OnSpellCast(ISpell spell)
@@ -115,19 +175,11 @@ namespace Spells
         {
         }
 
-        public void TargetExecute(ISpell spell, IAttackableUnit target, ISpellMissile missile, ISpellSector sector)
-        {
-            var owner = spell.CastInfo.Owner;
-            var ad = owner.Stats.AttackDamage.Total + spell.CastInfo.SpellLevel - 1 * 20;
-            target.TakeDamage(owner, ad, DamageType.DAMAGE_TYPE_PHYSICAL, DamageSource.DAMAGE_SOURCE_SPELL, false);
-            missile.SetToRemove();
-        }
-
         public void OnSpellChannel(ISpell spell)
         {
         }
 
-        public void OnSpellChannelCancel(ISpell spell, ChannelingStopSource source)
+        public void OnSpellChannelCancel(ISpell spell, ChannelingStopSource reason)
         {
         }
 

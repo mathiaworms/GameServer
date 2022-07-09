@@ -16,6 +16,9 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using LeagueSandbox.GameServer.Content;
+using static GameServerCore.Content.HashFunctions;
+using LeagueSandbox.GameServer.Logging;
+using log4net;
 
 namespace LeagueSandbox.GameServer.GameObjects.Spell
 {
@@ -26,6 +29,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         private readonly NetworkIdManager _networkIdManager;
         private float _overrrideCastRange;
         private AttackType _attackType;
+        private static ILog _logger = LoggerProvider.GetLogger();
 
         /// <summary>
         /// General information about this spell when it is cast. Refer to CastInfo class.
@@ -69,6 +73,9 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         /// Script instance assigned to this spell.
         /// </summary>
         public ISpellScript Script { get; private set; }
+
+        public uint ScriptNameHash { get; private set; }
+        public IEventSource ParentScript => null;
         /// <summary>
         /// Whether or not the script for this spell is the default empty script.
         /// </summary>
@@ -78,7 +85,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         /// </summary>
         public IToolTipData ToolTipData { get; protected set; }
 
-        public Spell(Game game, IObjAiBase owner, string spellName, byte slot)
+        public Spell(Game game, IObjAIBase owner, string spellName, byte slot)
         {
             _game = game;
             _networkIdManager = game.NetworkIdManager;
@@ -123,7 +130,9 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             {
                 owner.LoadCharScript(this);
             }
-
+            
+            ScriptNameHash = HashString(SpellName);
+            
             ToolTipData = new ToolTipData(owner, this);
         }
 
@@ -156,7 +165,14 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             }
 
             //Activate spell - Notes: Deactivate is never called as spell removal hasn't been added
-            Script.OnActivate(CastInfo.Owner, this);
+            try
+            {
+                Script.OnActivate(CastInfo.Owner, this);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
         }
 
         public void ApplyEffects(IAttackableUnit u, ISpellMissile m = null, ISpellSector s = null)
@@ -420,7 +436,14 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 CastInfo.Owner.SetTargetUnit(unit, true);
             }
 
-            Script.OnSpellPreCast(CastInfo.Owner, this, unit, start, end);
+            try
+            {
+                Script.OnSpellPreCast(CastInfo.Owner, this, unit, start, end);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
 
             if (_game.Config.GameFeatures.HasFlag(FeatureFlags.EnableManaCosts))
             {
@@ -467,7 +490,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 _attackType = AttackType.ATTACK_TYPE_MELEE;
             }
 
-            if (CastInfo.Targets[0].Unit != null && CastInfo.Targets[0].Unit != CastInfo.Owner)
+            if (CastInfo.Targets.Count > 0 && CastInfo.Targets[0].Unit != null && CastInfo.Targets[0].Unit != CastInfo.Owner)
             {
                 if (Script.ScriptMetadata.AutoFaceDirection)
                 {
@@ -507,7 +530,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 }
             }
 
-            if (CastInfo.Targets[0].Unit != null && CastInfo.Targets[0].Unit != CastInfo.Owner)
+            if (CastInfo.Targets.Count > 0 && CastInfo.Targets[0].Unit != null && CastInfo.Targets[0].Unit != CastInfo.Owner)
             {
                 _game.PacketNotifier.NotifyS2C_UnitSetLookAt(CastInfo.Owner, CastInfo.Targets[0].Unit, _attackType);
             }
@@ -565,7 +588,14 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             var start = new Vector2(CastInfo.TargetPosition.X, CastInfo.TargetPosition.Z);
             var end = new Vector2(CastInfo.TargetPositionEnd.X, CastInfo.TargetPositionEnd.Z);
 
-            Script.OnSpellPreCast(CastInfo.Owner, this, castInfo.Targets[0].Unit, start, end);
+            try
+            {
+                Script.OnSpellPreCast(CastInfo.Owner, this, castInfo.Targets[0].Unit, start, end);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
 
             var stats = CastInfo.Owner.Stats;
 
@@ -847,10 +877,10 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             {
                 var spellTarget = CastInfo.Targets[0].Unit;
 
-                if (spellTarget != null
-                && (!spellTarget.IsVisibleByTeam(CastInfo.Owner.Team)
-                || (!spellTarget.Status.HasFlag(StatusFlags.Targetable) && spellTarget.CharData.IsUseable)
-                || spellTarget.IsDead))
+                if (spellTarget != null && (!spellTarget.IsVisibleByTeam(CastInfo.Owner.Team) || (!spellTarget.Status.HasFlag(StatusFlags.Targetable) && !spellTarget.CharData.IsUseable) || spellTarget.IsDead))
+
+
+
                 {
                     CastInfo.Owner.StopChanneling(ChannelingStopCondition.Cancel, ChannelingStopSource.LostTarget);
                     return;
@@ -1051,7 +1081,14 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
                 CastInfo.Owner.SetSpellToCast(null, Vector2.Zero);
             }
 
-            Script.OnDeactivate(CastInfo.Owner, this);
+            try
+            {
+                Script.OnDeactivate(CastInfo.Owner, this);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
         }
 
         /// <summary>
@@ -1150,7 +1187,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             _game.ObjectManager.AddObject(p);
 
             ApiEventManager.OnLaunchMissile.Publish(this, p);
-            ApiEventManager.OnLaunchMissileByAnother.Publish(new KeyValuePair<IObjAiBase, ISpell>(CastInfo.Owner, this), p);
+
             //_game.PacketNotifier.NotifyMissileReplication(p);
 
             // TODO: Verify when NotifyForceCreateMissile should be used instead.
@@ -1448,7 +1485,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             {
                 _game.PacketNotifier.NotifyChangeSlotSpellData
                 (
-                    (int)_game.PlayerManager.GetClientInfoByChampion(champion).PlayerId,
+                    _game.PlayerManager.GetClientInfoByChampion(champion).ClientId,
                     champion,
                     (byte)CastInfo.SpellSlot,
                     ChangeSlotSpellDataType.Range,
@@ -1501,7 +1538,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
 
             if (CastInfo.Owner is IChampion champion)
             {
-                _game.PacketNotifier.NotifyS2C_SetSpellLevel((int)_game.PlayerManager.GetClientInfoByChampion(champion).PlayerId, champion.NetId, CastInfo.SpellSlot, toLevel);
+                _game.PacketNotifier.NotifyS2C_SetSpellLevel(_game.PlayerManager.GetClientInfoByChampion(champion).ClientId, champion.NetId, CastInfo.SpellSlot, toLevel);
             }
         }
 
@@ -1518,7 +1555,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
             if (CastInfo.Owner is IChampion ch)
             {
                 var clientInfo = _game.PlayerManager.GetClientInfoByChampion(ch);
-                _game.PacketNotifier.NotifyS2C_UpdateSpellToggle((int)clientInfo.PlayerId, this);
+                _game.PacketNotifier.NotifyS2C_UpdateSpellToggle(clientInfo.ClientId, this);
             }
         }
 
@@ -1539,7 +1576,14 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell
         {
             if (!HasEmptyScript)
             {
-                Script.OnUpdate(diff);
+                try
+                {
+                    Script.OnUpdate(diff);
+                }
+                catch(Exception e)
+                {
+                    _logger.Error(null, e);
+                }
             }
 
             switch (State)

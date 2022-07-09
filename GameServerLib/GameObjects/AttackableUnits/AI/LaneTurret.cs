@@ -20,8 +20,9 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             uint netId = 0,
             LaneID lane = LaneID.NONE,
             MapObject mapObject = default,
+            IStats stats = null,
             string aiScript = ""
-        ) : base(game, name, model, position, team, netId, lane, mapObject, aiScript: aiScript)
+        ) : base(game, name, model, position, team, netId, lane, mapObject, stats: stats, aiScript: aiScript)
         {
             Type = type;
 
@@ -56,10 +57,10 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                     champion.AddGold(this, globalGold);
                 }
 
-                foreach (var player in _game.PlayerManager.GetPlayers())
+                foreach (var player in _game.PlayerManager.GetPlayers(true))
                 {
-                    var champion = player.Item2.Champion;
-                    if (player.Item2.Team != Team)
+                    var champion = player.Champion;
+                    if (player.Team != Team)
                     {
                         if (!championsInRange.Contains(champion))
                         {
@@ -71,10 +72,10 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             }
             else
             {
-                foreach (var player in _game.PlayerManager.GetPlayers().FindAll(x => x.Item2.Team != Team))
+                foreach (var player in _game.PlayerManager.GetPlayers(true))
                 {
-                    var champion = player.Item2.Champion;
-                    if (player.Item2.Team != Team)
+                    var champion = player.Champion;
+                    if (player.Team != Team)
                     {
                         {
                             champion.AddGold(champion, globalGold);

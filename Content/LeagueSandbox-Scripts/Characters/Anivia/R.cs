@@ -1,13 +1,14 @@
 ﻿using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
-using GameServerCore.Domain.GameObjects.Spell.Missile;
-using GameServerCore.Domain.GameObjects.Spell.Sector;
-using GameServerCore.Enums;
-using GameServerCore.Scripting.CSharp;
-using LeagueSandbox.GameServer.API;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using System.Numerics;
-using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using GameServerCore.Enums;
+using LeagueSandbox.GameServer.API;
+using System.Collections.Generic;
+using GameServerCore.Domain.GameObjects.Spell.Sector;
+using GameServerCore.Scripting.CSharp;
+using GameServerCore.Domain.GameObjects.Spell.Missile;
 
 namespace Spells
 {
@@ -23,20 +24,20 @@ namespace Spells
             SpellToggleSlot = 4
         };
 
-        private IBuff thisBuff;
+        IBuff thisBuff;
         public ISpellSector DamageSector;
         public ISpellSector SlowSector;
 
-        public void OnActivate(IObjAiBase owner, ISpell spell)
+        public void OnActivate(IObjAIBase owner, ISpell spell)
         {
             ApiEventManager.OnSpellHit.AddListener(this, spell, TargetExecute, false);
         }
 
-        public void OnDeactivate(IObjAiBase owner, ISpell spell)
+        public void OnDeactivate(IObjAIBase owner, ISpell spell)
         {
         }
 
-        public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
+        public void OnSpellPreCast(IObjAIBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
         }
 
@@ -101,7 +102,7 @@ namespace Spells
         {
         }
 
-        public void OnSpellChannelCancel(ISpell spell, ChannelingStopSource source)
+        public void OnSpellChannelCancel(ISpell spell, ChannelingStopSource reason)
         {
         }
 

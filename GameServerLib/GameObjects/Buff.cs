@@ -7,9 +7,11 @@ using LeagueSandbox.GameServer.Scripting.CSharp;
 using LeagueSandbox.GameServer.GameObjects.Other;
 using LeagueSandbox.GameServer.API;
 using GameServerCore.Scripting.CSharp;
-using System.Collections.Generic;
 using GameServerCore.Domain;
 using LeagueSandbox.GameServer.GameObjects.Stats;
+using static GameServerCore.Content.HashFunctions;
+using LeagueSandbox.GameServer.Logging;
+using log4net;
 
 namespace LeagueSandbox.GameServer.GameObjects
 {
@@ -17,6 +19,7 @@ namespace LeagueSandbox.GameServer.GameObjects
     {
         // Crucial Vars.
         private readonly Game _game;
+        private static ILog _logger = LoggerProvider.GetLogger();
 
         // Function Vars.
         private readonly bool _infiniteDuration;
@@ -29,23 +32,24 @@ namespace LeagueSandbox.GameServer.GameObjects
         public string Name { get; }
         public ISpell OriginSpell { get; }
         public byte Slot { get; private set; }
-        public IObjAiBase SourceUnit { get; }
+        public IObjAIBase SourceUnit { get; }
         public IAttackableUnit TargetUnit { get; }
         public float TimeElapsed { get; private set; }
         /// <summary>
         /// Script instance for this buff. Casting to a specific buff class gives access its functions and variables.
         /// </summary>
         public IBuffGameScript BuffScript { get; private set; }
-        /// <summary>
-        /// All status effects applied by this buff.
-        /// </summary>
-        public Dictionary<StatusFlags, bool> StatusEffects { get; private set; }
+        public uint ScriptNameHash { get; private set; }
+        public IEventSource ParentScript { get; private set; }
+
+        public StatusFlags StatusEffectsToEnable { get; private set; }
+        public StatusFlags StatusEffectsToDisable { get; private set; }
         /// <summary>
         /// Used to update player buff tool tip values.
         /// </summary>
         public IToolTipData ToolTipData { get; protected set; }
 
-        public Buff(Game game, string buffName, float duration, int stacks, ISpell originSpell, IAttackableUnit onto, IObjAiBase from, bool infiniteDuration = false)
+        public Buff(Game game, string buffName, float duration, int stacks, ISpell originSpell, IAttackableUnit onto, IObjAIBase from, bool infiniteDuration = false, IEventSource parent = null)
         {
             if (duration < 0)
             {
@@ -57,7 +61,9 @@ namespace LeagueSandbox.GameServer.GameObjects
             _remove = false;
             Name = buffName;
 
+            ParentScript = parent;
             LoadScript();
+            ScriptNameHash = HashString(Name);
 
             BuffAddType = BuffScript.BuffMetaData.BuffAddType;
             if (BuffAddType == (BuffAddType.STACKS_AND_RENEWS | BuffAddType.STACKS_AND_CONTINUE | BuffAddType.STACKS_AND_OVERLAPS) && BuffScript.BuffMetaData.MaxStacks < 2)
@@ -91,7 +97,6 @@ namespace LeagueSandbox.GameServer.GameObjects
             SourceUnit = from;
             TimeElapsed = 0;
             TargetUnit = onto;
-            StatusEffects = new Dictionary<StatusFlags, bool>();
 
             ToolTipData = new ToolTipData(TargetUnit, null, this);
         }
@@ -106,7 +111,14 @@ namespace LeagueSandbox.GameServer.GameObjects
         {
             _remove = false;
 
-            BuffScript.OnActivate(TargetUnit, this, OriginSpell);
+            try
+            {
+                BuffScript.OnActivate(TargetUnit, this, OriginSpell);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
         }
 
         public void DeactivateBuff()
@@ -117,7 +129,14 @@ namespace LeagueSandbox.GameServer.GameObjects
             }
             _remove = true; // To prevent infinite loop with OnDeactivate calling events
 
-            BuffScript.OnDeactivate(TargetUnit, this, OriginSpell);
+            try
+            {
+                BuffScript.OnDeactivate(TargetUnit, this, OriginSpell);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
 
             ApiEventManager.RemoveAllListenersForOwner(BuffScript);
 
@@ -142,21 +161,15 @@ namespace LeagueSandbox.GameServer.GameObjects
 
         public void SetStatusEffect(StatusFlags flag, bool enabled)
         {
-            // Loop over all possible status flags and assign them individually to the dictionary
-            for (int i = 0; i < 30; i++)
+            if(enabled)
             {
-                StatusFlags currentFlag = (StatusFlags)(1 << i);
-
-                if (flag.HasFlag(currentFlag))
-                {
-                    if (StatusEffects.ContainsKey(currentFlag))
-                    {
-                        StatusEffects[currentFlag] = enabled;
-                        continue;
-                    }
-
-                    StatusEffects.Add(currentFlag, enabled);
-                }
+                StatusEffectsToEnable |= flag;
+                StatusEffectsToDisable &= ~flag;
+            }
+            else
+            {
+                StatusEffectsToDisable |= flag;
+                StatusEffectsToEnable &= ~flag;
             }
         }
 
@@ -192,18 +205,23 @@ namespace LeagueSandbox.GameServer.GameObjects
 
         public void Update(float diff)
         {
-            if (_infiniteDuration)
+            if (!_infiniteDuration)
             {
-                return;
-            }
-
-            TimeElapsed += diff / 1000.0f;
-            if (Math.Abs(Duration) > Extensions.COMPARE_EPSILON)
-            {
-                BuffScript?.OnUpdate(diff);
-                if (TimeElapsed >= Duration)
+                TimeElapsed += diff / 1000.0f;
+                if (Math.Abs(Duration) > Extensions.COMPARE_EPSILON)
                 {
-                    DeactivateBuff();
+                    try
+                    {
+                        BuffScript.OnUpdate(diff);
+                    }
+                    catch(Exception e)
+                    {
+                        _logger.Error(null, e);
+                    }
+                    if (TimeElapsed >= Duration)
+                    {
+                        DeactivateBuff();
+                    }
                 }
             }
         }

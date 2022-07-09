@@ -1,5 +1,4 @@
 ﻿using LeaguePackets.Game.Common;
-using LeaguePackets.Game;
 namespace GameServerCore.Domain
 {
     public interface IReplication

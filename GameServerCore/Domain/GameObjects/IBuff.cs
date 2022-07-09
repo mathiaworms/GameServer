@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace GameServerCore.Domain.GameObjects
 {
-    public interface IBuff : IStackable, IUpdate
+    public interface IBuff : IStackable, IUpdate, IEventSource
     {       
         /// <summary>
         /// How this buff should be added and treated when adding new buffs of the same name.
@@ -38,7 +38,7 @@ namespace GameServerCore.Domain.GameObjects
         /// <summary>
         /// Unit which applied this buff to its target.
         /// </summary>
-        IObjAiBase SourceUnit { get; }
+        IObjAIBase SourceUnit { get; }
         /// <summary>
         /// Unit which has this buff applied to it.
         /// </summary>
@@ -52,9 +52,13 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         IBuffGameScript BuffScript { get; }
         /// <summary>
-        /// All status effects applied by this buff.
+        /// All status effects enabled by this buff.
         /// </summary>
-        Dictionary<StatusFlags, bool> StatusEffects { get; }
+        StatusFlags StatusEffectsToEnable { get; }
+        /// <summary>
+        /// All status effects disabled by this buff.
+        /// </summary>
+        StatusFlags StatusEffectsToDisable { get; }
         /// <summary>
         /// Used to update player buff tool tip values.
         /// </summary>

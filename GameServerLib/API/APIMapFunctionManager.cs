@@ -4,11 +4,9 @@ using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using GameServerCore.Packets.Enums;
 using GameServerLib.GameObjects;
-using GameServerLib.GameObjects.AttackableUnits;
 using LeaguePackets.Game.Common;
 using LeagueSandbox.GameServer.GameObjects;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
-using LeagueSandbox.GameServer.GameObjects.AttackableUnits.Buildings;
 using LeagueSandbox.GameServer.GameObjects.AttackableUnits.Buildings.AnimatedBuildings;
 using LeagueSandbox.GameServer.Handlers;
 using LeagueSandbox.GameServer.Logging;
@@ -25,7 +23,7 @@ namespace LeagueSandbox.GameServer.API
     {
         // Required variables.
         private static Game _game;
-        private static ILog _logger;
+        private static ILog _logger = LoggerProvider.GetLogger();
         private static MapScriptHandler _map;
 
         /// <summary>
@@ -33,11 +31,10 @@ namespace LeagueSandbox.GameServer.API
         /// Also assigns the debug logger.
         /// </summary>
         /// <param name="game">Game instance to set.</param>
-        internal static void SetMap(Game game, MapScriptHandler mapScriptHandler)
+        internal static void SetGame(Game game, MapScriptHandler mapScriptHandler)
         {
             _game = game;
             _map = mapScriptHandler;
-            _logger = LoggerProvider.GetLogger();
         }
 
         public static void AddProtection(IAttackableUnit unit, IAttackableUnit[] dependOnAll, IAttackableUnit[] dependOnSingle)
@@ -67,9 +64,9 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="nexusRadius"></param>
         /// <param name="sightRange"></param>
         /// <returns></returns>
-        public static INexus CreateNexus(string name, string model, Vector2 position, TeamId team, int nexusRadius, int sightRange)
+        public static INexus CreateNexus(string name, string model, Vector2 position, TeamId team, int nexusRadius, int sightRange, IStats stats = null)
         {
-            return new Nexus(_game, model, team, nexusRadius, position, sightRange, Crc32Algorithm.Compute(Encoding.UTF8.GetBytes(name)) | 0xFF000000);
+            return new Nexus(_game, model, team, nexusRadius, position, sightRange, stats, Crc32Algorithm.Compute(Encoding.UTF8.GetBytes(name)) | 0xFF000000);
         }
 
         /// <summary>
@@ -83,9 +80,9 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="inhibRadius"></param>
         /// <param name="sightRange"></param>
         /// <returns></returns>
-        public static IInhibitor CreateInhibitor(string name, string model, Vector2 position, TeamId team, LaneID lane, int inhibRadius, int sightRange)
+        public static IInhibitor CreateInhibitor(string name, string model, Vector2 position, TeamId team, LaneID lane, int inhibRadius, int sightRange, IStats stats = null)
         {
-            return new Inhibitor(_game, model, lane, team, inhibRadius, position, sightRange, Crc32Algorithm.Compute(Encoding.UTF8.GetBytes(name)) | 0xFF000000);
+            return new Inhibitor(_game, model, lane, team, inhibRadius, position, sightRange, stats, Crc32Algorithm.Compute(Encoding.UTF8.GetBytes(name)) | 0xFF000000);
         }
 
         public static MapObject CreateLaneMinionSpawnPos(string name, Vector3 position)
@@ -109,7 +106,7 @@ namespace LeagueSandbox.GameServer.API
         /// <returns></returns>
         public static ILaneTurret CreateLaneTurret(string name, string model, Vector2 position, TeamId team, TurretType turretType, LaneID lane, string aiScript, MapObject mapObject = default, uint netId = 0)
         {
-            return new LaneTurret(_game, name, model, position, team, turretType, netId, lane, mapObject, aiScript);
+            return new LaneTurret(_game, name, model, position, team, turretType, netId, lane, mapObject, null, aiScript);
         }
 
         /// <summary>
@@ -134,14 +131,14 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="minionNo"></param>
         /// <param name="barracksName"></param>
         /// <param name="waypoints"></param>
-        public static void CreateLaneMinion(List<MinionSpawnType> list, Vector2 position, TeamId team, int minionNo, string barracksName, List<Vector2> waypoints)
+        public static void CreateLaneMinion(List<MinionSpawnType> list, Vector2 position, TeamId team, int minionNo, string barracksName, List<Vector2> waypoints, string laneMinionAI)
         {
             if (list.Count <= minionNo)
             {
                 return;
             }
 
-            var m = new LaneMinion(_game, list[minionNo], position, barracksName, waypoints, _map.MapScript.MinionModels[team][list[minionNo]], 0, team, _map.MapScript.LaneMinionAI);
+            var m = new LaneMinion(_game, list[minionNo], position, barracksName, waypoints, _map.MapScript.MinionModels[team][list[minionNo]], 0, team, null, laneMinionAI);
             _game.ObjectManager.AddObject(m);
         }
 
@@ -162,12 +159,12 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="initialLevel"></param>
         /// <returns></returns>
         public static IMinion CreateMinion(
-            string name, string model, Vector2 position, IObjAiBase owner = null, uint netId = 0,
+            string name, string model, Vector2 position, IObjAIBase owner = null, uint netId = 0,
             TeamId team = TeamId.TEAM_NEUTRAL, int skinId = 0, bool ignoreCollision = false,
-            bool isTargetable = false, bool isWard = false,string aiScript = "", int damageBonus = 0,
+            bool isTargetable = false, bool isWard = false, string aiScript = "", int damageBonus = 0,
             int healthBonus = 0, int initialLevel = 1)
         {
-            var m = new Minion(_game, owner, position, model, name, netId, team, skinId, ignoreCollision, isTargetable, isWard, null, aiScript, damageBonus, healthBonus, initialLevel);
+            var m = new Minion(_game, owner, position, model, name, netId, team, skinId, ignoreCollision, isTargetable, isWard, null, null, aiScript, damageBonus, healthBonus, initialLevel);
             _game.ObjectManager.AddObject(m);
             return m;
         }
@@ -178,7 +175,7 @@ namespace LeagueSandbox.GameServer.API
             bool isTargetable = false, bool isWard = false, string aiScript = "", int damageBonus = 0,
             int healthBonus = 0, int initialLevel = 1)
         {
-            return new Minion(_game, null, position, model, name, netId, team, skinId, ignoreCollision, isTargetable, isWard, null, aiScript, damageBonus, healthBonus, initialLevel);
+            return new Minion(_game, null, position, model, name, netId, team, skinId, ignoreCollision, isTargetable, isWard, null, null, aiScript, damageBonus, healthBonus, initialLevel);
         }
 
         /// <summary>
@@ -234,7 +231,7 @@ namespace LeagueSandbox.GameServer.API
             int damageBonus = 0, int healthBonus = 0, int initialLevel = 1
         )
         {
-            return new Monster(_game, name, model, position, faceDirection, monsterCamp, team, netId, spawnAnimation, isTargetable, ignoresCollision, aiScript, damageBonus, healthBonus, initialLevel);
+            return new Monster(_game, name, model, position, faceDirection, monsterCamp, team, netId, spawnAnimation, isTargetable, ignoresCollision, null, aiScript, damageBonus, healthBonus, initialLevel);
         }
 
         /// <summary>
@@ -321,16 +318,6 @@ namespace LeagueSandbox.GameServer.API
         }
 
         /// <summary>
-        /// Announces an event
-        /// </summary>
-        /// <param name="Event"></param>
-        /// <param name="mapId"></param>
-        public static void NotifyWorldEvent(EventID Event, int mapId = 0, uint sourceNetId = 0)
-        {
-            _game.PacketNotifier.NotifyS2C_OnEventWorld(PacketExtensions.GetAnnouncementID(Event, mapId), sourceNetId);
-        }
-
-        /// <summary>
         /// Returns current game time.
         /// </summary>
         /// <returns></returns>
@@ -352,7 +339,6 @@ namespace LeagueSandbox.GameServer.API
         public static void EndGame(TeamId losingTeam, Vector3 finalCameraPosition, float endGameTimer = 5000.0f, bool moveCamera = true, float cameraTimer = 3.0f, bool disableUI = true, IDeathData deathData = null)
         {
             //TODO: check if mapScripts should handle this directly
-            var players = _game.PlayerManager.GetPlayers();
 
             if (deathData != null)
             {
@@ -364,6 +350,7 @@ namespace LeagueSandbox.GameServer.API
                 _game.PacketNotifier.NotifyS2C_SetGreyscaleEnabledWhenDead(false);
             }
 
+            var players = _game.PlayerManager.GetPlayers(false);
             foreach (var player in players)
             {
                 if (disableUI)
@@ -398,8 +385,8 @@ namespace LeagueSandbox.GameServer.API
         public static void NotifySpawnBroadcast(IGameObject obj)
         {
             //Just a workaround for our current vision problem.
-            _game.PacketNotifier.NotifySpawn(obj, TeamId.TEAM_PURPLE, 0, _game.GameTime, true);
-            _game.PacketNotifier.NotifySpawn(obj, TeamId.TEAM_BLUE, 0, _game.GameTime, true);
+            _game.PacketNotifier.NotifySpawn(obj, TeamId.TEAM_PURPLE, -1, _game.GameTime, true);
+            _game.PacketNotifier.NotifySpawn(obj, TeamId.TEAM_BLUE, -1, _game.GameTime, true);
         }
 
         public static void AddObject(IGameObject obj)
@@ -417,7 +404,7 @@ namespace LeagueSandbox.GameServer.API
             var players = _game.PlayerManager.GetPlayers(true);
             foreach (var player in players)
             {
-                average += player.Item2.Champion.Stats.Level / players.Count;
+                average += player.Champion.Stats.Level / players.Count;
             }
             return (int)average;
         }
@@ -445,7 +432,7 @@ namespace LeagueSandbox.GameServer.API
             _game.PacketNotifier.NotifyS2C_CameraBehavior(target, position);
         }
 
-        public static void NotifyAscendant(IObjAiBase ascendant = null)
+        public static void NotifyAscendant(IObjAIBase ascendant = null)
         {
             _game.PacketNotifier.NotifyS2C_UpdateAscended(ascendant);
         }

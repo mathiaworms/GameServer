@@ -1,6 +1,7 @@
-﻿using GameServerCore.Enums;
+﻿using System.Numerics;
 using System.Collections.Generic;
-using System.Numerics;
+using GameServerCore.Enums;
+using GameServerCore.Scripting.CSharp;
 
 namespace GameServerCore.Domain.GameObjects
 {
@@ -35,7 +36,8 @@ namespace GameServerCore.Domain.GameObjects
         /// <summary>
         /// Index of the waypoint in the list of waypoints that the object is currently on.
         /// </summary>
-        KeyValuePair<int, Vector2> CurrentWaypoint { get; }
+        int CurrentWaypointKey { get; }
+        Vector2 CurrentWaypoint { get; }
         /// <summary>
         /// Status effects enabled on this unit. Refer to StatusFlags enum.
         /// </summary>
@@ -63,8 +65,6 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         /// TODO: Move this to GameObject.
         IIconInfo IconInfo { get; }
-
-        bool disableBroadcastStats { get; set; }
         /// <summary>
         /// Gets the HashString for this unit's model. Used for packets so clients know what data to load.
         /// </summary>
@@ -113,6 +113,14 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         /// <param name="statModifier">Stat modifier instance to remove.</param>
         void RemoveStatModifier(IStatsModifier statModifier);
+
+        /// <summary>
+        /// Restores the unit's health.
+        /// </summary>
+        /// <param name="caster">Unit performing the action.</param>
+        /// <param name="amount">Amount of health to restore.</param>
+        /// <param name="sourceScript">Data about the script that made the call.</param>
+        void TakeHeal(IAttackableUnit caster, float amount, IEventSource sourceScript = null);
         /// <summary>
         /// Applies damage to this unit.
         /// </summary>
@@ -121,7 +129,8 @@ namespace GameServerCore.Domain.GameObjects
         /// <param name="type">Whether the damage is physical, magical, or true.</param>
         /// <param name="source">What the damage came from: attack, spell, summoner spell, or passive.</param>
         /// <param name="damageText">Type of damage the damage text should be.</param>
-        void TakeDamage(IAttackableUnit attacker, float damage, DamageType type, DamageSource source, DamageResultType damageText);
+        /// <param name="sourceScript">Data about the script that made the call.</param>
+        void TakeDamage(IAttackableUnit attacker, float damage, DamageType type, DamageSource source, DamageResultType damageText, IEventSource sourceScript = null);
         /// <summary>
         /// Applies damage to this unit.
         /// </summary>
@@ -130,9 +139,11 @@ namespace GameServerCore.Domain.GameObjects
         /// <param name="type">Whether the damage is physical, magical, or true.</param>
         /// <param name="source">What the damage came from: attack, spell, summoner spell, or passive.</param>
         /// <param name="isCrit">Whether or not the damage text should be shown as a crit.</param>
-        void TakeDamage(IAttackableUnit attacker, float damage, DamageType type, DamageSource source, bool isCrit);
-        void TakeDamage(IDamageData damageData, DamageResultType damageText);
-        void TakeDamage(IDamageData damageData, bool isCrit);
+        /// <param name="sourceScript">Data about the script that made the call.</param>
+        void TakeDamage(IAttackableUnit attacker, float damage, DamageType type, DamageSource source, bool isCrit, IEventSource sourceScript = null);
+        void TakeDamage(IDamageData damageData, DamageResultType damageText, IEventSource sourceScript = null);
+        void TakeDamage(IDamageData damageData, bool isCrit, IEventSource sourceScript = null);
+
         /// <summary>
         /// Whether or not this unit is currently calling for help. Unimplemented.
         /// </summary>
@@ -156,7 +167,7 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         /// <param name="b">Buff instance to add.</param>
         /// TODO: Probably needs a refactor to lessen thread usage. Make sure to stick very closely to the current method; just optimize it.
-        void AddBuff(IBuff b);
+        bool AddBuff(IBuff b);
         /// <summary>
         /// Whether or not this unit has the given buff instance.
         /// </summary>
@@ -227,26 +238,12 @@ namespace GameServerCore.Domain.GameObjects
         /// <returns>Float units/sec.</returns>
         float GetMoveSpeed();
         /// <summary>
-        /// Processes the unit's move speed
-        /// </summary>
-        void CalculateTrueMoveSpeed();
-        /// <summary>
-        /// Returns the true movespeed of an unit
-        /// </summary>
-        /// <returns></returns>
-        float GetTrueMoveSpeed();
-        void ClearSlows();
-        /// <summary>
         /// Teleports this unit to the given position, and optionally repaths from the new position.
         /// </summary>
         /// <param name="x">X coordinate to teleport to.</param>
         /// <param name="y">Y coordinate to teleport to.</param>
         /// <param name="repath">Whether or not to repath from the new position.</param>
         void TeleportTo(float x, float y, bool repath = false);
-        /// <summary>
-        /// Returns the next waypoint. If all waypoints have been reached then this returns a -inf Vector2
-        /// </summary>
-        Vector2 GetNextWaypoint();
         /// <summary>
         /// Returns whether this unit has reached the last waypoint in its path of waypoints.
         /// </summary>
@@ -256,21 +253,11 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         /// <param name="newWaypoints">New path of Vector2 coordinates that the unit will move to.</param>
         /// <param name="networked">Whether or not clients should be notified of this change in waypoints at the next ObjectManager.Update.</param>
-        void SetWaypoints(List<Vector2> newWaypoints, bool networked = true);
+        bool SetWaypoints(List<Vector2> newWaypoints);
         /// <summary>
         /// Forces this unit to stop moving.
         /// </summary>
         void StopMovement();
-        /// <summary>
-        /// Returns whether this unit's waypoints will be networked to clients the next update. Movement updates do not occur for dash based movements.
-        /// </summary>
-        /// <returns>True/False</returns>
-        /// TODO: Refactor movement update logic so this can be applied to any kind of movement.
-        bool IsMovementUpdated();
-        /// <summary>
-        /// Used each object manager update after this unit has set its waypoints and the server has networked it.
-        /// </summary>
-        void ClearMovementUpdated();
         /// <summary>
         /// Enables or disables the given status on this unit.
         /// </summary>
@@ -302,6 +289,5 @@ namespace GameServerCore.Domain.GameObjects
         /// First string is the animation to override, second string is the animation to play in place of the first.
         /// <param name="animPairs">Dictionary of animations to set.</param>
         void SetAnimStates(Dictionary<string, string> animPairs);
-        void UpdateIcon();
     }
 }

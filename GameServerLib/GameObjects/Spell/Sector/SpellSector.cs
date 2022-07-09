@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using GameServerCore;
 using GameServerCore.Domain.GameObjects;
@@ -187,7 +188,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
                 SpellOrigin.ApplyEffects(unit, null, this);
             }
 
-            if (CastInfo.Owner is IObjAiBase ai && SpellOrigin.CastInfo.IsAutoAttack)
+            if (CastInfo.Owner is IObjAIBase ai && SpellOrigin.CastInfo.IsAutoAttack)
             {
                 ai.AutoAttackHit(unit);
             }
@@ -229,6 +230,8 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
             // OnCollision has been called within a single Update, so now we just hit any units within the filtered area of the collision radius.
             if (_unitsToHit.Count > 0)
             {
+                _unitsToHit = _unitsToHit.OrderByDescending(unit => Vector2.DistanceSquared(this.Position, unit.Position)).ToList();
+                
                 for (int i = _unitsToHit.Count - 1; i >= 0; i--)
                 {
                     var unit = _unitsToHit[i];

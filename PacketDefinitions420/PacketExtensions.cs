@@ -69,34 +69,6 @@ namespace PacketDefinitions420
             // mapSize contains the real center point coordinates, meaning width/2, height/2
             return new Vector2((vector.X - grid.MiddleOfMap.X) / 2, (vector.Y - grid.MiddleOfMap.Y) / 2);
         }
-        public static IEventEmptyHistory GetAnnouncementID(GameServerCore.Enums.EventID Event, int mapId = 0)
-        {
-            var worldEvent = (EventID)(byte)Event;
-            switch (worldEvent)
-            {
-                case EventID.OnStartGameMessage1:
-                    return new OnStartGameMessage1 { MapNumber = mapId };
-                case EventID.OnStartGameMessage2:
-                    return new OnStartGameMessage2 { MapNumber = mapId };
-                case EventID.OnStartGameMessage3:
-                    return new OnStartGameMessage3 { MapNumber = mapId };
-                case EventID.OnStartGameMessage4:
-                    return new OnStartGameMessage4 { MapNumber = mapId };
-                case EventID.OnStartGameMessage5:
-                    return new OnStartGameMessage5 { MapNumber = mapId };
-                case EventID.OnMinionsSpawn:
-                    return new OnMinionsSpawn();
-                case EventID.OnNexusCrystalStart:
-                    return new OnNexusCrystalStart();
-                case EventID.OnMinionAscended:
-                    return new OnMinionAscended();
-                case EventID.OnChampionAscended:
-                    return new OnChampionAscended();
-                case EventID.OnClearAscended:
-                    return new OnClearAscended();
-            }
-            return null;
-        }
 
         /// <summary>
         /// Creates the MovementDataStop.
@@ -106,7 +78,7 @@ namespace PacketDefinitions420
         {
             return new MovementDataStop
             {
-                SyncID = (int)o.SyncId,
+                SyncID = Environment.TickCount,
                 Position = o.Position,
                 Forward = new Vector2(o.Direction.X, o.Direction.Z)
             };
@@ -120,7 +92,7 @@ namespace PacketDefinitions420
         {
             return new MovementDataNone
             {
-                SyncID = (int)o.SyncId
+                SyncID = 0 // Always zero in replays
             };
         }
 
@@ -129,7 +101,7 @@ namespace PacketDefinitions420
             var currentWaypoints = new List<Vector2>(unit.Waypoints);
             currentWaypoints[0] = unit.Position;
 
-            int count = 2 + ((currentWaypoints.Count - 1) - unit.CurrentWaypoint.Key);
+            int count = 2 + ((currentWaypoints.Count - 1) - unit.CurrentWaypointKey);
             if (count >= 2)
             {
                 currentWaypoints.RemoveRange(1, currentWaypoints.Count - count);
@@ -167,7 +139,7 @@ namespace PacketDefinitions420
 
             return new MovementDataNormal
             {
-                SyncID = unit.SyncId,
+                SyncID = Environment.TickCount,
                 TeleportNetID = unit.NetId,
                 HasTeleportID = useTeleportID,
                 TeleportID = useTeleportID ? unit.TeleportID : (byte)0,
@@ -212,7 +184,7 @@ namespace PacketDefinitions420
 
             return new MovementDataWithSpeed
             {
-                SyncID = unit.SyncId,
+                SyncID = Environment.TickCount,
                 TeleportNetID = unit.NetId,
                 HasTeleportID = useTeleportID,
                 TeleportID = useTeleportID ? unit.TeleportID : (byte)0,

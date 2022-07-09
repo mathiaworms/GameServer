@@ -33,10 +33,6 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         Vector3 Direction { get; }
         /// <summary>
-        /// Used to synchronize movement between client and server. Is currently assigned Env.TickCount.
-        /// </summary>
-        int SyncId { get; }
-        /// <summary>
         /// Team identifier, refer to TeamId enum.
         /// </summary>
         TeamId Team { get; }
@@ -180,8 +176,6 @@ namespace GameServerCore.Domain.GameObjects
         /// Whether or not the object is spawned on the player's client side.
         /// <summary>
         /// <param name="userId">The player in relation to which the value is obtained</param>
-
-      
         bool IsSpawnedForPlayer(int userId);
 
         /// <summary>

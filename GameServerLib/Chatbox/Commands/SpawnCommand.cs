@@ -136,7 +136,7 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
             foreach (var minion in minions)
             {
                 minion.SetPosition(championPos + new Vector2(random.Next(-X, X), random.Next(-X, X)), false);
-                minion.PauseAi(true);
+                minion.PauseAI(true);
                 minion.StopMovement();
                 minion.UpdateMoveOrder(OrderType.Hold);
                 Game.ObjectManager.AddObject(minion);
@@ -150,16 +150,12 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
             var runesTemp = new RuneCollection();
             var talents = new TalentInventory();
             var clientInfoTemp = new ClientInfo("", team, 0, 0, 0, model, new string[] { "SummonerHeal", "SummonerFlash" }, -1);
-            uint num = (uint)_playerManager.GetPlayers(true).Count + 1;
-            var playerTemp = new Tuple<uint, ClientInfo>(num, clientInfoTemp);
 
-            _playerManager.AddPlayer(playerTemp);
+            _playerManager.AddPlayer(clientInfoTemp);
 
             var c = new Champion(
                 Game,
                 model,
-                0,
-                0, // Doesnt matter at this point
                 runesTemp,
                 talents,
                 clientInfoTemp,

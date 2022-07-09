@@ -119,7 +119,7 @@ namespace LeagueSandbox.GameServer
 
                 foreach (var kv in players)
                 {
-                    UpdateVisionSpawnAndSync(obj, kv.Item2);
+                    UpdateVisionSpawnAndSync(obj, kv);
                 }
 
                 obj.OnAfterSync();
@@ -142,7 +142,7 @@ namespace LeagueSandbox.GameServer
             var players = _game.PlayerManager.GetPlayers(includeBots: false);
             foreach (var kv in players)
             {
-                UpdateVisionSpawnAndSync(obj, kv.Item2, forceSpawn: true);
+                UpdateVisionSpawnAndSync(obj, kv, forceSpawn: true);
             }
 
             obj.OnAfterSync();
@@ -180,7 +180,7 @@ namespace LeagueSandbox.GameServer
         /// </summary>
         public void UpdateVisionSpawnAndSync(IGameObject obj, ClientInfo clientInfo, bool forceSpawn = false)
         {
-            int pid = (int)clientInfo.PlayerId;
+            int cid = clientInfo.ClientId;
             TeamId team = clientInfo.Team;
             IChampion champion = clientInfo.Champion;
 
@@ -191,7 +191,7 @@ namespace LeagueSandbox.GameServer
                     obj.IsVisibleByTeam(champion.Team)
             );
 
-            obj.Sync(pid, team, shouldBeVisibleForPlayer, forceSpawn);
+            obj.Sync(cid, team, shouldBeVisibleForPlayer, forceSpawn);
         }
 
         /// <summary>
@@ -310,7 +310,14 @@ namespace LeagueSandbox.GameServer
                 return true;
             }
 
-            if(tested is IParticle particle)
+            if(observer is IRegion region)
+            {
+                if(region.VisionTarget != null && region.VisionTarget != tested)
+                {
+                    return false;
+                }
+            }
+            else if(tested is IParticle particle)
             {
                 // Default behaviour
                 if(particle.SpecificTeam == TeamId.TEAM_NEUTRAL)
@@ -402,7 +409,7 @@ namespace LeagueSandbox.GameServer
         public int CountUnitsAttackingUnit(IAttackableUnit target)
         {
             return GetObjects().Count(x =>
-                x.Value is IObjAiBase aiBase &&
+                x.Value is IObjAIBase aiBase &&
                 aiBase.Team == target.Team.GetEnemyTeam() &&
                 !aiBase.IsDead &&
                 aiBase.TargetUnit != null &&
@@ -424,7 +431,7 @@ namespace LeagueSandbox.GameServer
                     continue;
                 }
 
-                var ai = u as IObjAiBase;
+                var ai = u as IObjAIBase;
                 if (ai != null)
                 {
                     ai.Untarget(target);

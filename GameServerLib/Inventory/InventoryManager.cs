@@ -2,11 +2,11 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Packets.Interfaces;
-using LeagueSandbox.GameServer.Scripting.CSharp;
+using LeagueSandbox.GameServer.Logging;
+using log4net;
 
 namespace LeagueSandbox.GameServer.Inventory
 {
@@ -14,6 +14,7 @@ namespace LeagueSandbox.GameServer.Inventory
     {
         private readonly IPacketNotifier _packetNotifier;
         private readonly Inventory _inventory;
+        private static ILog _logger = LoggerProvider.GetLogger();
 
         private InventoryManager(IPacketNotifier packetNotifier)
         {
@@ -21,7 +22,7 @@ namespace LeagueSandbox.GameServer.Inventory
             _inventory = new Inventory(this);
         }
 
-        public KeyValuePair<IItem, bool> AddItem(IItemData itemData, IObjAiBase owner = null)
+        public KeyValuePair<IItem, bool> AddItem(IItemData itemData, IObjAIBase owner = null)
         {
             var item = _inventory.AddItem(itemData, owner);
 
@@ -33,12 +34,12 @@ namespace LeagueSandbox.GameServer.Inventory
             if (owner is IChampion champion && item != null)
             {
                 //This packet seems to break when buying more than 3 of one of the 250Gold elixirs
-                _packetNotifier.NotifyBuyItem((int)champion.GetPlayerId(), champion, item);
+                _packetNotifier.NotifyBuyItem(champion.ClientId, champion, item);
             }
             return KeyValuePair.Create(item, true);
         }
 
-        public KeyValuePair<IItem, bool> AddItemToSlot(IItemData itemData, IObjAiBase owner, byte slot)
+        public KeyValuePair<IItem, bool> AddItemToSlot(IItemData itemData, IObjAIBase owner, byte slot)
         {
             var item = _inventory.SetItemToSlot(itemData, owner, slot);
 
@@ -50,7 +51,7 @@ namespace LeagueSandbox.GameServer.Inventory
             if (owner is IChampion champion && item != null)
             {
                 //This packet seems to break when buying more than 3 of one of the 250Gold elixirs
-                _packetNotifier.NotifyBuyItem((int)champion.GetPlayerId(), champion, item);
+                _packetNotifier.NotifyBuyItem(champion.ClientId, champion, item);
             }
 
             return KeyValuePair.Create(item, true);
@@ -86,7 +87,7 @@ namespace LeagueSandbox.GameServer.Inventory
             return _inventory.HasItemWithID(ItemID);
         }
 
-        public bool RemoveItem(byte slot, IObjAiBase owner = null, int stacksToRemove = 1)
+        public bool RemoveItem(byte slot, IObjAIBase owner = null, int stacksToRemove = 1)
         {
             var item = _inventory.Items[slot];
             if (item == null)
@@ -111,7 +112,7 @@ namespace LeagueSandbox.GameServer.Inventory
 
             return true;
         }
-        public bool RemoveItem(IItem item, IObjAiBase owner = null, int stacksToRemove = 1)
+        public bool RemoveItem(IItem item, IObjAIBase owner = null, int stacksToRemove = 1)
         {
             var slot = _inventory.GetItemSlot(item);
 
@@ -183,7 +184,14 @@ namespace LeagueSandbox.GameServer.Inventory
         {
             foreach (var item in _inventory.ItemScripts)
             {
-                item.Value.OnUpdate(diff);
+                try
+                {
+                    item.Value.OnUpdate(diff);
+                }
+                catch(Exception e)
+                {
+                    _logger.Error(null, e);
+                }
             }
         }
     }
