@@ -4,9 +4,10 @@ using System.Linq;
 using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
-using GameServerCore.Packets.Interfaces;
 using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.Scripting.CSharp;
+using LeagueSandbox.GameServer.Logging;
+using log4net;
 
 namespace LeagueSandbox.GameServer.Inventory
 {
@@ -17,6 +18,7 @@ namespace LeagueSandbox.GameServer.Inventory
         private const byte EXTRA_INVENTORY_SIZE = 7;
         private const byte RUNE_INVENTORY_SIZE = 30;
         private InventoryManager _owner;
+        private static ILog _logger = LoggerProvider.GetLogger();
         public Dictionary<int, IItemScript> ItemScripts = new Dictionary<int, IItemScript>();
         public IItem[] Items { get; }
 
@@ -24,7 +26,6 @@ namespace LeagueSandbox.GameServer.Inventory
         {
             _owner = owner;
             Items = new IItem[BASE_INVENTORY_SIZE + EXTRA_INVENTORY_SIZE + RUNE_INVENTORY_SIZE];
-
         }
 
         public IItem[] GetBaseItems()
@@ -32,7 +33,7 @@ namespace LeagueSandbox.GameServer.Inventory
             return Items.Take(BASE_INVENTORY_SIZE).ToArray();
         }
 
-        public IItem AddItem(IItemData item, IObjAiBase owner)
+        public IItem AddItem(IItemData item, IObjAIBase owner)
         {
             if (item.ItemGroup.ToLower().Equals("relicbase"))
             {
@@ -52,7 +53,7 @@ namespace LeagueSandbox.GameServer.Inventory
             return AddNewItem(item);
         }
 
-        public IItem SetItemToSlot(IItemData item, IObjAiBase owner, byte slot)
+        public IItem SetItemToSlot(IItemData item, IObjAIBase owner, byte slot)
         {
             if (item.ItemGroup.ToLower().Equals("relicbase"))
             {
@@ -67,7 +68,7 @@ namespace LeagueSandbox.GameServer.Inventory
             return SetItem(slot, item);
         }
 
-        private void LoadOwnerStats(IItemData item, IObjAiBase owner)
+        private void LoadOwnerStats(IItemData item, IObjAIBase owner)
         {
             owner.AddStatModifier(item);
 
@@ -81,7 +82,14 @@ namespace LeagueSandbox.GameServer.Inventory
             {
                 //Loads the Script
                 ItemScripts.Add(item.ItemId, CSharpScriptEngine.CreateObjectStatic<IItemScript>("ItemPassives", $"ItemID_{item.ItemId}") ?? new ItemScriptEmpty());
-                ItemScripts[item.ItemId].OnActivate(owner);
+                try
+                {
+                    ItemScripts[item.ItemId].OnActivate(owner);
+                }
+                catch(Exception e)
+                {
+                    _logger.Error(null, e);
+                }
             }
         }
 
@@ -131,7 +139,7 @@ namespace LeagueSandbox.GameServer.Inventory
             return null;
         }
 
-        public void RemoveItem(byte slot, IObjAiBase owner, int stacksToRemove = 1, bool force = false)
+        public void RemoveItem(byte slot, IObjAIBase owner, int stacksToRemove = 1, bool force = false)
         {
             if (stacksToRemove < 0)
             {
@@ -157,7 +165,14 @@ namespace LeagueSandbox.GameServer.Inventory
                 {
                     if (owner != null)
                     {
-                        ItemScripts[itemID].OnDeactivate(owner);
+                        try
+                        {
+                            ItemScripts[itemID].OnDeactivate(owner);
+                        }
+                        catch(Exception e)
+                        {
+                            _logger.Error(null, e);
+                        }
                         if (ItemScripts[itemID].StatsModifier != null)
                         {
                             owner.RemoveStatModifier(ItemScripts[itemID].StatsModifier);
@@ -212,7 +227,7 @@ namespace LeagueSandbox.GameServer.Inventory
             Items[slot2] = buffer;
         }
 
-        private IItem AddTrinketItem(IItemData item, IObjAiBase owner)
+        private IItem AddTrinketItem(IItemData item, IObjAIBase owner)
         {
             if (Items[TRINKET_SLOT] != null)
             {
@@ -231,7 +246,14 @@ namespace LeagueSandbox.GameServer.Inventory
                 {
                     //Loads the Script
                     ItemScripts.Add(item.ItemId, CSharpScriptEngine.CreateObjectStatic<IItemScript>("ItemPassives", $"ItemID_{item.ItemId}") ?? new ItemScriptEmpty());
-                    ItemScripts[item.ItemId].OnActivate(owner);
+                    try
+                    {
+                        ItemScripts[item.ItemId].OnActivate(owner);
+                    }
+                    catch(Exception e)
+                    {
+                        _logger.Error(null, e);
+                    }
                 }
             }
 

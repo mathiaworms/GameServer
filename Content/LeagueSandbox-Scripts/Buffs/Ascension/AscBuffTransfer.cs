@@ -3,6 +3,7 @@ using GameServerCore.Enums;
 using GameServerCore.Domain.GameObjects.Spell;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using static LeagueSandbox.GameServer.API.ApiMapFunctionManager;
+using static LeagueSandbox.GameServer.API.ApiGameEvents;
 using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 
@@ -24,16 +25,16 @@ namespace Buffs
         {
             Unit = unit;
 
-            if (unit is IObjAiBase obj)
+            if (unit is IObjAIBase obj)
             {
-                if (unit is IChampion)
+                if (unit is IChampion ch)
                 {
-                    NotifyWorldEvent(EventID.OnChampionAscended, sourceNetId: unit.NetId);
+                    AnnounceChampionAscended(ch);
 
                 }
-                else if (unit is IMonster)
+                else if (unit is IMonster mo)
                 {
-                    NotifyWorldEvent(EventID.OnMinionAscended);
+                    AnnounceMinionAscended(mo);
                 }
                 NotifyAscendant(obj);
             }
@@ -44,18 +45,13 @@ namespace Buffs
             AddParticle(unit, unit, "AscTransferGlow", unit.Position, buff.Duration, flags: (FXFlags)32);
             AddParticle(unit, unit, "AscTurnToStone", unit.Position, buff.Duration, flags: (FXFlags)32);
 
-            //Using SetStatus temporarily due to: https://github.com/LeagueSandbox/GameServer/issues/1385
-            SetStatus(unit, StatusFlags.Targetable, false);
-            SetStatus(unit, StatusFlags.Stunned, true);
-            SetStatus(unit, StatusFlags.Invulnerable, true);
+            buff.SetStatusEffect(StatusFlags.Targetable, false);
+            buff.SetStatusEffect(StatusFlags.Stunned, true);
+            buff.SetStatusEffect(StatusFlags.Invulnerable, true);
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            SetStatus(unit, StatusFlags.Targetable, true);
-            SetStatus(unit, StatusFlags.Stunned, false);
-            SetStatus(unit, StatusFlags.Invulnerable, false);
-
             unit.PauseAnimation(false);
 
             AddParticleTarget(unit, unit, "CassPetrifyMiss_tar", unit, size: 3.0f);
@@ -63,7 +59,7 @@ namespace Buffs
             AddParticleTarget(unit, unit, "TurnBack", unit);
             AddParticleTarget(unit, unit, "LeonaPassive_tar", unit, size: 2.5f);
 
-            if (unit is IObjAiBase obj)
+            if (unit is IObjAIBase obj)
             {
                 AddBuff("AscBuff", 25000.0f, 1, null, unit, obj);
             }

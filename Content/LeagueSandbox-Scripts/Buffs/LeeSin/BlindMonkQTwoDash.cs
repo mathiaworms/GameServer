@@ -19,7 +19,7 @@ namespace Buffs
 
         public IStatsModifier StatsModifier { get; private set; }
 
-        IObjAiBase owner;
+        IObjAIBase owner;
         ISpell originSpell;
         IBuff thisBuff;
         IAttackableUnit target;
@@ -35,7 +35,7 @@ namespace Buffs
             ApiEventManager.OnMoveEnd.AddListener(this, unit, OnMoveEnd, true);
             ApiEventManager.OnMoveSuccess.AddListener(this, unit, OnMoveSuccess, true);
 
-            var dashSpeed = 1350f + owner.GetTrueMoveSpeed();
+            var dashSpeed = 1350f + owner.Stats.GetTrueMoveSpeed();
 
             ForceMovement(owner, target, "", dashSpeed, 0f, Vector2.Distance(target.Position, owner.Position), 0f, -1f, movementOrdersType: ForceMovementOrdersType.CANCEL_ORDER);
 
@@ -43,7 +43,8 @@ namespace Buffs
             // Flags: Blend false, Lock true, Loop true
             PlayAnimation(owner, "Spell1b", 0f, flags: AnimationFlags.Lock);
             toRemove = false;
-            SetStatus(owner, StatusFlags.Ghosted, true);
+
+            buff.SetStatusEffect(StatusFlags.Ghosted, true);
         }
 
         public void OnMoveEnd(IAttackableUnit unit)
@@ -84,7 +85,6 @@ namespace Buffs
             RemoveParticle(selfParticle);
             // Flags: Blend true
             // UnlockAnimation(true, unit);
-            SetStatus(owner, StatusFlags.Ghosted, false);
         }
 
         public void OnUpdate(float diff)

@@ -7,15 +7,6 @@ using System.Collections.Generic;
 using Channel = GameServerCore.Packets.Enums.Channel;
 using Version = LENet.Version;
 
-
-using GameServerCore.Packets.Enums;
-using GameServerCore.Packets.Handlers;
-using GameServerCore.Packets.Interfaces;
-using GameServerCore.Packets.PacketDefinitions;
-
-using System;
-using System.Collections.Generic;
-
 namespace PacketDefinitions420
 {
     /// <summary>
@@ -45,24 +36,23 @@ namespace PacketDefinitions420
         /// <param name="game">Game instance.</param>
         /// <param name="netReq">Network request handler instance.</param>
         /// <param name="netResp">Network response handler instance.</param>
-        public void InitServer(ushort port, Dictionary<long, string> blowfishKeys, IGame game, NetworkHandler<ICoreRequest> netReq, NetworkHandler<ICoreRequest> netResp)
+        public void InitServer(ushort port, string[] blowfishKeys, IGame game, NetworkHandler<ICoreRequest> netReq, NetworkHandler<ICoreRequest> netResp)
         {
             _game = game;
             _server = new Host(Version.Patch420, new Address(_serverHost, port), 32, 32, 0, 0);
 
-            Dictionary<long, BlowFish> blowfishes = new Dictionary<long, BlowFish>();
-            foreach(var rawKey in blowfishKeys)
+            BlowFish[] blowfishes = new BlowFish[blowfishKeys.Length];
+            for(int i = 0; i < blowfishKeys.Length; i++)
             {
-                var key = Convert.FromBase64String(rawKey.Value);
+                var key = Convert.FromBase64String(blowfishKeys[i]);
                 if (key.Length <= 0)
                 {
                     throw new Exception($"Invalid blowfish key supplied({ key })");
                 }
-                blowfishes.Add(rawKey.Key, new BlowFish(key));
+                blowfishes[i] = new BlowFish(key);
             }
 
             PacketHandlerManager = new PacketHandlerManager(blowfishes, _server, game, netReq, netResp);
-
         }
 
         /// <summary>
@@ -87,7 +77,7 @@ namespace PacketDefinitions420
                             var channel = (Channel)enetEvent.ChannelID;
                             PacketHandlerManager.HandlePacket(enetEvent.Peer, enetEvent.Packet, channel);
                             // Clean up the packet now that we're done using it.
-                            //enetEvent.Packet.Resize(0);
+                            //enetEvent.Packet.Dispose();
                         }
                         break;
                     case EventType.DISCONNECT:

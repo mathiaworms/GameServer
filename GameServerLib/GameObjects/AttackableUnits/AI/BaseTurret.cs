@@ -16,7 +16,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
     /// In League, turrets are separated into visual and AI objects, so this GameObject represents the AI portion,
     /// while the visual object is handled automatically by clients via packets.
     /// </summary>
-    public class BaseTurret : ObjAiBase, IBaseTurret
+    public class BaseTurret : ObjAIBase, IBaseTurret
     {
         /// <summary>
         /// Current lane this turret belongs to.
@@ -51,8 +51,9 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             LaneID lane = LaneID.NONE,
             MapObject mapObject = default,
             int skinId = 0,
+            IStats stats = null,
             string aiScript = ""
-        ) : base(game, model, new Stats.Stats(), position: position, visionRadius: 800, skinId: skinId, netId: netId, team: team, aiScript: aiScript)
+        ) : base(game, model, position: position, visionRadius: 800, skinId: skinId, netId: netId, team: team, stats: stats, aiScript: aiScript)
         {
             ParentNetId = Crc32Algorithm.Compute(Encoding.UTF8.GetBytes(name)) | 0xFF000000;
             Name = name;
@@ -60,7 +61,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             ParentObject = mapObject;
             SetTeam(team);
             Inventory = InventoryManager.CreateInventory(game.PacketNotifier);
-            Replication = new ReplicationAiTurret(this);
+            Replication = new ReplicationAITurret(this);
         }
 
 
@@ -77,7 +78,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 GoldGiven = 0.0f,
                 OtherNetID = data.Killer.NetId
             };
-            _game.PacketNotifier.NotifyS2C_OnEventWorld(announce, NetId);
+            _game.PacketNotifier.NotifyOnEvent(announce, this);
 
             base.Die(data);
         }
@@ -91,7 +92,17 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             _game.ObjectManager.AddTurret(this);
 
             // TODO: Handle this via map script for LaneTurret and via CharScript for AzirTurret.
-            BubbleRegion = new Region(_game, Team, Position, RegionType.Default, this, this, true, 800f, true, true, PathfindingRadius, lifetime: 25000.0f);
+            BubbleRegion = new Region
+            (
+                _game, Team, Position,
+                RegionType.Unknown2,
+                collisionUnit: this,
+                visionTarget: null,
+                visionRadius: 800f,
+                revealStealth: true,
+                collisionRadius: PathfindingRadius,
+                lifetime: 25000.0f
+            );
         }
 
         public override void OnCollision(IGameObject collider, bool isTerrain = false)

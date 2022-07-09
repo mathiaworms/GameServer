@@ -3,7 +3,6 @@ using System.Numerics;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using LeagueSandbox.GameServer.GameObjects.Stats;
-using static LeagueSandbox.GameServer.API.ApiMapFunctionManager;
 
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 {
@@ -30,8 +29,9 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             string model,
             uint netId = 0,
             TeamId team = TeamId.TEAM_BLUE,
-            string AiScript = ""
-        ) : base(game, null, new Vector2(), model, model, netId, team, aiScript: AiScript)
+            IStats stats = null,
+            string AIScript = ""
+        ) : base(game, null, new Vector2(), model, model, netId, team, stats: stats, AIScript: AIScript)
         {
             IsLaneMinion = true;
             MinionSpawnType = spawnType;

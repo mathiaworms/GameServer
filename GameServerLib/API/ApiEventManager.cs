@@ -34,7 +34,6 @@ using System.Collections.Generic;
 [OnKillUnit]
 [OnLaunchAttack]
 [OnLaunchMissile]
-[OnLaunchMissileByAnother]
 [OnLevelUp]
 [OnLevelUpSpell]
 [OnMiss]
@@ -58,9 +57,7 @@ using System.Collections.Generic;
 [OnSpellPostChannel] - finish channeling
 [OnSpellPreCast] - setup cast info before casting (always performed)
 [OnSpellHit] - "ApplyEffects" function in Spell.
-[OnSpellHitByAnother]
 [OnTakeDamage]
-[OnTakeDamageByAnother]
 [OnUpdateActions] - move order probably
 [OnUpdateAmmo]
 [OnUpdateStats]
@@ -72,29 +69,22 @@ namespace LeagueSandbox.GameServer.API
     public static class ApiEventManager
     {
         private static Game _game;
-        private static ILog _logger;
+        private static ILog _logger = LoggerProvider.GetLogger();
         private static List<DispatcherBase> _dispatchers = new List<DispatcherBase>();
 
         internal static void SetGame(Game game)
         {
             _game = game;
-            _logger = LoggerProvider.GetLogger();
         }
 
         public static void RemoveAllListenersForOwner(object owner)
         {
-                OnTakeDamageByAnother.RemoveListener(owner);
-                OnHitUnitByAnother.RemoveListener(owner);
-                OnLaunchMissile.RemoveListener(owner);
-            foreach(var dispatcher in _dispatchers)
+            foreach (var dispatcher in _dispatchers)
             {
                 dispatcher.RemoveListener(owner);
             }
         }
-        //olderversion
-        public static EventOnTakeDamageByAnother OnTakeDamageByAnother = new EventOnTakeDamageByAnother();
-        public static EventOnHitUnitByAnother OnHitUnitByAnother = new EventOnHitUnitByAnother();
-        public static EventOnLaunchMissileByAnother OnLaunchMissileByAnother = new EventOnLaunchMissileByAnother();
+
         // Unused
         public static Dispatcher<IAttackableUnit, IAttackableUnit> OnAddPAR
                 = new Dispatcher<IAttackableUnit, IAttackableUnit>();
@@ -118,16 +108,16 @@ namespace LeagueSandbox.GameServer.API
                 = new DataOnlyDispatcher<IAttackableUnit, IDamageData>();
         public static DataOnlyDispatcher<IAttackableUnit, IDeathData> OnDeath
                 = new DataOnlyDispatcher<IAttackableUnit, IDeathData>();
-        public static DataOnlyDispatcher<IObjAiBase, IDamageData> OnHitUnit
-                = new DataOnlyDispatcher<IObjAiBase, IDamageData>();
+        public static DataOnlyDispatcher<IObjAIBase, IDamageData> OnHitUnit
+                = new DataOnlyDispatcher<IObjAIBase, IDamageData>();
         public static DataOnlyDispatcher<IChampion, IScoreData> OnIncrementChampionScore
                 = new DataOnlyDispatcher<IChampion, IScoreData>();
         public static DataOnlyDispatcher<IAttackableUnit, IDeathData> OnKill
                 = new DataOnlyDispatcher<IAttackableUnit, IDeathData>();
         public static DataOnlyDispatcher<IAttackableUnit, IDeathData> OnKillUnit
                 = new DataOnlyDispatcher<IAttackableUnit, IDeathData>();
-        public static DataOnlyDispatcher<IObjAiBase, ISpell> OnLaunchAttack
-                = new DataOnlyDispatcher<IObjAiBase, ISpell>();
+        public static DataOnlyDispatcher<IObjAIBase, ISpell> OnLaunchAttack
+                = new DataOnlyDispatcher<IObjAIBase, ISpell>();
         /// <summary>
         /// Called immediately after the rocket is added to the scene. *NOTE*: At the time of the call, the rocket has not yet been spawned for players.
         /// <summary>
@@ -143,17 +133,14 @@ namespace LeagueSandbox.GameServer.API
                 = new Dispatcher<IAttackableUnit>();
         public static Dispatcher<IAttackableUnit> OnMoveSuccess
                 = new Dispatcher<IAttackableUnit>();
-        public static DataOnlyDispatcher<IObjAiBase, ISpell> OnPreAttack
-                = new DataOnlyDispatcher<IObjAiBase, ISpell>();
+        public static DataOnlyDispatcher<IObjAIBase, ISpell> OnPreAttack
+                = new DataOnlyDispatcher<IObjAIBase, ISpell>();
         public static DataOnlyDispatcher<IAttackableUnit, IDamageData> OnPreDealDamage
                 = new DataOnlyDispatcher<IAttackableUnit, IDamageData>();
         public static DataOnlyDispatcher<IAttackableUnit, IDamageData> OnPreTakeDamage
                 = new DataOnlyDispatcher<IAttackableUnit, IDamageData>();
-
-
-
-        public static Dispatcher<IObjAiBase> OnResurrect
-                = new Dispatcher<IObjAiBase>();
+        public static Dispatcher<IObjAIBase> OnResurrect
+                = new Dispatcher<IObjAIBase>();
         public static Dispatcher<ISpell> OnSpellCast
                 = new Dispatcher<ISpell>();
         public static Dispatcher<ISpell> OnSpellChannel
@@ -176,142 +163,16 @@ namespace LeagueSandbox.GameServer.API
                 = new Dispatcher<ISpellSector, IAttackableUnit>();
         public static DataOnlyDispatcher<IAttackableUnit, IDamageData> OnTakeDamage
                 = new DataOnlyDispatcher<IAttackableUnit, IDamageData>();
-            public class EventOnTakeDamageByAnother
-    {
-        private readonly List<Tuple<object, IAttackableUnit, Action<IAttackableUnit, IAttackableUnit>, bool>> _listeners = new List<Tuple<object, IAttackableUnit, Action<IAttackableUnit, IAttackableUnit>, bool>>();
-        /// <summary>
-        /// Adds a listener for this event, wherein, if the unit that took damage was the given unit, it will call the <paramref name="callback"/> function.
-        /// </summary>
-        /// <param name="owner">Object which will own this listener. Used in removal. Often times "this" will suffice.</param>
-        /// <param name="unit">Unit that should be checked when this event fires.</param>
-        /// <param name="callback">Function to call when this event fires.</param>
-        /// <param name="singleInstance">Whether or not to remove the event listener after calling the <paramref name="callback"/> function.</param>
-        public void AddListener(object owner, IAttackableUnit unit, Action<IAttackableUnit, IAttackableUnit> callback, bool singleInstance)
-        {
-            var listenerTuple = new Tuple<object, IAttackableUnit, Action<IAttackableUnit, IAttackableUnit>, bool>(owner, unit, callback, singleInstance);
-            _listeners.Add(listenerTuple);
-        }
-
-        public void RemoveListener(object owner, IAttackableUnit unit)
-        {
-            _listeners.RemoveAll(listener => listener.Item1 == owner && listener.Item2 == unit);
-        }
-
-        public void RemoveListener(object owner)
-        {
-            _listeners.RemoveAll(listener => listener.Item1 == owner);
-        }
-
-        public void Publish(IAttackableUnit unit, IAttackableUnit source)
-        {
-            var count = _listeners.Count;
-
-            if (count == 0)
-            {
-                return;
-            }
-
-            for (int i = count - 1; i >= 0; i--)
-            {
-                if (_listeners[i].Item2 == unit)
-                {
-                    _listeners[i].Item3(unit, source);
-                    if (_listeners[i].Item4 == true)
-                    {
-                        _listeners.RemoveAt(i);
-                    }
-                }
-            }
-        }
-    }   
-        public class EventOnHitUnitByAnother
-    {
-        private readonly List<Tuple<object, IObjAiBase, Action<IAttackableUnit, bool>, bool>> _listeners = new List<Tuple<object, IObjAiBase, Action<IAttackableUnit, bool>, bool>>();
-        public void AddListener(object owner, IObjAiBase unit, Action<IAttackableUnit, bool> callback, bool singleInstance)
-        {
-            var listenerTuple = new Tuple<object, IObjAiBase, Action<IAttackableUnit, bool>, bool>(owner, unit, callback, singleInstance);
-            _listeners.Add(listenerTuple);
-        }
-        public void RemoveListener(object owner, IObjAiBase unit)
-        {
-            _listeners.RemoveAll((listener) => listener.Item1 == owner && listener.Item2 == unit);
-        }
-        public void RemoveListener(object owner)
-        {
-            _listeners.RemoveAll((listener) => listener.Item1 == owner);
-        }
-        public void Publish(IObjAiBase unit, IAttackableUnit target, bool isCrit)
-        {
-            var count = _listeners.Count;
-
-            if (count == 0)
-            {
-                return;
-            }
-
-            // TODO: Replace this method with a single function and just pass in count as a parameter (do this for all events which use this method).
-            for (int i = count - 1; i >= 0; i--)
-            {
-                if (_listeners[i].Item2 == unit)
-                {
-                    _listeners[i].Item3(target, isCrit);
-                    if (_listeners[i].Item4 == true)
-                    {
-                        _listeners.RemoveAt(i);
-                    }
-                }
-            }
-        }
-    }
-public class EventOnLaunchMissileByAnother
-    {
-        private readonly List<Tuple<object, KeyValuePair<IObjAiBase, ISpell>, Action<ISpell, ISpellMissile>, bool>> _listeners = new List<Tuple<object, KeyValuePair<IObjAiBase, ISpell>, Action<ISpell, ISpellMissile>, bool>>();
-        public void AddListener(object owner, KeyValuePair<IObjAiBase, ISpell> casterSpellPair, Action<ISpell, ISpellMissile> callback, bool singleInstance)
-        {
-            var listenerTuple = new Tuple<object, KeyValuePair<IObjAiBase, ISpell>, Action<ISpell, ISpellMissile>, bool>(owner, casterSpellPair, callback, singleInstance);
-            _listeners.Add(listenerTuple);
-        }
-        public void RemoveListener(object owner, KeyValuePair<IObjAiBase, ISpell> casterSpellPair)
-        {
-            _listeners.RemoveAll((listener) => listener.Item1 == owner && listener.Item2.Key == casterSpellPair.Key && listener.Item2.Value == casterSpellPair.Value);
-        }
-        public void RemoveListener(object owner)
-        {
-            _listeners.RemoveAll((listener) => listener.Item1 == owner);
-        }
-        public void Publish(KeyValuePair<IObjAiBase, ISpell> casterSpellPair, ISpellMissile missile)
-        {
-            var count = _listeners.Count;
-
-            if (count == 0)
-            {
-                return;
-            }
-
-            for (int i = count - 1; i >= 0; i--)
-            {
-                if (_listeners[i].Item2.Key == casterSpellPair.Key && _listeners[i].Item2.Value == casterSpellPair.Value)
-                {
-                    _listeners[i].Item3(casterSpellPair.Value, missile);
-                    if (_listeners[i].Item4 == true)
-                    {
-                        _listeners.RemoveAt(i);
-                    }
-                }
-            }
-        }
-    }
-
-        public static DataOnlyDispatcher<IObjAiBase, IAttackableUnit> OnTargetLost
-                = new DataOnlyDispatcher<IObjAiBase, IAttackableUnit>();
+        public static DataOnlyDispatcher<IObjAIBase, IAttackableUnit> OnTargetLost
+                = new DataOnlyDispatcher<IObjAIBase, IAttackableUnit>();
         public static Dispatcher<IAttackableUnit, IBuff> OnUnitBuffDeactivated
                 = new Dispatcher<IAttackableUnit, IBuff>();
         // TODO: Handle crowd control the same as normal dashes.
         public static Dispatcher<IAttackableUnit> OnUnitCrowdControlled
                 = new Dispatcher<IAttackableUnit>();
         // TODO: Change to OnMoveSuccess and change where Publish is called internally to reflect the name.
-        public static ConditionDispatcher<IObjAiBase, OrderType> OnUnitUpdateMoveOrder
-                = new ConditionDispatcher<IObjAiBase, OrderType>();
+        public static ConditionDispatcher<IObjAIBase, OrderType> OnUnitUpdateMoveOrder
+                = new ConditionDispatcher<IObjAIBase, OrderType>();
         public static Dispatcher<IAttackableUnit, float> OnUpdateStats
                 = new Dispatcher<IAttackableUnit, float>();
 
@@ -324,30 +185,84 @@ public class EventOnLaunchMissileByAnother
             public abstract void RemoveListener(object owner);
         }
 
-        public abstract class DispatcherBase<Source, CBType>: DispatcherBase
+        public abstract class DispatcherBase<Source, CBType> : DispatcherBase
         {
-            protected readonly List<Tuple<object, Source, CBType, bool>> _listeners
-                    = new List<Tuple<object, Source, CBType, bool>>();
-
+            protected class Listener
+            {
+                public object Owner;
+                public Source Source;
+                public CBType Callback;
+                public bool SingleInstance;
+                public Listener(object owner, Source source, CBType callback, bool singleInstance = false)
+                {
+                    Owner = owner;
+                    Source = source;
+                    Callback = callback;
+                    SingleInstance = singleInstance;
+                }
+            }
+            protected readonly List<Listener> _listeners = new List<Listener>();
+            // Storage for Publish functions counters.
+            protected List<int> _stack = new List<int>{ -1, -1, -1, -1, -1, -1, -1, -1 };
+            // The index of the last Publish function currently executing.
+            protected int _nestingLevel = -1;
+            protected void IncrementNestingLevel()
+            {
+                _nestingLevel++;
+                if(_nestingLevel >= _stack.Count)
+                {
+                    _stack.Add(-1);
+                }
+            }
+            // Removes the element and adjusts the counters of all currently executing Publish functions, if necessary.
+            protected void CarefulRemoval(int index)
+            {
+                _listeners.RemoveAt(index);
+                for(int l = 0; l < _nestingLevel + 1; l++)
+                {
+                    if (index < _stack[l])
+                    {
+                        _stack[l]--;
+                    }
+                }
+            }
+            private void CarefulRemoval(Predicate<Listener> match)
+            {
+                for (int j = _listeners.Count - 1; j >= 0; j--)
+                {
+                    var listener = _listeners[j];
+                    if (match(listener))
+                    {
+                        CarefulRemoval(j);
+                    }
+                }
+            }
             public void AddListener(object owner, Source source, CBType callback, bool singleInstance = false)
             {
+                if (owner == null || source == null || callback == null)
+                {
+                    return;
+                }
+
                 _listeners.Add(
-                    new Tuple<object, Source, CBType, bool>(owner, source, callback, singleInstance)
+                    new Listener(owner, source, callback, singleInstance)
                 );
             }
-
-            public void RemoveListener(object owner, Source source)
-            {
-                _listeners.RemoveAll(listener => listener.Item1 == owner && listener.Item2.Equals(source));
-            }
-
             public override void RemoveListener(object owner)
             {
-                _listeners.RemoveAll(listener => listener.Item1 == owner);
+                CarefulRemoval(listener => listener.Owner == owner);
+            }
+            public void RemoveListener(object owner, Source source)
+            {
+                CarefulRemoval(listener => listener.Owner == owner && listener.Source.Equals(source));
+            }
+            public void RemoveListener(object owner, Source source, CBType callback)
+            {
+                CarefulRemoval(listener => listener.Owner == owner && listener.Source.Equals(source) && listener.Callback.Equals(callback));
             }
         }
 
-        public abstract class VariableDispatcherBase<Source, Data, CBType>: VariableDispatcherBase<Source, CBType>
+        public abstract class VariableDispatcherBase<Source, Data, CBType> : VariableDispatcherBase<Source, CBType>
         {
             protected Data _data;
             public void Publish(Source source, Data data)
@@ -357,59 +272,87 @@ public class EventOnLaunchMissileByAnother
             }
         }
 
-        public abstract class VariableDispatcherBase<Source, CBType>: DispatcherBase<Source, CBType>
+        public abstract class VariableDispatcherBase<Source, CBType> : DispatcherBase<Source, CBType>
         {
             protected Source _source;
             protected abstract void Call(CBType callback);
             protected void Publish(Source source)
             {
+                IncrementNestingLevel();
                 _source = source;
 
-                for (int i = _listeners.Count - 1; i >= 0; i--)
+                int i;
+                for (
+                    _stack[_nestingLevel] = _listeners.Count - 1;
+                    (i = _stack[_nestingLevel]) >= 0;
+                    _stack[_nestingLevel]--
+                )
                 {
-                    if (_listeners[i].Item2.Equals(source))
+                    var listener = _listeners[i];
+                    if (listener.Source.Equals(source))
                     {
-                        var listener = _listeners[i];
-                        Call(listener.Item3);
-
-                        if (listener.Item4)
+                        if (listener.SingleInstance)
                         {
-                            _listeners.Remove(listener);
+                            CarefulRemoval(i);
+                        }
+
+                        try
+                        {
+                            Call(listener.Callback);
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.Error(e);
                         }
                     }
                 }
+                _nestingLevel--;
             }
         }
 
-        public abstract class ConditionDispatcherBase<Source, Data, CBType>: DispatcherBase<Source, CBType>
+        public abstract class ConditionDispatcherBase<Source, Data, CBType> : DispatcherBase<Source, CBType>
         {
             protected Source _source;
             protected Data _data;
             protected abstract bool Call(CBType callback);
             public bool Publish(Source source, Data data)
             {
+                IncrementNestingLevel();
                 _source = source;
                 _data = data;
 
                 bool returnVal = true;
-                for (int i = _listeners.Count - 1; i >= 0; i--)
+                int i;
+                for (
+                    _stack[_nestingLevel] = _listeners.Count - 1;
+                    (i = _stack[_nestingLevel]) >= 0;
+                    _stack[_nestingLevel]--
+                )
                 {
-                    if (_listeners[i].Item2.Equals(source))
+                    var listener = _listeners[i];
+                    if (listener.Source.Equals(source))
                     {
-                        var listener = _listeners[i];
-                        returnVal = returnVal && Call(listener.Item3);
-
-                        if (listener.Item4)
+                        if (listener.SingleInstance)
                         {
-                            _listeners.Remove(listener);
+                            CarefulRemoval(i);
+                        }
+
+                        try
+                        {
+                            returnVal = returnVal && Call(listener.Callback);
+                        }
+                        catch (Exception e)
+                        {
+                            _logger.Error(e);
                         }
                     }
                 }
+                _nestingLevel--;
                 return returnVal;
             }
         }
 
-        public class Dispatcher<Source>: VariableDispatcherBase<Source, Action<Source>>
+        public class Dispatcher<Source> : VariableDispatcherBase<Source, Action<Source>>
         {
             public new void Publish(Source source)
             {
@@ -421,7 +364,7 @@ public class EventOnLaunchMissileByAnother
             }
         }
 
-        public class Dispatcher<Source, Data>: VariableDispatcherBase<Source, Data, Action<Source, Data>>
+        public class Dispatcher<Source, Data> : VariableDispatcherBase<Source, Data, Action<Source, Data>>
         {
             protected override void Call(Action<Source, Data> callback)
             {
@@ -429,7 +372,7 @@ public class EventOnLaunchMissileByAnother
             }
         }
 
-        public class DataOnlyDispatcher<Source, Data>: VariableDispatcherBase<Source, Data, Action<Data>>
+        public class DataOnlyDispatcher<Source, Data> : VariableDispatcherBase<Source, Data, Action<Data>>
         {
             protected override void Call(Action<Data> callback)
             {
@@ -437,7 +380,7 @@ public class EventOnLaunchMissileByAnother
             }
         }
 
-        public class Dispatcher<Source, D1, D2, D3>: VariableDispatcherBase<Source, (D1, D2, D3), Action<Source, D1, D2, D3>>
+        public class Dispatcher<Source, D1, D2, D3> : VariableDispatcherBase<Source, (D1, D2, D3), Action<Source, D1, D2, D3>>
         {
             protected override void Call(Action<Source, D1, D2, D3> callback)
             {
@@ -445,7 +388,7 @@ public class EventOnLaunchMissileByAnother
             }
         }
 
-        public class Dispatcher<Source, D1, D2, D3, D4>: VariableDispatcherBase<Source, (D1, D2, D3, D4), Action<Source, D1, D2, D3, D4>>
+        public class Dispatcher<Source, D1, D2, D3, D4> : VariableDispatcherBase<Source, (D1, D2, D3, D4), Action<Source, D1, D2, D3, D4>>
         {
             protected override void Call(Action<Source, D1, D2, D3, D4> callback)
             {
@@ -453,7 +396,7 @@ public class EventOnLaunchMissileByAnother
             }
         }
 
-        public class ConditionDispatcher<Source, Data>: ConditionDispatcherBase<Source, Data, Func<Source, Data, bool>>
+        public class ConditionDispatcher<Source, Data> : ConditionDispatcherBase<Source, Data, Func<Source, Data, bool>>
         {
             protected override bool Call(Func<Source, Data, bool> callback)
             {
@@ -461,7 +404,7 @@ public class EventOnLaunchMissileByAnother
             }
         }
 
-        public class ConditionDispatcher<Source, D1, D2>: ConditionDispatcherBase<Source, (D1, D2), Func<Source, D1, D2, bool>>
+        public class ConditionDispatcher<Source, D1, D2> : ConditionDispatcherBase<Source, (D1, D2), Func<Source, D1, D2, bool>>
         {
             protected override bool Call(Func<Source, D1, D2, bool> callback)
             {
@@ -469,6 +412,4 @@ public class EventOnLaunchMissileByAnother
             }
         }
     }
-
-    // TODO: Make listeners support removal at any point in code execution.
 }

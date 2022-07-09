@@ -26,13 +26,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             string buffName,
             float lifeTime,
             int skinId = 0,
+            IStats stats = null,
             bool cloneInventory = true,
             bool showMinimapIfClone = true,
             bool disallowPlayerControl = false,
             bool doFade = false,
             bool isClone = true,
-            string aiScript = "Pet"
-            ) : base(game, owner, position, model, name, team: owner.Team, skinId: skinId,aiScript: aiScript)
+            string AIScript = "Pet"
+            ) : base(game, owner, position, model, name, team: owner.Team, skinId: skinId, stats: stats, AIScript: AIScript)
         {
             _returnRadius = _game.Map.MapScript.MapScriptMetadata.AIVars.DefaultPetReturnRadius;
 

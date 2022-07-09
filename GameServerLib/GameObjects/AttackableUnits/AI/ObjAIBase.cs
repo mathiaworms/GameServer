@@ -12,6 +12,8 @@ using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.Inventory;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using System.Activities.Presentation.View;
+using LeagueSandbox.GameServer.Logging;
+using log4net;
 
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 {
@@ -19,7 +21,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
     /// Base class for all moving, attackable, and attacking units.
     /// ObjAIBases normally follow these guidelines of functionality: Self movement, Inventory, Targeting, Attacking, and Spells.
     /// </summary>
-    public class ObjAiBase : AttackableUnit, IObjAiBase
+    public class ObjAIBase : AttackableUnit, IObjAIBase
     {
         // Crucial Vars
         private float _autoAttackCurrentCooldown;
@@ -30,9 +32,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         protected AIState _aiState = AIState.AI_IDLE;
         protected bool _aiPaused;
         protected IPet _lastPetSpawned;
-        public static float ApplyShieldAmount { get; set; }
-        public static bool IsPhysical { get; set; }
-        public static bool IsMagical { get; set; }
+        private static ILog _logger = LoggerProvider.GetLogger();
+
         /// <summary>
         /// Variable storing all the data related to this AI's current auto attack. *NOTE*: Will be deprecated as the spells system gets finished.
         /// </summary>
@@ -82,15 +83,13 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         public ICharScript CharScript { get; private set; }
         public bool IsBot { get; set; }
         public IAIScript AIScript { get; protected set; }
-        public ObjAiBase(Game game, string model, Stats.Stats stats, int collisionRadius = 0,
-            Vector2 position = new Vector2(), int visionRadius = 0, int skinId = 0, uint netId = 0, TeamId team = TeamId.TEAM_NEUTRAL, string aiScript = "") :
-            base(game, model, stats, collisionRadius, position, visionRadius, netId, team)
+        public ObjAIBase(Game game, string model, int collisionRadius = 0,
+            Vector2 position = new Vector2(), int visionRadius = 0, int skinId = 0, uint netId = 0, TeamId team = TeamId.TEAM_NEUTRAL, IStats stats = null, string aiScript = "") :
+            base(game, model, collisionRadius, position, visionRadius, netId, team, stats)
         {
             _itemManager = game.ItemManager;
 
             SkinID = skinId;
-
-            stats.LoadStats(CharData);
 
             // TODO: Centralize this instead of letting it lay in the initialization.
             if (collisionRadius > 0)
@@ -129,8 +128,8 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 VisionRadius = 1100;
             }
 
-            Stats.CurrentMana = stats.ManaPoints.Total;
-            Stats.CurrentHealth = stats.HealthPoints.Total;
+            Stats.CurrentMana = Stats.ManaPoints.Total;
+            Stats.CurrentHealth = Stats.HealthPoints.Total;
 
             SpellToCast = null;
 
@@ -218,26 +217,30 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             }
 
             AIScript = game.ScriptEngine.CreateObject<IAIScript>($"AIScripts", aiScript) ?? new EmptyAIScript();
-            AIScript.OnActivate(this);
+            try
+            {
+                AIScript.OnActivate(this);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
         }
-        public void ApplyShield(IAttackableUnit unit, float amount, bool IsPhysic, bool IsMagic, bool StopShieldFade)
-        {
-            ApplyShieldAmount += amount;
-            IsPhysical = IsPhysic;
-            IsMagical = IsMagic;
-            _game.PacketNotifier.NotifyModifyShield(this, amount, IsPhysical, IsMagical, false);
-        }
+
         public override void OnAdded()
         {
             base.OnAdded();
-
-            if (Spells.ContainsKey((int)SpellSlotType.PassiveSpellSlot))
+            try
             {
-                CharScript.OnActivate(this, Spells[(int)SpellSlotType.PassiveSpellSlot]);
+                CharScript.OnActivate(
+                    this, Spells.GetValueOrDefault<short, ISpell>(
+                        (int)SpellSlotType.PassiveSpellSlot
+                    )
+                );
             }
-            else
+            catch(Exception e)
             {
-                CharScript.OnActivate(this);
+                _logger.Error(null, e);
             }
         }
 
@@ -266,13 +269,13 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 Attacker = this,
                 Target = target,
                 Damage = damage,
-                PostMitigationdDamage = target.Stats.GetPostMitigationDamage(damage, DamageType.DAMAGE_TYPE_PHYSICAL, this),
+                PostMitigationDamage = target.Stats.GetPostMitigationDamage(damage, DamageType.DAMAGE_TYPE_PHYSICAL, this),
                 DamageSource = DamageSource.DAMAGE_SOURCE_ATTACK,
                 DamageType = DamageType.DAMAGE_TYPE_PHYSICAL,
             };
 
             ApiEventManager.OnHitUnit.Publish(this, damageData);
-            ApiEventManager.OnHitUnitByAnother.Publish(this, target, IsNextAutoCrit);
+
             // TODO: Verify if we should use MissChance instead.
             if (HasBuffType(BuffType.BLIND))
             {
@@ -374,7 +377,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// TODO: Move to AttackableUnit.
         public ClassifyUnit ClassifyTarget(IAttackableUnit target, IAttackableUnit victium = null)
         {
-            if (target is IObjAiBase ai && victium != null) // If an ally is in distress, target this unit. (Priority 1~5)
+            if (target is IObjAIBase ai && victium != null) // If an ally is in distress, target this unit. (Priority 1~5)
             {
                 switch (target)
                 {
@@ -496,7 +499,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             bool consideredCC = true
         )
         {
-            SetWaypoints(new List<Vector2> { Position, target.Position }, false);
+            SetWaypoints(new List<Vector2> { Position, target.Position });
 
             SetTargetUnit(target, true);
 
@@ -581,34 +584,12 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// </summary>
         public virtual void RefreshWaypoints(float idealRange)
         {
-            // Stop dashing to target if we reached them.
-            // TODO: Implement events so we can centralize things like this.
             if (MovementParameters != null)
             {
-                if (TargetUnit != null)
-                {
-                    if (IsCollidingWith(TargetUnit))
-                    {
-                        SetDashingState(false);
-                    }
-                    else
-                    {
-                        SetWaypoints(new List<Vector2> { Position, TargetUnit.Position });
-                    }
-                }
-                else
-                {
-                    if (IsPathEnded())
-                    {
-                        SetDashingState(false);
-                    }
-                }
-
                 return;
             }
 
-            if (TargetUnit != null && _castingSpell == null && ChannelSpell == null
-                && MoveOrder != OrderType.AttackTo)
+            if (TargetUnit != null && _castingSpell == null && ChannelSpell == null && MoveOrder != OrderType.AttackTo)
             {
                 UpdateMoveOrder(OrderType.AttackTo, true);
             }
@@ -659,24 +640,21 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             if (MoveOrder == OrderType.AttackTo && targetPos != Vector2.Zero)
             {
-                if (MovementParameters == null)
+                if (Vector2.DistanceSquared(Position, targetPos) <= idealRange * idealRange)
                 {
-                    if (Vector2.DistanceSquared(Position, targetPos) <= idealRange * idealRange)
+                    UpdateMoveOrder(OrderType.Hold, true);
+                }
+                else
+                {
+                    if (!_game.Map.PathingHandler.IsWalkable(targetPos, PathfindingRadius))
                     {
-                        UpdateMoveOrder(OrderType.Hold, true);
+                        targetPos = _game.Map.NavigationGrid.GetClosestTerrainExit(targetPos, PathfindingRadius);
                     }
-                    else
-                    {
-                        if (!_game.Map.PathingHandler.IsWalkable(targetPos, PathfindingRadius))
-                        {
-                            targetPos = _game.Map.NavigationGrid.GetClosestTerrainExit(targetPos, PathfindingRadius);
-                        }
 
-                        var newWaypoints = _game.Map.PathingHandler.GetPath(Position, targetPos);
-                        if (newWaypoints != null && newWaypoints.Count > 1)
-                        {
-                            SetWaypoints(newWaypoints);
-                        }
+                    var newWaypoints = _game.Map.PathingHandler.GetPath(Position, targetPos);
+                    if (newWaypoints != null && newWaypoints.Count > 1)
+                    {
+                        SetWaypoints(newWaypoints);
                     }
                 }
             }
@@ -867,7 +845,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             if (this is IChampion champion)
             {
-                int userId = (int)_game.PlayerManager.GetClientInfoByChampion(champion).PlayerId;
+                int userId = _game.PlayerManager.GetClientInfoByChampion(champion).ClientId;
                 // TODO: Verify if this is all that is needed.
                 _game.PacketNotifier.NotifyChangeSlotSpellData(userId, champion, slot, ChangeSlotSpellDataType.SpellName, slot == 4 || slot == 5, newName: name);
                 if (networkOld)
@@ -1017,8 +995,9 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 
             if (this is IChampion champion)
             {
-                _game.PacketNotifier.NotifyS2C_SetSpellData((int)_game.PlayerManager.GetClientInfoByChampion(champion).PlayerId, NetId, slot2Name, slot1);
-                _game.PacketNotifier.NotifyS2C_SetSpellData((int)_game.PlayerManager.GetClientInfoByChampion(champion).PlayerId, NetId, slot1Name, slot2);
+                int clientId = _game.PlayerManager.GetClientInfoByChampion(champion).ClientId;
+                _game.PacketNotifier.NotifyS2C_SetSpellData(clientId, NetId, slot2Name, slot1);
+                _game.PacketNotifier.NotifyS2C_SetSpellData(clientId, NetId, slot1Name, slot2);
             }
         }
 
@@ -1065,13 +1044,25 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         public override void Update(float diff)
         {
             base.Update(diff);
-            
-            UpdateBuffs(diff);
-            
-            CharScript.OnUpdate(diff);
+            try
+            {
+                CharScript.OnUpdate(diff);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
+
             if (!_aiPaused)
             {
-                AIScript.OnUpdate(diff);
+                try
+                {
+                    AIScript.OnUpdate(diff);
+                }
+                catch(Exception e)
+                {
+                    _logger.Error(null, e);
+                }
             }
 
             // bit of a hack
@@ -1097,49 +1088,29 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 SetPet(null);
             }
         }
-        void UpdateBuffs(float diff)
-        {
-            var tempBuffs = new List<IBuff>(GetBuffs());
-            for (int i = tempBuffs.Count - 1; i >= 0; i--)
-            {
-                if (tempBuffs[i].Elapsed())
-                {
-                    RemoveBuff(tempBuffs[i]);
-                }
-                else
-                {
-                    tempBuffs[i].Update(diff);
-                }
-            }
-        }
+        
         public override void LateUpdate(float diff)
-        {            
+        {
             // Stop targeting an untargetable unit.
             if (TargetUnit != null && !TargetUnit.Status.HasFlag(StatusFlags.Targetable))
             {
-                if(TargetUnit.CharData.IsUseable)
+                if (TargetUnit.CharData.IsUseable)
                 {
                     return;
                 }
                 Untarget(TargetUnit);
             }
         }
-        public override void TakeDamage(IAttackableUnit attacker, float damage, DamageType type, DamageSource source, DamageResultType damageText)
+
+        public override void TakeDamage(IDamageData damageData, DamageResultType damageText, IEventSource sourceScript = null)
         {
-            base.TakeDamage(attacker, damage, type, source, damageText);
-            OnTakeDamage(attacker);
-        }
-        public override void TakeDamage(IDamageData damageData, DamageResultType damageText)
-        {
-            base.TakeDamage(damageData, damageText);
-            OnTakeDamage(damageData.Attacker);
-        }
-        void OnTakeDamage(IAttackableUnit attacker)
-        {
+            base.TakeDamage(damageData, damageText, sourceScript);
+            
+            var attacker = damageData.Attacker;
             var objects = _game.ObjectManager.GetObjects();
             foreach (var it in objects)
             {
-                if (it.Value is IObjAiBase u)
+                if (it.Value is IObjAIBase u)
                 {
                     float acquisitionRange = Stats.AcquisitionRange.Total;
                     float acquisitionRangeSquared = acquisitionRange * acquisitionRange;
@@ -1152,7 +1123,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                         && Vector2.DistanceSquared(u.Position, attacker.Position) <= acquisitionRangeSquared
                     )
                     {
-                        u.AIScript.OnCallForHelp(attacker, this);
+                        try
+                        {
+                            u.AIScript.OnCallForHelp(attacker, this);
+                        }
+                        catch(Exception e)
+                        {
+                            _logger.Error(null, e);
+                        }
                     }
                 }
             }
@@ -1202,14 +1180,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
                 {
                     IsAttacking = false;
                 }
-                return;
-            }
-
-            // Dashes override all other actions (perhaps move this to a general check, such as IsActionable?)
-            if (MovementParameters != null)
-            {
-                // TODO: Account for dashes which move a certain distance away from their target before stopping.
-                RefreshWaypoints(0);
                 return;
             }
 
@@ -1394,16 +1364,16 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// <summary>
         /// Whether or not this unit's AI is innactive.
         /// </summary>
-        public bool IsAiPaused()
+        public bool IsAIPaused()
         {
             return _aiPaused;
         }
-      
+
         /// <summary>
         /// Forces this unit's AI to pause/unpause.
         /// </summary>
         /// <param name="isPaused">Whether or not to pause.</param>
-        public void PauseAi(bool isPaused)
+        public void PauseAI(bool isPaused)
         {
             _aiPaused = isPaused;
         }

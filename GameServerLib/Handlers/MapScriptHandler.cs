@@ -1,19 +1,17 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
-using GameServerCore;
 using GameServerCore.Content;
 using GameServerCore.Domain;
-using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using GameServerCore.Handlers;
 using LeagueSandbox.GameServer.Content;
-using LeagueSandbox.GameServer.GameObjects.Other;
 using LeagueSandbox.GameServer.Logging;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using log4net;
 using MapScripts;
-using static LeagueSandbox.GameServer.API.ApiMapFunctionManager;
+using static GameServerCore.Content.HashFunctions;
+using GameServerCore.Scripting.CSharp;
 
 namespace LeagueSandbox.GameServer.Handlers
 {
@@ -25,7 +23,7 @@ namespace LeagueSandbox.GameServer.Handlers
         // Crucial Vars
         protected Game _game;
         public MapData _loadMapStructures;
-        private readonly ILog _logger;
+        private static ILog _logger = LoggerProvider.GetLogger();
 
         /// <summary>
         /// Unique identifier for the Map (ex: 1 = Old SR, 11 = New SR)
@@ -48,8 +46,12 @@ namespace LeagueSandbox.GameServer.Handlers
         /// MapProperties specific to a Map Id. Contains information about passive gold gen, lane minion spawns, experience to level, etc.
         /// </summary>
         public IMapScript MapScript { get; private set; }
+        public uint ScriptNameHash { get; private set; }
+        public IEventSource ParentScript => null;
+
         public Dictionary<TeamId, Dictionary<int, Dictionary<int, Vector2>>> PlayerSpawnPoints { get; set; } = new Dictionary<TeamId, Dictionary<int, Dictionary<int, Vector2>>>();
 
+        //Consider moving this to MapScripts(?)
         public readonly Dictionary<TeamId, SurrenderHandler> Surrenders = new Dictionary<TeamId, SurrenderHandler>();
 
         /// <summary>
@@ -59,10 +61,11 @@ namespace LeagueSandbox.GameServer.Handlers
         public MapScriptHandler(Game game)
         {
             _game = game;
-            _logger = LoggerProvider.GetLogger();
             Id = _game.Config.GameConfig.Map;
 
-            MapScript = CSharpScriptEngine.CreateObjectStatic<IMapScript>($"MapScripts.Map{Id}", $"{game.Config.GameConfig.GameMode}") ?? new EmptyMapScript();
+            string scriptName = game.Config.GameConfig.GameMode;
+            MapScript = CSharpScriptEngine.CreateObjectStatic<IMapScript>($"MapScripts.Map{Id}", scriptName) ?? new EmptyMapScript();
+            ScriptNameHash = HashString(scriptName);
 
             if (MapScript.PlayerSpawnPoints != null && MapScript.MapScriptMetadata.OverrideSpawnPoints)
             {
@@ -72,8 +75,6 @@ namespace LeagueSandbox.GameServer.Handlers
             {
                 PlayerSpawnPoints = _game.Config.GetMapSpawns();
             }
-
-            SetMap(game, this);
         }
 
         /// <summary>
@@ -141,7 +142,14 @@ namespace LeagueSandbox.GameServer.Handlers
                 }
             }
 
-            MapScript.Init(mapObjects);
+            try
+            {
+                MapScript.Init(mapObjects);
+            }
+            catch(Exception e)
+            {
+                _logger.Error(null, e);
+            }
         }
     }
 }

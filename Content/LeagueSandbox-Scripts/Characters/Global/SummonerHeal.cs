@@ -17,15 +17,15 @@ namespace Spells
             // TODO
         };
 
-        public void OnActivate(IObjAiBase owner, ISpell spell)
+        public void OnActivate(IObjAIBase owner, ISpell spell)
         {
         }
 
-        public void OnDeactivate(IObjAiBase owner, ISpell spell)
+        public void OnDeactivate(IObjAIBase owner, ISpell spell)
         {
         }
 
-        public void OnSpellPreCast(IObjAiBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
+        public void OnSpellPreCast(IObjAIBase owner, ISpell spell, IAttackableUnit target, Vector2 start, Vector2 end)
         {
             IChampion mostWoundedAlliedIChampion = null;
 
@@ -64,15 +64,14 @@ namespace Spells
             PerformHeal(owner, spell, owner);
         }
 
-        private void PerformHeal(IObjAiBase owner, ISpell spell, IAttackableUnit target)
+        private void PerformHeal(IObjAIBase owner, ISpell spell, IAttackableUnit target)
         {
             float healthGain = 75 + (target.Stats.Level * 15);
             if (target.HasBuff("HealCheck"))
             {
                 healthGain *= 0.5f;
             }
-            var newHealth = target.Stats.CurrentHealth + healthGain;
-            target.Stats.CurrentHealth = Math.Min(newHealth, target.Stats.HealthPoints.Total);
+            target.TakeHeal(owner, healthGain, spell);
             AddBuff("HealSpeed", 1.0f, 1, spell, target, owner);
             AddBuff("HealCheck", 35.0f, 1, spell, target, owner);
         }

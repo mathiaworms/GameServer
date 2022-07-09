@@ -23,6 +23,10 @@ namespace LeagueSandbox.GameServerConsole
 
         private static void Main(string[] args)
         {
+            AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(
+                (sender, args) => _logger.Fatal(null, (Exception)args.ExceptionObject)
+            );
+
             // If the command line interface was ran with additional parameters (perhaps via a shortcut or just via another command line)
             // Refer to ArgsOptions for all possible launch parameters
             var parsedArgs = ArgsOptions.Parse(args);
@@ -55,7 +59,7 @@ namespace LeagueSandbox.GameServerConsole
                     var startInfo = new ProcessStartInfo(leaguePath)
                     {
                         Arguments = String.Format("\"8394\" \"LoLLauncher.exe\" \"\" \"127.0.0.1 {0} {1} 1\"",
-                            parsedArgs.ServerPort, gameServerLauncher.game.Config.Players.First().Value.BlowfishKey),
+                            parsedArgs.ServerPort, gameServerLauncher.game.Config.Players.First().BlowfishKey),
                         WorkingDirectory = Path.GetDirectoryName(leaguePath)
                     };
 
@@ -119,7 +123,7 @@ namespace LeagueSandbox.GameServerConsole
             }
             catch (Exception e)
             {
-                _logger.Error(e);
+                _logger.Error(null, e);
             }
 
             return defaultJsonString;
