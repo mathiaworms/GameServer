@@ -6,15 +6,16 @@ using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 
 namespace Buffs
 {
     class LeonaShieldOfDaybreak : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
-        public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
-        public int MaxStacks => 1;
-        public bool IsHidden => false;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.COMBAT_ENCHANCER,
+        };
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
@@ -24,7 +25,7 @@ namespace Buffs
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
             thisBuff = buff;
-            pbuff = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "Leona_ShieldOfDaybreak_cas.troy", unit, buff.Duration, bone: "BUFFBONE_CSTM_SHIELD_TOP");
+            pbuff = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "Leona_ShieldOfDaybreak_cas", unit, buff.Duration, bone: "BUFFBONE_CSTM_SHIELD_TOP");
 
             StatsModifier.Range.FlatBonus = 30.0f;
 

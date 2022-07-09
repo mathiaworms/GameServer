@@ -1,5 +1,5 @@
-﻿using GameServerCore.Packets.Handlers;
-using GameServerCore.Packets.PacketDefinitions.Requests;
+﻿using GameServerCore.Packets.PacketDefinitions.Requests;
+using GameServerCore.Packets.Handlers;
 
 namespace LeagueSandbox.GameServer.Packets.PacketHandlers
 {
@@ -14,7 +14,7 @@ namespace LeagueSandbox.GameServer.Packets.PacketHandlers
 
         public override bool HandlePacket(int userId, QueryStatusRequest req)
         {
-            _game.PacketNotifier.NotifyQueryStatus(userId);
+            _game.PacketNotifier.NotifyS2C_QueryStatusAns(userId);
             return true;
         }
     }

@@ -4,8 +4,10 @@ using Force.Crc32;
 using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
+using GameServerCore.Scripting.CSharp;
+using LeaguePackets.Game.Events;
 using LeagueSandbox.GameServer.GameObjects.Stats;
-using LeagueSandbox.GameServer.Items;
+using LeagueSandbox.GameServer.Inventory;
 
 namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
 {
@@ -16,9 +18,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
     /// </summary>
     public class BaseTurret : ObjAiBase, IBaseTurret
     {
-        protected float _globalGold = 250.0f;
-        protected float _globalExp = 0.0f;
-
         /// <summary>
         /// Current lane this turret belongs to.
         /// </summary>
@@ -26,7 +25,7 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// <summary>
         /// MapObject that this turret was created from.
         /// </summary>
-        public IMapObject ParentObject { get; private set; }
+        public MapObject ParentObject { get; private set; }
         /// <summary>
         /// Internal name of this turret, used for packets so that clients know which visual turret to assign them to.
         /// </summary>
@@ -35,6 +34,12 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// Supposed to be the NetID for the visual counterpart of this turret. Used only for packets.
         /// </summary>
         public uint ParentNetId { get; private set; }
+        /// <summary>
+        /// Region assigned to this turret for vision and collision.
+        /// </summary>
+        public IRegion BubbleRegion { get; private set; }
+
+        public override bool IsAffectedByFoW => false;
 
         public BaseTurret(
             Game game,
@@ -44,78 +49,21 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
             TeamId team = TeamId.TEAM_BLUE,
             uint netId = 0,
             LaneID lane = LaneID.NONE,
-            IMapObject mapObject = null,
-            int skinId = 0
-        ) : base(game, model, new Stats.Stats(), 88, position, 1200, skinId, netId, team)
+            MapObject mapObject = default,
+            int skinId = 0,
+            string aiScript = ""
+        ) : base(game, model, new Stats.Stats(), position: position, visionRadius: 800, skinId: skinId, netId: netId, team: team, aiScript: aiScript)
         {
             ParentNetId = Crc32Algorithm.Compute(Encoding.UTF8.GetBytes(name)) | 0xFF000000;
             Name = name;
             Lane = lane;
             ParentObject = mapObject;
             SetTeam(team);
-            Inventory = InventoryManager.CreateInventory(game.PacketNotifier, game.ScriptEngine);
+            Inventory = InventoryManager.CreateInventory(game.PacketNotifier);
             Replication = new ReplicationAiTurret(this);
         }
 
-        /// <summary>
-        /// Simple target scanning function.
-        /// </summary>
-        /// TODO: Verify if this needs a rewrite or additions to account for special cases.
-        public void CheckForTargets()
-        {
-            var units = _game.ObjectManager.GetUnitsInRange(Position, Stats.Range.Total, true);
-            IAttackableUnit nextTarget = null;
-            var nextTargetPriority = ClassifyUnit.DEFAULT;
 
-            foreach (var u in units)
-            {
-                if (u.IsDead || u.Team == Team || !u.Status.HasFlag(StatusFlags.Targetable))
-                {
-                    continue;
-                }
-
-                // Note: this method means that if there are two champions within turret range,
-                // The player to have been added to the game first will always be targeted before the others
-                if (TargetUnit == null)
-                {
-                    var priority = ClassifyTarget(u);
-                    if (priority < nextTargetPriority)
-                    {
-                        nextTarget = u;
-                        nextTargetPriority = priority;
-                    }
-                }
-                else
-                {
-                    // Is the current target a champion? If it is, don't do anything
-                    if (TargetUnit is IChampion)
-                    {
-                        continue;
-                    }
-                    // Find the next champion in range targeting an enemy champion who is also in range
-                    if (!(u is IChampion enemyChamp) || enemyChamp.TargetUnit == null)
-                    {
-                        continue;
-                    }
-                    if (!(enemyChamp.TargetUnit is IChampion enemyChampTarget) ||
-                        Vector2.DistanceSquared(enemyChamp.Position, enemyChampTarget.Position) > enemyChamp.Stats.Range.Total * enemyChamp.Stats.Range.Total ||
-                        Vector2.DistanceSquared(Position, enemyChampTarget.Position) > Stats.Range.Total * Stats.Range.Total)
-                    {
-                        continue;
-                    }
-
-                    nextTarget = enemyChamp; // No priority required
-                    break;
-                }
-            }
-
-            if (nextTarget == null)
-            {
-                return;
-            }
-
-            SetTargetUnit(nextTarget, true);
-        }
 
         /// <summary>
         /// Called when this unit dies.
@@ -123,26 +71,14 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         /// <param name="killer">Unit that killed this unit.</param>
         public override void Die(IDeathData data)
         {
-            foreach (var player in _game.ObjectManager.GetAllChampionsFromTeam(data.Killer.Team))
+            var announce = new OnTurretDie
             {
-                var goldEarn = _globalGold;
+                AssistCount = 0,
+                GoldGiven = 0.0f,
+                OtherNetID = data.Killer.NetId
+            };
+            _game.PacketNotifier.NotifyS2C_OnEventWorld(announce, NetId);
 
-                // Champions in Range within TURRET_RANGE * 1.5f will gain 150% more (obviously)
-                if (Vector2.DistanceSquared(player.Position, Position) <= (Stats.Range.Total * 1.5f) * (Stats.Range.Total * 1.5f) && !player.IsDead)
-                {
-                    goldEarn = _globalGold * 2.5f;
-                    if (_globalExp > 0)
-                    {
-                        player.Stats.Experience += _globalExp;
-                    }
-                }
-
-
-                player.Stats.Gold += goldEarn;
-                _game.PacketNotifier.NotifyAddGold(player, this, goldEarn);
-            }
-
-            _game.PacketNotifier.NotifyUnitAnnounceEvent(UnitAnnounces.TURRET_DESTROYED, this, data.Killer);
             base.Die(data);
         }
 
@@ -153,6 +89,9 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         {
             base.OnAdded();
             _game.ObjectManager.AddTurret(this);
+
+            // TODO: Handle this via map script for LaneTurret and via CharScript for AzirTurret.
+            BubbleRegion = new Region(_game, Team, Position, RegionType.Default, this, this, true, 800f, true, true, PathfindingRadius, lifetime: 25000.0f);
         }
 
         public override void OnCollision(IGameObject collider, bool isTerrain = false)
@@ -176,26 +115,6 @@ namespace LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI
         public void SetLaneID(LaneID newId)
         {
             Lane = newId;
-        }
-
-        /// <summary>
-        /// Called by ObjectManager every tick.
-        /// </summary>
-        /// <param name="diff">Amount of milliseconds passed since this tick started.</param>
-        public override void Update(float diff)
-        {
-            if (!IsAttacking)
-            {
-                CheckForTargets();
-            }
-
-            // Lose focus of the unit target if the target is out of range
-            if (TargetUnit != null && Vector2.DistanceSquared(Position, TargetUnit.Position) > Stats.Range.Total * Stats.Range.Total)
-            {
-                SetTargetUnit(null, true);
-            }
-
-            base.Update(diff);
         }
     }
 }

@@ -7,15 +7,18 @@ using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 
 namespace Buffs
 {
     class SivirW : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
-        public BuffAddType BuffAddType => BuffAddType.STACKS_AND_RENEWS;
-        public int MaxStacks => 3;
-        public bool IsHidden => false;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.COMBAT_ENCHANCER,
+            BuffAddType = BuffAddType.STACKS_AND_RENEWS,
+            MaxStacks = 3
+        };
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
@@ -25,14 +28,14 @@ namespace Buffs
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
             thisBuff = buff;
-            pbuff = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "Sivir_Base_W_Buff.troy", unit, buff.Duration, bone: "BUFFBONE_CSTM_WEAPON_1");
+            pbuff = AddParticleTarget(ownerSpell.CastInfo.Owner, unit, "Sivir_Base_W_Buff", unit, buff.Duration, bone: "BUFFBONE_CSTM_WEAPON_1");
 
             if (unit is IObjAiBase ai)
             {
                 SealSpellSlot(ai, SpellSlotType.SpellSlots, 1, SpellbookType.SPELLBOOK_CHAMPION, true);
                 ai.CancelAutoAttack(true);
 
-                ApiEventManager.OnLaunchMissile.AddListener(this, new System.Collections.Generic.KeyValuePair<IObjAiBase, ISpell>(ai, ai.AutoAttackSpell), OnLaunchMissile, false);
+                ApiEventManager.OnLaunchMissile.AddListener(this, ai.AutoAttackSpell, OnLaunchMissile, false);
             }
         }
 

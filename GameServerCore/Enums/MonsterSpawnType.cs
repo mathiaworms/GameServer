@@ -2,8 +2,6 @@
 {
     public enum MonsterSpawnType : byte
     {
-        //DOUBLE CHECK IF WE NEED/WANT ONE ENTRY FOR EACH MOB FOR EACH MAP
-
         //OLD SUMMONERS RIFT && OLD TWISTED TREELINE
 
         /// <summary>
@@ -190,8 +188,8 @@
     public enum MonsterCampType : byte
     {
         //TODO: FIGURE OUT WHY THIS HAS TO BE SEPARATED BY BLUE/RED TEAM, SINCE NOT USING SEPARATION BREACK THE MINIMAP ICONS
-        BARON = 0x00,
-        DRAGON = 0x01,
+        DRAGON = 0x00,
+        BARON = 0x01,
         TT_SPIDERBOSS = 0X02,
         BLUE_RED_BUFF = 0x03,
         BLUE_BLUE_BUFF = 0x04,
@@ -204,7 +202,6 @@
         RED_GROMP = 0x0B,
         RED_WRAITHS = 0x0C,
         RED_GOLEMS = 0x0D,
-        RED_WOLVES = 0x0E,
-        TT_RELIC = 0x0F
+        RED_WOLVES = 0x0E
     }
 }

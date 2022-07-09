@@ -1,20 +1,23 @@
-using GameServerCore.Enums;
+using System.Numerics;
 using GameServerCore.Domain.GameObjects;
-using LeagueSandbox.GameServer.GameObjects.Stats;
 using GameServerCore.Domain.GameObjects.Spell;
-using GameServerCore.Scripting.CSharp;
+using GameServerCore.Enums;
+using LeagueSandbox.GameServer.API;
+using LeagueSandbox.GameServer.GameObjects.Stats;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+using GameServerCore.Scripting.CSharp;
 
 
 namespace Buffs
 {
     internal class ZedSlow : IBuffGameScript //Find proper name
     {
-        public BuffType BuffType => BuffType.COMBAT_DEHANCER;
-        public BuffAddType BuffAddType => BuffAddType.STACKS_AND_RENEWS;
-        public int MaxStacks => 2;
-        public bool IsHidden => false;
-
+		public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.COMBAT_ENCHANCER,
+            BuffAddType = BuffAddType.REPLACE_EXISTING
+        };
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
         public IStatsModifier StatsModifier2 { get; private set; } = new StatsModifier();
 

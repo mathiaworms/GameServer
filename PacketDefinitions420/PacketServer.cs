@@ -1,10 +1,18 @@
-﻿using ENet;
+﻿using LENet;
 using GameServerCore;
+using GameServerCore.Packets.Handlers;
+using GameServerCore.Packets.PacketDefinitions;
+using System;
+using System.Collections.Generic;
+using Channel = GameServerCore.Packets.Enums.Channel;
+using Version = LENet.Version;
+
+
 using GameServerCore.Packets.Enums;
 using GameServerCore.Packets.Handlers;
 using GameServerCore.Packets.Interfaces;
 using GameServerCore.Packets.PacketDefinitions;
-using PacketDefinitions420.Exceptions;
+
 using System;
 using System.Collections.Generic;
 
@@ -16,7 +24,7 @@ namespace PacketDefinitions420
     public class PacketServer
     {
         private Host _server;
-        private uint _serverHost = Address.IPv4HostAny;
+        private readonly uint _serverHost = Address.Any;
         private IGame _game;
         protected const int PEER_MTU = 996;
 
@@ -37,11 +45,10 @@ namespace PacketDefinitions420
         /// <param name="game">Game instance.</param>
         /// <param name="netReq">Network request handler instance.</param>
         /// <param name="netResp">Network response handler instance.</param>
-        public void InitServer(ushort port, Dictionary<long, string> blowfishKeys, IGame game, NetworkHandler<ICoreRequest> netReq, NetworkHandler<ICoreResponse> netResp)
+        public void InitServer(ushort port, Dictionary<long, string> blowfishKeys, IGame game, NetworkHandler<ICoreRequest> netReq, NetworkHandler<ICoreRequest> netResp)
         {
             _game = game;
-            _server = new Host();
-            _server.Create(new Address(_serverHost,port), 32, 32, 0, 0);
+            _server = new Host(Version.Patch420, new Address(_serverHost, port), 32, 32, 0, 0);
 
             Dictionary<long, BlowFish> blowfishes = new Dictionary<long, BlowFish>();
             foreach(var rawKey in blowfishKeys)
@@ -49,40 +56,41 @@ namespace PacketDefinitions420
                 var key = Convert.FromBase64String(rawKey.Value);
                 if (key.Length <= 0)
                 {
-                    throw new InvalidKeyException($"Invalid blowfish key supplied ({key})");
+                    throw new Exception($"Invalid blowfish key supplied({ key })");
                 }
                 blowfishes.Add(rawKey.Key, new BlowFish(key));
             }
 
             PacketHandlerManager = new PacketHandlerManager(blowfishes, _server, game, netReq, netResp);
-            
+
         }
 
         /// <summary>
         /// The core networking loop which fires for connections, received packets, and disconnects.
         /// </summary>
-        public void NetLoop()
+        public void NetLoop(uint timeout = 0)
         {
-            while (_server.Service(0, out var enetEvent) > 0)
+            var enetEvent = new Event();
+            while (_server.HostService(enetEvent, timeout) > 0)
             {
                 switch (enetEvent.Type)
                 {
-                    case EventType.Connect:
+                    case EventType.CONNECT:
                         {
                             // Set some defaults
-                            enetEvent.Peer.Mtu = PEER_MTU;
+                            enetEvent.Peer.MTU = PEER_MTU;
                             enetEvent.Data = 0;
                         }
                         break;
-                    case EventType.Receive:
+                    case EventType.RECEIVE:
                         {
                             var channel = (Channel)enetEvent.ChannelID;
                             PacketHandlerManager.HandlePacket(enetEvent.Peer, enetEvent.Packet, channel);
                             // Clean up the packet now that we're done using it.
-                            enetEvent.Packet.Dispose();
+                            //enetEvent.Packet.Resize(0);
                         }
                         break;
-                    case EventType.Disconnect:
+                    case EventType.DISCONNECT:
                         {
                             PacketHandlerManager.HandleDisconnect(enetEvent.Peer);
                         }

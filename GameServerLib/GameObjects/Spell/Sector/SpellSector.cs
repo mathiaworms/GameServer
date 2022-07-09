@@ -50,7 +50,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
             ISpell originSpell,
             ICastInfo castInfo,
             uint netId = 0
-        ) : base(game, new Vector2(castInfo.TargetPositionEnd.X, castInfo.TargetPositionEnd.Z), Math.Max(parameters.Length, parameters.Width), 0, netId)
+        ) : base(game, new Vector2(castInfo.TargetPositionEnd.X, castInfo.TargetPositionEnd.Z), Math.Max(parameters.Length, parameters.Width), 0, 0, netId)
         {
             _timeSinceCreation = 0.0f;
             _lastTickTime = 0.0f;
@@ -67,6 +67,16 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
             Team = CastInfo.Owner.Team;
         }
 
+        public override void OnAdded()
+        {
+            base.OnAdded();
+
+            // Update same tick of creation.
+            // This prevents cases where single tick sectors change position before executing.
+            _game.Map.CollisionHandler.UpdateCollision(this);
+            Update(0f);
+        }
+
         public override void Update(float diff)
         {
             if (IsToRemove())
@@ -76,7 +86,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
 
             _lastTickTime += diff;
 
-            if ((Parameters.Lifetime >= 0 && (Parameters.Lifetime * 1000.0f) <= _timeSinceCreation))
+            if (Parameters.Lifetime >= 0 && (Parameters.Lifetime * 1000.0f) <= _timeSinceCreation)
             {
                 SetToRemove();
                 return;
@@ -87,7 +97,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
                 Move(diff);
             }
 
-            if (_lastTickTime >= (1000.0f / Parameters.Tickrate))
+            if (_lastTickTime >= (1000.0f / Parameters.Tickrate) || (Parameters.SingleTick && Parameters.Tickrate <= 0))
             {
                 _lastTickTime = 0;
 
@@ -155,7 +165,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
         public virtual void Move(float diff)
         {
             // current position
-            var cur = new Vector2(Position.X, Position.Y);
+            var cur = Position;
             var next = GetTargetPosition();
 
             // If we are not bound to an object
@@ -184,7 +194,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Sector
 
             ObjectsHit.Add(unit);
 
-            if (ObjectsHit.Count >= Parameters.MaximumHits)
+            if (Parameters.MaximumHits > 0 && ObjectsHit.Count >= Parameters.MaximumHits)
             {
                 SetToRemove();
             }

@@ -1,6 +1,7 @@
 ﻿using GameServerCore.Content;
 using GameServerCore.Domain.GameObjects;
 using LeaguePackets.Game.Common;
+using LeaguePackets.Game.Events;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -68,136 +69,167 @@ namespace PacketDefinitions420
             // mapSize contains the real center point coordinates, meaning width/2, height/2
             return new Vector2((vector.X - grid.MiddleOfMap.X) / 2, (vector.Y - grid.MiddleOfMap.Y) / 2);
         }
+        public static IEventEmptyHistory GetAnnouncementID(GameServerCore.Enums.EventID Event, int mapId = 0)
+        {
+            var worldEvent = (EventID)(byte)Event;
+            switch (worldEvent)
+            {
+                case EventID.OnStartGameMessage1:
+                    return new OnStartGameMessage1 { MapNumber = mapId };
+                case EventID.OnStartGameMessage2:
+                    return new OnStartGameMessage2 { MapNumber = mapId };
+                case EventID.OnStartGameMessage3:
+                    return new OnStartGameMessage3 { MapNumber = mapId };
+                case EventID.OnStartGameMessage4:
+                    return new OnStartGameMessage4 { MapNumber = mapId };
+                case EventID.OnStartGameMessage5:
+                    return new OnStartGameMessage5 { MapNumber = mapId };
+                case EventID.OnMinionsSpawn:
+                    return new OnMinionsSpawn();
+                case EventID.OnNexusCrystalStart:
+                    return new OnNexusCrystalStart();
+                case EventID.OnMinionAscended:
+                    return new OnMinionAscended();
+                case EventID.OnChampionAscended:
+                    return new OnChampionAscended();
+                case EventID.OnClearAscended:
+                    return new OnClearAscended();
+            }
+            return null;
+        }
 
         /// <summary>
-        /// Creates the MovementData for the given MovementDataType.
+        /// Creates the MovementDataStop.
         /// </summary>
         /// <param name="o">GameObject to create MovementData for.</param>
-        /// <param name="grid">NavigationGrid used for grabbing center of the map.</param>
-        /// <param name="type">Type of MovementData to create.</param>
-        /// <returns>Default MovementDataStop, otherwise: If GameObject, None or Stop. If AttackableUnit, all of the above.</returns>
-        public static MovementData CreateMovementData(IGameObject o, INavigationGrid grid, MovementDataType type, SpeedParams speeds = null, bool useTeleportID = false)
+        public static MovementDataStop CreateMovementDataStop(IGameObject o)
         {
-            MovementData md = new MovementDataStop
+            return new MovementDataStop
             {
                 SyncID = (int)o.SyncId,
                 Position = o.Position,
                 Forward = new Vector2(o.Direction.X, o.Direction.Z)
             };
+        }
 
-            switch (type)
+        /// <summary>
+        /// Creates the MovementDataNone.
+        /// </summary>
+        /// <param name="o">GameObject to create MovementData for.</param>
+        public static MovementDataNone CreateMovementDataNone(IGameObject o)
+        {
+            return new MovementDataNone
             {
-                case MovementDataType.None:
-                {
-                    md = new MovementDataNone
-                    {
-                        SyncID = (int)o.SyncId
-                    };
+                SyncID = (int)o.SyncId
+            };
+        }
 
-                    return md;
-                }
-                case MovementDataType.Stop:
-                {
-                    return md;
-                }
+        private static List<CompressedWaypoint> GetCenteredWaypoints(IAttackableUnit unit, INavigationGrid grid)
+        {
+            var currentWaypoints = new List<Vector2>(unit.Waypoints);
+            currentWaypoints[0] = unit.Position;
+
+            int count = 2 + ((currentWaypoints.Count - 1) - unit.CurrentWaypoint.Key);
+            if (count >= 2)
+            {
+                currentWaypoints.RemoveRange(1, currentWaypoints.Count - count);
             }
 
-            if (o is IAttackableUnit unit)
+            return currentWaypoints.ConvertAll(v => Vector2ToWaypoint(TranslateToCenteredCoordinates(v, grid)));
+
+        }
+
+        /// <summary>
+        /// Creates the MovementDataNormal.
+        /// </summary>
+        /// <param name="unit">AttackableUnit to create MovementData for.</param>
+        /// <param name="grid">NavigationGrid used for grabbing center of the map.</param>
+        /// <returns>MovementDataNormal if unit has enough waypoints (>= 1), otherwise MovementDataStop.</returns>
+        public static MovementData CreateMovementDataNormalIfPossible(IAttackableUnit unit, INavigationGrid grid, bool useTeleportID = false)
+        {
+            // Prevent 0 waypoints packet error.
+            if (unit.Waypoints.Count < 1)
             {
-                // Prevent 0 waypoints packet error.
-                if (unit.Waypoints.Count < 1)
-                {
-                    return md;
-                }
-
-                switch (type)
-                {
-                    case MovementDataType.WithSpeed:
-                    {
-                        if (speeds == null)
-                        {
-                            break;
-                        }
-
-                        var waypoints = unit.Waypoints.ConvertAll(v => Vector2ToWaypoint(TranslateToCenteredCoordinates(v, grid)));
-
-                        if (useTeleportID)
-                        {
-                            var currentWaypoints = new List<Vector2>();
-                            currentWaypoints.AddRange(unit.Waypoints);
-                            currentWaypoints.RemoveAt(0);
-                            currentWaypoints.Insert(0, unit.Position);
-
-                            var count = 2 + ((currentWaypoints.Count - 1) - unit.CurrentWaypoint.Key);
-                            if (count >= 2)
-                            {
-                                currentWaypoints.RemoveRange(1, currentWaypoints.Count - count);
-                            }
-
-                            waypoints = currentWaypoints.ConvertAll(v => Vector2ToWaypoint(TranslateToCenteredCoordinates(v, grid)));
-                        }
-
-                        md = new MovementDataWithSpeed
-                        {
-                            SyncID = unit.SyncId,
-                            TeleportNetID = unit.NetId,
-                            // TODO: Implement teleportID (likely to be the index (starting at 1) of a waypoint we want to TP to).
-                            // Crucial in syncing client positions with server positions, especially when entering vision
-                            HasTeleportID = useTeleportID,
-                            TeleportID = unit.TeleportID,
-                            Waypoints = waypoints,
-                            SpeedParams = speeds
-                        };
-
-                        if (useTeleportID)
-                        {
-                            unit.TeleportID++;
-                        }
-
-                        break;
-                    }
-                    case MovementDataType.Normal:
-                    {
-                        var waypoints = unit.Waypoints.ConvertAll(v => Vector2ToWaypoint(TranslateToCenteredCoordinates(v, grid)));
-
-                        if (useTeleportID)
-                        {
-                            var currentWaypoints = new List<Vector2>();
-                            currentWaypoints.AddRange(unit.Waypoints);
-                            currentWaypoints.RemoveAt(0);
-                            currentWaypoints.Insert(0, unit.Position);
-
-                            var count = 2 + ((currentWaypoints.Count - 1) - unit.CurrentWaypoint.Key);
-                            if (count >= 2)
-                            {
-                                currentWaypoints.RemoveRange(1, currentWaypoints.Count - count);
-                            }
-
-                            waypoints = currentWaypoints.ConvertAll(v => Vector2ToWaypoint(TranslateToCenteredCoordinates(v, grid)));
-                        }
-
-                        md = new MovementDataNormal
-                        {
-                            SyncID = unit.SyncId,
-                            TeleportNetID = unit.NetId,
-                            // TODO: Implement teleportID (likely to be the index (starting at 1) of a waypoint we want to TP to).
-                            // Crucial in syncing client positions with server positions, especially when entering vision
-                            HasTeleportID = useTeleportID,
-                            TeleportID = unit.TeleportID,
-                            Waypoints = waypoints
-                        };
-
-                        if (useTeleportID)
-                        {
-                            unit.TeleportID++;
-                        }
-
-                        break;
-                    }
-                }
+                return CreateMovementDataStop(unit);
             }
+            return CreateMovementDataNormal(unit, grid, useTeleportID);
+        }
 
-            return md;
+        /// <summary>
+        /// Creates the MovementDataNormal.
+        /// </summary>
+        /// <param name="unit">AttackableUnit to create MovementData for.</param>
+        /// <param name="grid">NavigationGrid used for grabbing center of the map.</param>
+        /// <returns>MovementDataNormal if unit has enough waypoints (>= 1), otherwise crashes.</returns>
+        public static MovementDataNormal CreateMovementDataNormal(IAttackableUnit unit, INavigationGrid grid, bool useTeleportID = false)
+        {
+            System.Diagnostics.Debug.Assert(unit.Waypoints.Count >= 1);
+
+            return new MovementDataNormal
+            {
+                SyncID = unit.SyncId,
+                TeleportNetID = unit.NetId,
+                HasTeleportID = useTeleportID,
+                TeleportID = useTeleportID ? unit.TeleportID : (byte)0,
+                Waypoints = GetCenteredWaypoints(unit, grid)
+            };
+        }
+
+        /// <summary>
+        /// Creates the MovementDataNormal.
+        /// </summary>
+        /// <param name="unit">AttackableUnit to create MovementData for.</param>
+        /// <param name="grid">NavigationGrid used for grabbing center of the map.</param>
+        /// <returns>
+        /// MovementDataWithSpeed if unit has MovementParameters (!= null),
+        /// else if unit has enough waypoints (>= 1) - MovementDataNormal,
+        /// otherwise MovementDataStop.
+        /// </returns>
+        public static MovementData CreateMovementDataWithSpeedIfPossible(IAttackableUnit unit, INavigationGrid grid, bool useTeleportID = false)
+        {
+            // Prevent 0 waypoints packet error.
+            if (unit.Waypoints.Count < 1)
+            {
+                return CreateMovementDataStop(unit);
+            }
+            else if(unit.MovementParameters == null)
+            {
+                return CreateMovementDataNormal(unit, grid, useTeleportID);
+            }
+            return CreateMovementDataWithSpeed(unit, grid, useTeleportID);
+        }
+
+        /// <summary>
+        /// Creates the MovementDataWithSpeed.
+        /// </summary>
+        /// <param name="unit">AttackableUnit to create MovementData for.</param>
+        /// <param name="grid">NavigationGrid used for grabbing center of the map.</param>
+        /// <returns>MovementDataWithSpeed if unit has MovementParameters (!= null) and enough waypoints (>= 1), otherwise crashes.</returns>
+        public static MovementDataWithSpeed CreateMovementDataWithSpeed(IAttackableUnit unit, INavigationGrid grid, bool useTeleportID = false)
+        {
+            System.Diagnostics.Debug.Assert(unit.Waypoints.Count >= 1);
+            System.Diagnostics.Debug.Assert(unit.MovementParameters != null);
+
+            return new MovementDataWithSpeed
+            {
+                SyncID = unit.SyncId,
+                TeleportNetID = unit.NetId,
+                HasTeleportID = useTeleportID,
+                TeleportID = useTeleportID ? unit.TeleportID : (byte)0,
+                Waypoints = GetCenteredWaypoints(unit, grid),
+                SpeedParams = new SpeedParams
+                {
+                    PathSpeedOverride = unit.MovementParameters.PathSpeedOverride,
+                    ParabolicGravity = unit.MovementParameters.ParabolicGravity,
+                    // TODO: Implement as parameter (ex: Aatrox Q).
+                    ParabolicStartPoint = unit.MovementParameters.ParabolicStartPoint,
+                    Facing = unit.MovementParameters.KeepFacingDirection,
+                    FollowNetID = unit.MovementParameters.FollowNetID,
+                    FollowDistance = unit.MovementParameters.FollowDistance,
+                    FollowBackDistance = unit.MovementParameters.FollowBackDistance,
+                    FollowTravelTime = unit.MovementParameters.FollowTravelTime
+                }
+            };
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using GameServerCore.Domain.GameObjects.Spell;
+﻿using GameServerCore.Enums;
 
 namespace GameServerCore.Domain.GameObjects
 {
@@ -7,19 +6,25 @@ namespace GameServerCore.Domain.GameObjects
     {
         IShop Shop { get; }
         float RespawnTimer { get; }
-        float ChampionGoldFromMinions { get; set; }
+        int DeathSpree { get; set; }
+        int KillSpree { get; set;  }
+        float GoldFromMinions { get; set; }
         IRuneCollection RuneList { get; }
+        ITalentInventory TalentInventory { get; }
         IChampionStats ChampStats { get; }
         byte SkillPoints { get; set; }
 
         // basic
+        void AddGold(IAttackableUnit source, float gold, bool notify = true);
         void UpdateSkin(int skinNo);
         uint GetPlayerId();
-        bool LevelUp();
+        void AddExperience(float experience, bool notify = true);
+        bool LevelUp(bool force = false);
         void Recall();
         void Respawn();
         bool OnDisconnect();
-
+        void AddToolTipChange(IToolTipData data);
         void OnKill(IDeathData deathData);
+        void IncrementScore(float points, ScoreCategory scoreCategory, ScoreEvent scoreEvent, bool doCallOut, bool notifyText = true);
     }
 }

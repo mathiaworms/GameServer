@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using GameServerCore;
@@ -267,10 +267,9 @@ namespace LeagueSandbox.GameServer.Content.Navigation
                     return null;
                 }
 
-                NavigationGridCell[] pathArray = path.ToArray();
-                Array.Reverse(pathArray);
-
-                List<NavigationGridCell> pathList = SmoothPath(new List<NavigationGridCell>(pathArray));
+                var pathList = new List<NavigationGridCell>(path);
+                pathList.Reverse();
+                pathList = SmoothPath(pathList);
 
                 // removes the first point
                 pathList.RemoveAt(0);
@@ -316,25 +315,6 @@ namespace LeagueSandbox.GameServer.Content.Navigation
                 }
             }
             return path;
-        }
-
-        /// <summary>
-        /// Translates the given float into cell format where each unit is a cell.
-        /// </summary>
-        /// <param name="value">Float to translate.</param>
-        /// <returns></returns>
-        public float TranslateToNavGrid(float value)
-        {
-            float unit = MathF.Sqrt(2) / 2;
-            float sign = 1.0f;
-            if (value < 0)
-            {
-                sign = -1.0f;
-            }
-
-            // Signed length of translated and scaled unit vector.
-            return sign * MathF.Sqrt(((value * unit * TranslationMaxGridPosition.X) * (value * unit * TranslationMaxGridPosition.X))
-                                    + ((value * unit * TranslationMaxGridPosition.Z) * (value * unit * TranslationMaxGridPosition.Z)));
         }
 
         /// <summary>
@@ -525,17 +505,22 @@ namespace LeagueSandbox.GameServer.Content.Navigation
         {
             List<NavigationGridCell> cells = new List<NavigationGridCell>();
 
-            if (!translate)
+            float stepX = radius;
+            float stepY = radius;
+            Vector2 trueOrigin = origin;
+            if(!translate)
             {
-                radius = TranslateToNavGrid(radius);
+                stepX *= this.TranslationMaxGridPosition.X;
+                stepY *= this.TranslationMaxGridPosition.Z;
+                trueOrigin = TranslateFrmNavigationGrid(origin);
             }
 
             // Ordered: bottom left, bottom right, top right.
             int[] cellIndices = new int[3]
             {
-                GetCellIndex(origin.X - radius, origin.Y - radius, translate),
-                GetCellIndex(origin.X + radius, origin.Y - radius, translate),
-                GetCellIndex(origin.X + radius, origin.Y + radius, translate)
+                GetCellIndex(origin.X - stepX, origin.Y - stepY, translate),
+                GetCellIndex(origin.X + stepX, origin.Y - stepY, translate),
+                GetCellIndex(origin.X + stepX, origin.Y + stepY, translate)
             };
 
             int rowIndex = cellIndices[0];
@@ -556,7 +541,7 @@ namespace LeagueSandbox.GameServer.Content.Navigation
 
                 NavigationGridCell cell = Cells[i];
 
-                if (Extensions.DistanceSquaredToRectangle(new Vector2(cell.Locator.X, cell.Locator.Y), 1, 1, TranslateToNavGrid(origin)) <= radius * radius)
+                if (Extensions.DistanceSquaredToRectangle(TranslateFrmNavigationGrid(cell.Locator), 1.0f / this.TranslationMaxGridPosition.X, 1.0f / this.TranslationMaxGridPosition.Z, trueOrigin) <= radius * radius)
                 {
                     cells.Add(cell);
                 }
@@ -601,16 +586,7 @@ namespace LeagueSandbox.GameServer.Content.Navigation
                 return cell != null && !cell.HasFlag(NavigationGridCellFlags.NOT_PASSABLE) && !cell.HasFlag(NavigationGridCellFlags.SEE_THROUGH);
             }
 
-            // If one of the cells within the checkRadius are not passable or see through, the location isn't walkable.
-            // Otherwise it is walkable if none of them are not passable or see through.
-            Vector2 trueCoords = coords;
-            if (!translate)
-            {
-                // GetAllCellsInRange requires the coordinates to be untranslated.
-                trueCoords = TranslateFrmNavigationGrid(coords);
-            }
-
-            List<NavigationGridCell> cells = GetAllCellsInRange(trueCoords, checkRadius, translate);
+            List<NavigationGridCell> cells = GetAllCellsInRange(coords, checkRadius, translate);
 
             if (cells.Count == 0)
             {
@@ -623,7 +599,6 @@ namespace LeagueSandbox.GameServer.Content.Navigation
                 {
                     return false;
                 }
-                continue;
             }
             return true;
         }
@@ -658,7 +633,15 @@ namespace LeagueSandbox.GameServer.Content.Navigation
             NavigationGridCell cell = GetCell((short)vector.X, (short)vector.Y);
 
             //TODO: implement bush logic here
-            return cell != null && (!cell.HasFlag(NavigationGridCellFlags.NOT_PASSABLE) || cell.HasFlag(NavigationGridCellFlags.HAS_GLOBAL_VISION));
+            return IsVisible(cell);
+        }
+
+        bool IsVisible(NavigationGridCell cell)
+        {
+            return cell != null
+                && (!cell.HasFlag(NavigationGridCellFlags.NOT_PASSABLE)
+                || cell.HasFlag(NavigationGridCellFlags.SEE_THROUGH)
+                || cell.HasFlag(NavigationGridCellFlags.HAS_GLOBAL_VISION));
         }
 
         /// <summary>
@@ -678,7 +661,7 @@ namespace LeagueSandbox.GameServer.Content.Navigation
 
             NavigationGridCell cell = GetCell((short)vector.X, (short)vector.Y);
 
-            return cell.HasFlag(flag);
+            return cell != null && cell.HasFlag(flag);
         }
 
         /// <summary>
@@ -696,7 +679,7 @@ namespace LeagueSandbox.GameServer.Content.Navigation
             {
                 float reguestedHeightX = (location.X - this.MinGridPosition.X) / this.SampledHeightsDistance.X;
                 float requestedHeightY = (location.Y - this.MinGridPosition.Z) / this.SampledHeightsDistance.Y;
-                
+
                 int sampledHeight1IndexX = (int)reguestedHeightX;
                 int sampledHeight1IndexY = (int)requestedHeightY;
                 int sampledHeight2IndexX;
@@ -776,75 +759,82 @@ namespace LeagueSandbox.GameServer.Content.Navigation
         /// <param name="origin">Vector position to start the ray cast from.</param>
         /// <param name="destination">Vector2 position to end the ray cast at.</param>
         /// <param name="checkWalkable">Whether or not the ray stops when hitting a position which blocks pathing.</param>
-        /// <param name="checkVisible">Whether or not the ray stops when hitting a position which blocks vision. *NOTE*: Does not apply if checkWalkable is also true.</param>
+        /// <param name="checkVisible">Whether or not the ray stops when hitting a position which blocks vision.</param>
         /// <returns>True = Reached destination with destination. False = Failed, with stopping position.</returns>
         public KeyValuePair<bool, Vector2> CastRay(Vector2 origin, Vector2 destination, bool checkWalkable = false, bool checkVisible = false)
         {
-            float x1 = origin.X;
-            float y1 = origin.Y;
-            float x2 = destination.X;
-            float y2 = destination.Y;
-
             // Out of bounds
-            if (x1 < MinGridPosition.X || y1 < MinGridPosition.Z || x1 >= MaxGridPosition.X || y1 >= MaxGridPosition.Z)
+            if (origin.X < MinGridPosition.X || origin.X >= MaxGridPosition.X || origin.Y < MinGridPosition.Z || origin.Y >= MaxGridPosition.Z)
             {
                 return new KeyValuePair<bool, Vector2>(false, new Vector2(float.NaN, float.NaN));
             }
 
-            float distx = x2 - x1;
-            float disty = y2 - y1;
-            float greatestdist = Math.Abs(distx);
-            if (Math.Abs(disty) > greatestdist)
-            {
-                greatestdist = Math.Abs(disty);
-            }
+            origin = TranslateToNavGrid(origin);
+            destination = TranslateToNavGrid(destination);
 
-            int il = (int)greatestdist;
-            float dx = distx / greatestdist;
-            float dy = disty / greatestdist;
+            Vector2 dist = destination - origin;
+            float greatestdist = Math.Max(
+                Math.Abs(dist.X),
+                Math.Abs(dist.Y)
+            );
+
             int i;
-            bool prevPosHadBush = HasFlag(origin, NavigationGridCellFlags.HAS_GRASS);
-            bool destinationHasGrass = HasFlag(destination, NavigationGridCellFlags.HAS_GRASS);
+            int il = (int)greatestdist;
+            Vector2 d = dist / greatestdist;
+
+            bool prevPosHadBush = HasFlag(origin, NavigationGridCellFlags.HAS_GRASS, false);
+            bool destinationHasGrass = HasFlag(destination, NavigationGridCellFlags.HAS_GRASS, false);
 
             for (i = 0; i < il; i++)
             {
-                //TODO: Implement methods for maps whose NavGrids don't use SEE_THROUGH flags for buildings
-                if ((checkWalkable && !IsWalkable(x1, y1)) || (checkVisible && !IsVisible(x1, y1)))
-                {
-                    break;
-                }
 
-                bool isGrass = HasFlag(new Vector2(x1, y1), NavigationGridCellFlags.HAS_GRASS);
-                // If you are outside of a bush
-                if (checkVisible && !prevPosHadBush)
+                //TODO: Implement methods for maps whose NavGrids don't use SEE_THROUGH flags for buildings
+                if (checkWalkable)
                 {
-                    if (isGrass)
+                    if(!IsWalkable(origin, translate: false))
                     {
                         break;
                     }
                 }
 
-                // If you are in a different bush
-                if (checkVisible && prevPosHadBush && destinationHasGrass)
+                if (checkVisible)
                 {
-                    if (!isGrass)
+                    var cell = GetCell((short)origin.X, (short)origin.Y);
+
+                    if (!IsVisible(cell))
                     {
                         break;
+                    }
+
+                    bool isGrass = cell.HasFlag(NavigationGridCellFlags.HAS_GRASS);
+
+                    // If you are outside of a bush
+                    if (!prevPosHadBush)
+                    {
+                        if (isGrass)
+                        {
+                            break;
+                        }
+                    }
+
+                    // If you are in a different bush
+                    if (prevPosHadBush && destinationHasGrass)
+                    {
+                        if (!isGrass)
+                        {
+                            break;
+                        }
                     }
                 }
 
                 // if checkWalkable == true, stop incrementing when (x1, x2) is a see-able position
                 // if checkWalkable == false, stop incrementing when (x1, x2) is a non-see-able position
-                x1 += dx;
-                y1 += dy;
+                origin += d;
             }
 
-            if (i == il || (x1 == destination.X && y1 == destination.Y))
-            {
-                return new KeyValuePair<bool, Vector2>(true, new Vector2(x2, y2));
-            }
-
-            return new KeyValuePair<bool, Vector2>(false, new Vector2(x1, y1));
+            return new KeyValuePair<bool, Vector2>(
+                i == il, TranslateFrmNavigationGrid(origin)
+            );
         }
 
         /// <summary>
@@ -886,13 +876,13 @@ namespace LeagueSandbox.GameServer.Content.Navigation
             if (a is IObjBuilding)
             {
                 double rayDist = Math.Sqrt((CastRay(b.Position, a.Position, !checkVision, checkVision).Value - b.Position).SqrLength());
-                rayDist += a.CollisionRadius;
+                rayDist += a.PathfindingRadius;
                 return (rayDist * rayDist) < (b.Position - a.Position).SqrLength();
             }
             if (b is IObjBuilding)
             {
                 double rayDist = Math.Sqrt((CastRay(a.Position, b.Position, !checkVision, checkVision).Value - a.Position).SqrLength());
-                rayDist += b.CollisionRadius;
+                rayDist += b.PathfindingRadius;
                 return (rayDist * rayDist) < (b.Position - a.Position).SqrLength();
             }
             return !CastRay(a.Position, b.Position, !checkVision, checkVision).Key;

@@ -13,6 +13,8 @@ namespace GameServerCore.Domain.GameObjects.Spell
         /// General information about this spell when it is cast. Refer to CastInfo class.
         /// </summary>
         ICastInfo CastInfo { get; }
+        int CurrentAmmo { get; }
+        float CurrentAmmoCooldown { get; }
         /// <summary>
         /// Current cooldown of this spell.
         /// </summary>
@@ -53,14 +55,29 @@ namespace GameServerCore.Domain.GameObjects.Spell
         /// Whether or not the script for this spell is the default empty script.
         /// </summary>
         bool HasEmptyScript { get; }
+        /// <summary>
+        /// Used to update player ability tool tip values.
+        /// </summary>
+        IToolTipData ToolTipData { get; }
 
         /// <returns>spell's unique ID</returns>
         int GetId();
 
         /// <summary>
+        /// Used to load the script for the spell.
+        /// </summary>
+        void LoadScript();
+
+        /// <summary>
         /// Called by projectiles when they land / hit, this is where we apply damage/slows etc.
         /// </summary>
         void ApplyEffects(IAttackableUnit u, ISpellMissile p = null, ISpellSector s = null);
+
+        /// <summary>
+        /// Whether or not this spell can be cancelled during cast.
+        /// </summary>
+        /// <returns></returns>
+        bool CastCancelCheck();
 
         /// <summary>
         /// Called when the character casts this spell. Initializes the CastInfo for this spell and begins casting.
@@ -75,7 +92,9 @@ namespace GameServerCore.Domain.GameObjects.Spell
         /// <summary>
         /// Called after the spell has finished casting and is beginning a channel.
         /// </summary>
-        public void Channel();
+        void Channel();
+
+        void ChannelCancelCheck();
 
         /// <summary>
         /// Forces this spell to stop channeling based on the given condition for the given reason.
@@ -107,16 +126,60 @@ namespace GameServerCore.Domain.GameObjects.Spell
         /// <param name="parameters">Parameters of the sector.</param>
         ISpellSector CreateSpellSector(ISectorParameters parameters);
 
+        float GetCooldown();
+        float GetAmmoRechageTime();
+
         /// <summary>
         /// Gets the cast range for this spell (based on level).
         /// </summary>
         /// <returns>Cast range based on level.</returns>
         float GetCurrentCastRange();
 
+        string GetStringForSlot();
+
+        void LevelUp();
+
+        void LowerCooldown(float lowerValue);
+
+        void ResetSpellCast();
+
+        /// <summary>
+        /// Adds the specified unit to the list of targets for this spell.
+        /// </summary>
+        /// <param name="target">Unit to add.</param>
+        void AddTarget(IAttackableUnit target);
+
+        /// <summary>
+        /// Removes the specified unit from the list of targets for this spell.
+        /// </summary>
+        /// <param name="target">Unit to remove.</param>
+        void RemoveTarget(IAttackableUnit target);
+
+        /// <summary>
+        /// Sets the current target of this spell to the given unit.
+        /// </summary>
+        /// <param name="target">Unit to target.</param>
+        void SetCurrentTarget(IAttackableUnit target);
+
         /// <summary>
         /// Toggles the auto cast state for this spell.
         /// </summary>
         void SetAutocast();
+
+        /// <summary>
+        /// Overrides the normal cast range for this spell. Set to 0 to revert.
+        /// </summary>
+        /// <param name="newCastRange">Cast range to set.</param>
+        void SetOverrideCastRange(float newCastRange);
+
+        /// <summary>
+        /// Sets the cooldown of this spell.
+        /// </summary>
+        /// <param name="newCd">Cooldown to set.</param>
+        /// <param name="ignoreCDR">Whether or not to ignore cooldown reduction.</param>
+        void SetCooldown(float newCd, bool ignoreCDR = false);
+
+        void SetLevel(byte toLevel);
 
         /// <summary>
         /// Sets the state of the spell to the specified state. Often used when reseting time between spell casts.
@@ -130,28 +193,6 @@ namespace GameServerCore.Domain.GameObjects.Spell
         /// <param name="toggle">True/False.</param>
         void SetSpellToggle(bool toggle);
 
-        /// <summary>
-        /// Used to load the script for the spell.
-        /// </summary>
-        void LoadScript();
-
-        void LevelUp();
-        string GetStringForSlot();
-        float GetCooldown();
-        void ResetSpellDelay();
-        /// <summary>
-        /// Overrides the normal cast range for this spell. Set to 0 to revert.
-        /// </summary>
-        /// <param name="newCastRange">Cast range to set.</param>
-        void SetOverrideCastRange(float newCastRange);
-        /// <summary>
-        /// Sets the cooldown of this spell.
-        /// </summary>
-        /// <param name="newCd">Cooldown to set.</param>
-        /// <param name="ignoreCDR">Whether or not to ignore cooldown reduction.</param>
-        void SetCooldown(float newCd, bool ignoreCDR = false);
-        void LowerCooldown(float lowerValue);
-        void SetLevel(byte toLevel);
-
+        void SetToolTipVar<T>(int tipIndex, T value) where T : struct;
     }
 }

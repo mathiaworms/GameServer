@@ -1,25 +1,29 @@
-﻿using System.Numerics;
-using GameServerCore.Domain.GameObjects;
+﻿using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
 using GameServerCore.Scripting.CSharp;
 using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
+
 
 namespace Buffs
 {
     class PowerFist : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.COMBAT_ENCHANCER
+        };
         public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
         public int MaxStacks => 1;
         public bool IsHidden => false;
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
-        IBuff thisBuff;
-        ISpell thisSpell;
+        private IBuff thisBuff;
+        private ISpell thisSpell;
 
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
@@ -32,7 +36,7 @@ namespace Buffs
                 ai.CancelAutoAttack(true);
                 ai.SetAutoAttackSpell(ai.GetSpell((byte)SpellSlotType.ExtraSlots + 1), true);
 
-                ApiEventManager.OnHitUnit.AddListener(this, ai, OnHitUnit, true);
+                ApiEventManager.OnHitUnitByAnother.AddListener(this, ai, OnHitUnit, true);
             }
         }
 
@@ -50,11 +54,11 @@ namespace Buffs
                 // BreakSpellShields(target);
                 AddBuff("PowerFistSlow", 0.5f, 1, thisSpell, target, thisSpell.CastInfo.Owner);
             }
-
-            if (thisBuff != null)
-            {
-                thisBuff.DeactivateBuff();
-            }
+            //
+            //if (thisBuff != null)
+            //{
+            //    thisBuff.DeactivateBuff();
+            //}
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)

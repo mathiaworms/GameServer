@@ -1,55 +1,74 @@
-﻿using System.Numerics;
+using System.Numerics;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
-using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
+using System.Linq;
+using GameServerCore;
 
 
 namespace Buffs
 {
     class KatarinaR : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.COMBAT_DEHANCER;
-        public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
-        public int MaxStacks => 1;
-        public bool IsHidden => false;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.COMBAT_DEHANCER,
+            BuffAddType = BuffAddType.RENEW_EXISTING,
+            MaxStacks = 1
+        };
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
 
-        private IParticle _createdParticle;
-        private IChampion owner;
-        private IBuff sourceBuff;
+        private IObjAiBase Owner;
+        float somerandomTick;
+        IAttackableUnit Target1;
+        IAttackableUnit Target2;
+        IAttackableUnit Target3;
+        IParticle p;
+
+        ISpell spell;
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
             IChampion champion = unit as IChampion;
-            owner = champion;
-            sourceBuff = buff;
+            Owner = ownerSpell.CastInfo.Owner;
+            spell = ownerSpell;
+			var owner = ownerSpell.CastInfo.Owner;
+            p = AddParticleTarget(owner, owner, "Katarina_deathLotus_cas.troy", owner, lifetime: 2.5f, bone: "C_BUFFBONE_GLB_CHEST_LOC");
 
-            ApiEventManager.OnUnitUpdateMoveOrder.AddListener(this, champion, OnUpdateMoveOrder, true);
-        }
-        public void OnUpdateMoveOrder(IObjAiBase unit, OrderType order)
-        {
-            var buff = unit.GetBuffWithName("KatarinaR");
-            if (buff != null)
+
+            var champs = GetChampionsInRange(owner.Position, 500f, true).OrderBy(enemy => Vector2.Distance(enemy.Position, owner.Position)).ToList();
+            if (champs.Count > 3)
             {
-                if (order != OrderType.Hold && order != OrderType.Stop)
+                foreach (var enemy in champs.GetRange(0, 4)
+                     .Where(x => x.Team == CustomConvert.GetEnemyTeam(owner.Team)))
                 {
-                    buff.DeactivateBuff();
+					SpellCast(owner, 0, SpellSlotType.ExtraSlots, true, enemy, Vector2.Zero);
+                    if (Target1 == null) Target1 = enemy;
+                    else if (Target2 == null) Target2 = enemy;
+                    else if (Target3 == null) Target3 = enemy;                 
                 }
-                else
+            }
+            else
+            {
+                foreach (var enemy in champs.GetRange(0, champs.Count)
+                    .Where(x => x.Team == CustomConvert.GetEnemyTeam(owner.Team)))
                 {
-                    // After the callback ends, it will remove the listener, so we make a new one before the callback ends.
-                    ApiEventManager.OnUnitUpdateMoveOrder.AddListener(this, unit, OnUpdateMoveOrder, true);
+                    SpellCast(owner, 0, SpellSlotType.ExtraSlots, true, enemy, Vector2.Zero);
+                    if (Target1 == null) Target1 = enemy;
+                    else if (Target2 == null) Target2 = enemy;
+                    else if (Target3 == null) Target3 = enemy;                 
                 }
             }
         }
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
+            RemoveParticle(p);
+            StopAnimation(Owner, "Spell4");
         }
 
         public void OnPreAttack(ISpell spell)
@@ -58,6 +77,15 @@ namespace Buffs
 
         public void OnUpdate(float diff)
         {
+            somerandomTick += diff;
+            if (somerandomTick >= 250f)
+            {
+                if (Target1 != null) SpellCast(Owner, 0, SpellSlotType.ExtraSlots, true, Target1, Vector2.Zero);
+                if (Target2 != null) SpellCast(Owner, 0, SpellSlotType.ExtraSlots, true, Target2, Vector2.Zero);
+                if (Target3 != null) SpellCast(Owner, 0, SpellSlotType.ExtraSlots, true, Target3, Vector2.Zero);
+                somerandomTick = 0;
+            }
+
         }
     }
 }

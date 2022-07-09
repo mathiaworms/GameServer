@@ -1,8 +1,8 @@
-﻿using GameServerCore;
+﻿using GameServerCore.Packets.PacketDefinitions.Requests;
+using GameServerCore;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
 using GameServerCore.Packets.Handlers;
-using GameServerCore.Packets.PacketDefinitions.Requests;
 
 namespace LeagueSandbox.GameServer.Packets.PacketHandlers
 {
@@ -21,31 +21,41 @@ namespace LeagueSandbox.GameServer.Packets.PacketHandlers
 
         public override bool HandlePacket(int userId, CastSpellRequest req)
         {
-            var targetObj = _game.ObjectManager.GetObjectById(req.TargetNetId);
+            var targetObj = _game.ObjectManager.GetObjectById(req.TargetNetID);
             var targetUnit = targetObj as IAttackableUnit;
             var owner = _playerManager.GetPeerInfo(userId).Champion;
-            if (owner == null || !owner.CanCast())
+            if (owner == null)
             {
                 return false;
             }
 
-            var s = owner.GetSpell(req.SpellSlot);
-            if (s == null)
-            {
-                return false;
-            }
+            var s = owner.GetSpell(req.Slot);
+            var ownerCastingSpell = owner.GetCastSpell();
 
-            if (s.CastInfo.SpellSlot >= (int)SpellSlotType.InventorySlots && s.CastInfo.SpellSlot < (int)SpellSlotType.BluePillSlot)
+            // Instant cast spells can be cast during other spell casts.
+            if (s != null && owner.CanCast(s)
+                && (ownerCastingSpell == null
+                || (ownerCastingSpell != null
+                    && s.SpellData.Flags.HasFlag(SpellDataFlags.InstantCast))
+                    && !ownerCastingSpell.SpellData.CantCancelWhileWindingUp))
             {
-                var item = s.CastInfo.Owner.Inventory.GetItem(s.SpellName);
-                if (item != null && item.ItemData.Consumed)
+                if (s.Cast(req.Position, req.EndPosition, targetUnit))
                 {
-                    var inventory = owner.Inventory;
-                    inventory.RemoveItem(inventory.GetItemSlot(item), owner);
+                    if (s.CastInfo.SpellSlot >= (int)SpellSlotType.InventorySlots && s.CastInfo.SpellSlot < (int)SpellSlotType.BluePillSlot)
+                    {
+                        var item = s.CastInfo.Owner.Inventory.GetItem(s.SpellName);
+                        if (item != null && item.ItemData.Consumed)
+                        {
+                            var inventory = owner.Inventory;
+                            inventory.RemoveItem(inventory.GetItemSlot(item), owner);
+                        }
+                    }
+
+                    return true;
                 }
             }
 
-            return s.Cast(req.Position, req.EndPosition, targetUnit);
+            return false;
         }
     }
 }

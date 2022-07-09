@@ -1,9 +1,8 @@
-﻿using System.Numerics;
+﻿using System;
+using System.Numerics;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
-using LeagueSandbox.GameServer.Logging;
-using log4net;
 
 namespace LeagueSandbox.GameServer.Content
 {
@@ -20,15 +19,6 @@ namespace LeagueSandbox.GameServer.Content
 
     public class SpellData : ISpellData
     {
-        private readonly ContentManager _contentManager;
-        private readonly ILog _logger;
-
-        public SpellData(ContentManager contentManager)
-        {
-            _contentManager = contentManager;
-            _logger = LoggerProvider.GetLogger();
-        }
-
         public string AfterEffectName { get; set; } = "";
         //AIEndOnly
         //AILifetime
@@ -136,7 +126,7 @@ namespace LeagueSandbox.GameServer.Content
         public float MagicDamageCoefficient { get; set; }
         public float[] ManaCost { get; set; } = { 0, 0, 0, 0, 0, 0, 0 };
         //Map_X_EffectYLevelZAmmount
-        public int[] MaxAmmo { get; set; } = { 0, 0, 0, 0, 0, 0, 0 };
+        public int MaxAmmo { get; set; } = 1;
         //MaxGrowthRangeTextureName
         //MinimapIcon
         //MinimapIconDisplayFlag
@@ -200,6 +190,19 @@ namespace LeagueSandbox.GameServer.Content
         /// <returns>True/False.</returns>
         public bool IsValidTarget(IObjAiBase attacker, IAttackableUnit target, SpellDataFlags overrideFlags = 0)
         {
+
+            bool overrideTargetable = false;
+            if (target.CharData.IsUseable && Flags.HasFlag(SpellDataFlags.AffectUseable))
+            {
+                //TODO: Verify if we need a check for CharData.UsableByEnemy here too.
+                overrideTargetable = true;
+            }
+
+            if (!target.Status.HasFlag(StatusFlags.Targetable) && !overrideTargetable)
+            {
+                return false;
+            }
+
             var useFlags = Flags;
 
             if (overrideFlags > 0)
@@ -241,10 +244,10 @@ namespace LeagueSandbox.GameServer.Content
                                         && !useFlags.HasFlag(SpellDataFlags.IgnoreLaneMinion):
                             valid = true;
                             break;
-                        case IMinion m when (!m.IsPet && useFlags.HasFlag(SpellDataFlags.AffectNotPet))
-                                    || (m.IsPet && useFlags.HasFlag(SpellDataFlags.AffectUseable))
+                        case IMinion m when (!(m is IPet) && useFlags.HasFlag(SpellDataFlags.AffectNotPet))
+                                    || (m is IPet && useFlags.HasFlag(SpellDataFlags.AffectUseable))
                                     || (m.IsWard && useFlags.HasFlag(SpellDataFlags.AffectWards))
-                                    || (!m.IsClone && useFlags.HasFlag(SpellDataFlags.IgnoreClones))
+                                    || (!(m is IPet pet && pet.IsClone) && useFlags.HasFlag(SpellDataFlags.IgnoreClones))
                                     || (target.Team == attacker.Team && !useFlags.HasFlag(SpellDataFlags.IgnoreAllyMinion))
                                     || (target.Team != attacker.Team && target.Team != TeamId.TEAM_NEUTRAL && !useFlags.HasFlag(SpellDataFlags.IgnoreEnemyMinion))
                                     || useFlags.HasFlag(SpellDataFlags.AffectMinions):
@@ -330,24 +333,9 @@ namespace LeagueSandbox.GameServer.Content
             TargetingType = newType;
         }
 
-        public void Load(string name)
+        public SpellData Load(ContentFile file)
         {
-            if (string.IsNullOrEmpty(name))
-            {
-                return;
-            }
-
-            var file = new ContentFile();
-            try
-            {
-                file = (ContentFile)_contentManager.GetContentFileFromJson("Spells", name);
-            }
-
-            catch (ContentNotFoundException exception)
-            {
-                _logger.Warn(exception.Message);
-                return;
-            }
+            string name = file.Name;
 
             AfterEffectName = file.GetString("SpellData", "AfterEffectName", AfterEffectName);
             //AIEndOnly
@@ -359,7 +347,21 @@ namespace LeagueSandbox.GameServer.Content
             AlternateName = file.GetString("SpellData", "AlternateName", name);
             AlwaysSnapFacing = file.GetBool("SpellData", "AlwaysSnapFacing", AlwaysSnapFacing);
             //AmmoCountHiddenInUI
-            AmmoRechargeTime = file.GetMultiFloat("SpellData", "AmmoRechargeTime", 6, AmmoRechargeTime[0]);
+            float lastValidTime = 0;
+            for (var i = 1; i <= 6 + 1; i++)
+            {
+                float time = file.GetFloat("SpellData", $"AmmoRechargeTime{i}", 0);
+
+                if(time > 0)
+                {
+                    AmmoRechargeTime[i - 1] = time;
+                    lastValidTime = time;
+                }
+                else
+                {
+                    AmmoRechargeTime[i - 1] = lastValidTime;
+                }
+            }
             AmmoUsed = file.GetMultiInt("SpellData", "AmmoUsed", 6, AmmoUsed[0]);
             AnimationLeadOutName = file.GetString("SpellData", "AnimationLeadOutName", name);
             AnimationLoopName = file.GetString("SpellData", "AnimationLoopName", name);
@@ -456,7 +458,7 @@ namespace LeagueSandbox.GameServer.Content
             MagicDamageCoefficient = file.GetFloat("SpellData", "Coefficient2", MagicDamageCoefficient);
             ManaCost = file.GetMultiFloat("SpellData", "ManaCost", 6, ManaCost[0]);
             //Map_X_EffectYLevelZAmmount
-            MaxAmmo = file.GetMultiInt("SpellData", "MaxAmmo", 6, MaxAmmo[0]);
+            MaxAmmo = file.GetInt("SpellData", "MaxAmmo", MaxAmmo);
             //MaxGrowthRangeTextureName
             //MinimapIcon
             //MinimapIconDisplayFlag
@@ -511,6 +513,8 @@ namespace LeagueSandbox.GameServer.Content
             UseChargeTargeting = file.GetBool("SpellData", "UseChargeTargeting", UseChargeTargeting);
             UseGlobalLineIndicator = file.GetBool("SpellData", "UseGlobalLineIndicator", UseGlobalLineIndicator);
             UseMinimapTargeting = file.GetBool("SpellData", "UseMinimapTargeting", UseMinimapTargeting);
+        
+            return this;
         }
     }
 }

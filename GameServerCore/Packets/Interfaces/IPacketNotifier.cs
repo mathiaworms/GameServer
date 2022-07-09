@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using GameServerCore.Domain;
@@ -9,8 +9,9 @@ using GameServerCore.NetInfo;
 using GameServerCore.Enums;
 using GameServerCore.Packets.Enums;
 using GameServerCore.Packets.PacketDefinitions.Requests;
-using LeaguePackets.Game;
 using LeaguePackets;
+using LeaguePackets.Game.Common;
+using LeaguePackets.Game.Events;
 
 namespace GameServerCore.Packets.Interfaces
 {
@@ -39,13 +40,6 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="b">Blue hex color value.</param>
         void NotifyAddDebugObject(int userId, IAttackableUnit unit, uint objNetId, float lifetime, float radius, Vector3 pos1, Vector3 pos2, int objID = 0, byte type = 0x0, string name = "debugobj", byte r = 0xFF, byte g = 0x46, byte b = 0x0);
         /// <summary>
-        /// Sends a packet to all players that the specified player has killed a specified player and received a specified amount of gold.
-        /// </summary>
-        /// <param name="c">Champion that killed a unit.</param>
-        /// <param name="died">AttackableUnit that died to the Champion.</param>
-        /// <param name="gold">Amount of gold the Champion gained for the kill.</param>
-        void NotifyAddGold(IChampion c, IAttackableUnit died, float gold);
-        /// <summary>
         /// Sends a packet to the specified team that a part of the map has changed. Known to be used in League for initializing turret vision and collision.
         /// </summary>
         /// <param name="unitNetId">NetID of the unit owning the region.</param>
@@ -66,16 +60,10 @@ namespace GameServerCore.Packets.Interfaces
         /// TODO: Implement a Region class so we can easily grab these parameters instead of listing them all in the function.
         void NotifyAddRegion(uint unitNetId, uint bubbleNetId, TeamId team, Vector2 position, float time, float radius = 0, int regionType = 0, ClientInfo clientInfo = null, IGameObject obj = null, float collisionRadius = 0, float grassRadius = 0, float sizemult = 1.0f, float addsize = 0, bool grantVis = true, bool stealthVis = false);
         /// <summary>
-        /// Sends a packet to all players that have vision of the specified Azir turret that it has spawned.
+        /// Sends a packet to the specified team that a part of the map has changed. Known to be used in League for initializing turret vision and collision.
         /// </summary>
-        /// <param name="azirTurret">AzirTurret instance.</param>
-        void NotifyAzirTurretSpawned(IAzirTurret azirTurret);
-        /// <summary>
-        /// Sends a packet to all players that the specified Champion has gained the specified amount of experience.
-        /// </summary>
-        /// <param name="champion">Champion that gained the experience.</param>
-        /// <param name="experience">Amount of experience gained.</param>
-        void NotifyAddXp(IChampion champion, float experience);
+        /// <param name="region">Region to add.</param>
+        void NotifyAddRegion(IRegion region);
         /// <summary>
         /// Sends a packet to all players with vision of the specified attacker detailing that they have targeted the specified target.
         /// </summary>
@@ -89,18 +77,11 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="target">Champion that is being targeted by the attacker.</param>
         void NotifyAI_TargetHeroS2C(IObjAiBase attacker, IChampion target);
         /// <summary>
-        /// Sends a packet to all players that announces a specified message (ex: "Minions have spawned.")
+        /// Sends a packet to the specified user or all users informing them of the given client's summoner data such as runes, summoner spells, masteries (or talents as named internally), etc.
         /// </summary>
-        /// <param name="mapId">Current map ID.</param>
-        /// <param name="messageId">Message ID to announce.</param>
-        /// <param name="isMapSpecific">Whether the announce is specific to the map ID.</param>
-        void NotifyAnnounceEvent(int mapId, Announces messageId, bool isMapSpecific);
-        /// <summary>
-        /// Sends a packet to the specified user that informs them of their summoner data such as runes, summoner spells, masteries (or talents as named internally), etc.
-        /// </summary>
-        /// <param name="userId">User to send the packet to.</param>
         /// <param name="client">Info about the player's summoner data.</param>
-        void NotifyAvatarInfo(int userId, ClientInfo client);
+        /// <param name="userId">User to send the packet to. Set to -1 to broadcast.</param>
+        void NotifyAvatarInfo(ClientInfo client, int userId = -1);
         /// <summary>
         /// Sends a packet to all players detailing that the specified  unit is starting their next auto attack.
         /// </summary>
@@ -121,17 +102,10 @@ namespace GameServerCore.Packets.Interfaces
         /// TODO: Verify the differences between BasicAttackPos and normal BasicAttack.
         void NotifyBasic_Attack_Pos(IObjAiBase attacker, IAttackableUnit target, uint futureProjNetId, bool isCrit);
         /// <summary>
-        /// Sends a side bar tip to the specified player (ex: quest tips).
+        /// Notifies a building, such as towers, inhibs or nexus has died
         /// </summary>
-        /// <param name="userId">User to send the packet to.</param>
-        /// <param name="title">Title of the tip.</param>
-        /// <param name="text">Description text of the tip.</param>
-        /// <param name="imagePath">Path to an image that will be embedded in the tip.</param>
-        /// <param name="tipCommand">Action suggestion(? unconfirmed).</param>
-        /// <param name="playerNetId">NetID to send the packet to.</param>
-        /// <param name="targetNetId">NetID of the target referenced by the tip.</param>
-        /// TODO: tipCommand should be a lib/core enum that gets translated into a league version specific packet enum as it may change over time.
-        void NotifyBlueTip(int userId, string title, string text, string imagePath, byte tipCommand, uint playerNetId, uint targetNetId);
+        /// <param name="deathData"></param>
+        void NotifyBuilding_Die(IDeathData deathData);
         /// <summary>
         /// Sends a packet to the player attempting to buy an item that their purchase was successful.
         /// </summary>
@@ -139,23 +113,6 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="gameObject">GameObject of type ObjAiBase that can buy items.</param>
         /// <param name="itemInstance">Item instance housing all information about the item that has been bought.</param>
         void NotifyBuyItem(int userId, IObjAiBase gameObject, IItem itemInstance);
-        /// <summary>
-        /// Sends a packet to all players updating a player's death timer.
-        /// </summary>
-        /// <param name="champion">Champion that died.</param>
-        void NotifyChampionDeathTimer(IChampion champion);
-        /// <summary>
-        /// Sends a packet to all players that a champion has died and calls a death timer update packet.
-        /// </summary>
-        /// <param name="champion">Champion that died.</param>
-        /// <param name="killer">Unit that killed the Champion.</param>
-        /// <param name="goldFromKill">Amount of gold the killer received.</param>
-        void NotifyChampionDie(IChampion champion, IAttackableUnit killer, int goldFromKill);
-        /// <summary>
-        /// Sends a packet to all players that a champion has respawned.
-        /// </summary>
-        /// <param name="c">Champion that respawned.</param>
-        void NotifyChampionRespawn(IChampion c);
         /// <summary>
         /// Sends a packet to the specified user detailing that the specified owner unit's spell in the specified slot has been changed.
         /// </summary>
@@ -171,7 +128,7 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="newDisplayRange">New max display range for the spell to set.</param>
         /// <param name="newIconIndex">New index of an icon for the spell to set.</param>
         /// <param name="offsetTargets">New target netids for the spell to set.</param>
-        void NotifyChangeSlotSpellData(int userId, IObjAiBase owner, byte slot, ChangeSlotSpellDataType changeType, bool isSummonerSpell = false, TargetingType targetingType = TargetingType.Invalid, string newName = "", float newRange = 0, float newMaxCastRange = 0, float newDisplayRange = 0, byte newIconIndex = 0x0, List<uint> offsetTargets = null);
+        void NotifyChangeSlotSpellData(int userId, IObjAiBase owner, byte slot, GameServerCore.Enums.ChangeSlotSpellDataType changeType, bool isSummonerSpell = false, TargetingType targetingType = TargetingType.Invalid, string newName = "", float newRange = 0, float newMaxCastRange = 0, float newDisplayRange = 0, byte newIconIndex = 0x0, List<uint> offsetTargets = null);
         /// <summary>
         /// Sends a packet to all players with vision of a specified ObjAiBase explaining that their specified spell's cooldown has been set.
         /// </summary>
@@ -179,30 +136,16 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="slotId">Slot of the spell.</param>
         /// <param name="currentCd">Amount of time the spell has already been on cooldown (if applicable).</param>
         /// <param name="totalCd">Amount of time that the spell should have be in cooldown before going off cooldown.</param>
-        void NotifyCHAR_SetCooldown(IObjAiBase c, byte slotId, float currentCd, float totalCd);
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players that have vision of the specified unit.</param>
+        void NotifyCHAR_SetCooldown(IObjAiBase c, byte slotId, float currentCd, float totalCd, int userId = 0);
         /// <summary>
         /// Sends a packet to the specified user that highlights the specified GameObject.
         /// </summary>
         /// <param name="userId">ID of the user to send the packet to.</param>
         /// <param name="unit">GameObject to highlght.</param>
         void NotifyCreateUnitHighlight(int userId, IGameObject unit);
-        /// <summary>
-        /// Sends a packet to all players detailing a debug message.
-        /// </summary>
-        /// <param name="htmlDebugMessage">Debug message to send.</param>
-        void NotifyDebugMessage(string htmlDebugMessage);
-        /// <summary>
-        /// Sends a packet to the specified user detailing a debug message.
-        /// </summary>
-        /// <param name="userId">ID of the user to send the packet to.</param>
-        /// <param name="message">Debug message to send.</param>
-        void NotifyDebugMessage(int userId, string message);
-        /// <summary>
-        /// Sends a packet to the specified team detailing a debug message.
-        /// </summary>
-        /// <param name="team">TeamId to send the packet to; BLUE/PURPLE/NEUTRAL.</param>
-        /// <param name="message">Debug message to send.</param>
-        void NotifyDebugMessage(TeamId team, string message);
+        void NotifyDampenerSwitchStates(IInhibitor inhibitor);
+        void NotifyDeath(IDeathData deathData);
         /// <summary>
         /// Sends a packet to the specified user which is intended for debugging.
         /// </summary>
@@ -225,18 +168,9 @@ namespace GameServerCore.Packets.Interfaces
         /// Sends a packet to either all players with vision of a target, or the specified player.
         /// The packet displays the specified message of the specified type as floating text over a target.
         /// </summary>
-        /// <param name="target">Target to display on.</param>
-        /// <param name="message">Message to display.</param>
-        /// <param name="textType">Type of text to display. Refer to FloatTextType</param>
+        /// <param name="floatTextData">Contains all the data from a floating text.</param>
         /// <param name="userId">User to send to. 0 = sends to all in vision.</param>
-        /// <param name="param">Optional parameters for the text. Untested, function unknown.</param>
-        void NotifyDisplayFloatingText(IGameObject target, string message, FloatTextType textType = FloatTextType.Debug, int userId = 0, int param = 0);
-        /// <summary>
-        /// Sends a packet to all players detailing an emotion that is being performed by the unit that owns the specified netId.
-        /// </summary>
-        /// <param name="type">Type of emotion being performed; DANCE/TAUNT/LAUGH/JOKE/UNK.</param>
-        /// <param name="netId">NetID of the unit performing the emotion.</param>
-        void NotifyEmotions(Emotions type, uint netId);
+        void NotifyDisplayFloatingText(IFloatingTextData floatTextData, TeamId team = 0, int userId = 0);
         /// <summary>
         /// Sends a packet to the specified user detailing that the GameObject that owns the specified netId has finished being initialized into vision.
         /// </summary>
@@ -247,8 +181,8 @@ namespace GameServerCore.Packets.Interfaces
         /// Sends a packet to either all players with vision of the specified GameObject or a specified user. The packet contains details of the GameObject's health (given it is of the type AttackableUnit) and is meant for after the GameObject is first initialized into vision.
         /// </summary>
         /// <param name="o">GameObject coming into vision.</param>
-        /// <param name="userId">User to send the packet to.</param>
-        /// <param name="ignoreVision">Optionally ignore vision checks when sending this packet.</param>
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players that have vision of the specified unit.</param>
+        /// <param name="ignoreVision">Optionally ignore vision checks when sending this packet and broadcast it to all players instead.</param>
         void NotifyEnterLocalVisibilityClient(IGameObject o, int userId = 0, bool ignoreVision = false);
         /// <summary>
         /// Sends a packet to either all players with vision of the specified object or the specified user. The packet details the data surrounding the specified GameObject that is required by players when a GameObject enters vision such as items, shields, skin, and movements.
@@ -256,11 +190,10 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="o">GameObject entering vision.</param>
         /// <param name="userId">User to send the packet to.</param>
         /// <param name="isChampion">Whether or not the GameObject entering vision is a Champion.</param>
-        /// <param name="useTeleportID">Whether or not to teleport the object to its current position.</param>
         /// <param name="ignoreVision">Optionally ignore vision checks when sending this packet.</param>
         /// <param name="packets">Takes in a list of packets to send alongside this vision packet.</param>
         /// TODO: Incomplete implementation.
-        void NotifyEnterVisibilityClient(IGameObject o, int userId = 0, bool isChampion = false, bool useTeleportID = false, bool ignoreVision = false, List<GamePacket> packets = null);
+        void NotifyEnterVisibilityClient(IGameObject o, int userId = 0, bool isChampion = false, bool ignoreVision = false, List<GamePacket> packets = null);
         /// <summary>
         /// Sends a packet to all players with vision of the specified unit detailing that the unit has begun facing the specified direction.
         /// </summary>
@@ -299,35 +232,20 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="team">TeamId to send the packet to; BLUE/PURPLE/NEUTRAL.</param>
         void NotifyFXLeaveTeamVisibility(IParticle particle, TeamId team);
         /// <summary>
-        /// Sends packets to all players which force the players' cameras to the nexus being destroyed, hides their UI, and ends the game.
-        /// </summary>
-        /// <param name="cameraPosition">Position of the nexus being destroyed.</param>
-        /// <param name="nexus">Nexus being destroyed.</param>
-        /// <param name="players">All players that can receive packets.</param>
-        void NotifyGameEnd(Vector3 cameraPosition, INexus nexus, List<Tuple<uint, ClientInfo>> players);
-        /// <summary>
         /// Sends a packet to all players detailing that the game has started. Sent when all players have finished loading.
         /// </summary>
-        void NotifyGameStart();
-        /// <summary>
-        /// Sends a packet to all players which announces that the team which owns the specified inhibitor has an inhibitor which is respawning soon.
-        /// </summary>
-        /// <param name="inhibitor">Inhibitor that is respawning soon.</param>
-        void NotifyInhibitorSpawningSoon(IInhibitor inhibitor);
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players.</param>
+        void NotifyGameStart(int userId = 0);
         /// <summary>
         /// Sends a packet to all players detailing the state (DEAD/ALIVE) of the specified inhibitor.
         /// </summary>
         /// <param name="inhibitor">Inhibitor to check.</param>
         /// <param name="killer">Killer of the inhibitor (if applicable).</param>
         /// <param name="assists">Assists of the killer (if applicable).</param>
-        void NotifyInhibitorState(IInhibitor inhibitor, IGameObject killer = null, List<IChampion> assists = null);
-        /// <summary>
-        /// Sends a packet to all players with vision of the specified Champion detailing that the Champion's items have been swapped.
+        void NotifyInhibitorState(IInhibitor inhibitor, IDeathData deathData = null, List<IChampion> assists = null);
+        /// Sends a basic heartbeat packet to either the given player or all players.
         /// </summary>
-        /// <param name="c">Champion who swapped their items.</param>
-        /// <param name="fromSlot">Slot the item was previously in.</param>
-        /// <param name="toSlot">Slot the item was swapped to.</param>
-        void NotifyItemsSwapped(IChampion c, byte fromSlot, byte toSlot);
+        void NotifyKeyCheck(int clientID, long playerId, uint version, ulong checkSum = 0, byte action = 0, bool broadcast = false);
         /// <summary>
         /// Sends a packet to all players detailing that the specified LaneMinion has spawned.
         /// </summary>
@@ -367,34 +285,26 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="players">Client info of all players in the loading screen.</param>
         void NotifyLoadScreenInfo(int userId, List<Tuple<uint, ClientInfo>> players);
         /// <summary>
-        /// Sends a packet to the specified player detailing skin information of all specified players on the loading screen.
-        /// </summary>
-        /// <param name="userId">User to send the packet to.</param>
-        /// <param name="player">Player information to send.</param>
-        void NotifyLoadScreenPlayerChampion(int userId, Tuple<uint, ClientInfo> player);
-        /// <summary>
-        /// Sends a packet to the specified player detailing skin and player name information of all soecified players on the loading screen.
-        /// </summary>
-        /// <param name="userId">User to send the packet to.</param>
-        /// <param name="player">Player information to send.</param>
-        void NotifyLoadScreenPlayerName(int userId, Tuple<uint, ClientInfo> player);
-        /// <summary>
         /// Optionally sends a packet to all players who have vision of the specified Minion detailing that it has spawned.
         /// </summary>
-        /// <returns>A new and fully setup SpawnMinionS2C packet.</returns>
         /// <param name="minion">Minion that is spawning.</param>
-        /// <param name="send">Whether or not to send the created packet.</param>
-        SpawnMinionS2C NotifyMinionSpawned(IMinion minion, bool send = true);
+        void NotifyMinionSpawned(IMinion minion);
         /// <summary>
         /// Sends a packet to either all players with vision (given the projectile is networked to the client) of the projectile, or all players. The packet contains all details regarding the specified projectile's creation.
         /// </summary>
         /// <param name="p">Projectile that was created.</param>
         void NotifyMissileReplication(ISpellMissile p);
+        void NotifyS2C_CameraBehavior(IChampion target, Vector3 position);
         /// <summary>
         /// Sends a packet to all players that updates the specified unit's model.
         /// </summary>
         /// <param name="obj">AttackableUnit to update.</param>
-        void NotifyModelUpdate(IAttackableUnit obj);
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players that have vision of the specified unit.</param>
+        /// <param name="skinID">Unit's skin ID after changing model.</param>
+        /// <param name="modelOnly">Wether or not it's only the model that it's being changed(?). I don't really know what's this for</param>
+        /// <param name="overrideSpells">Wether or not the user's spells should be overriden, i assume it would be used for things like Nidalee or Elise.</param>
+        /// <param name="replaceCharacterPackage">Unknown.</param>
+        void NotifyS2C_ChangeCharacterData(IAttackableUnit obj, int userId = 0, uint skinID = 0, bool modelOnly = true, bool overrideSpells = false, bool replaceCharacterPackage = false);
         /// <summary>
         /// Sends a packet to the specified player detailing that the specified debug object's radius has changed.
         /// </summary>
@@ -423,11 +333,6 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="StopShieldFade">Whether the shield should stay static or fade.</param>
         void NotifyModifyShield(IAttackableUnit unit, float amount, bool IsPhysical, bool IsMagical, bool StopShieldFade);
         /// <summary>
-        /// Sends a packet to all players with vision of the specified Monster that it has spawned.
-        /// </summary>
-        /// <param name="m">GameObject of type Monster that spawned.</param>
-        void NotifyMonsterSpawned(IMonster m);
-        /// <summary>
         /// Sends a packet to all players detailing the movement driver homing data for the given unit.
         /// Used to sync homing (target-based) dashes between client and server.
         /// </summary>
@@ -437,7 +342,7 @@ namespace GameServerCore.Packets.Interfaces
         /// Sends a packet to all players who have vision of the specified buff's target detailing that the buff has been added to the target.
         /// </summary>
         /// <param name="b">Buff being added.</param>
-        void NotifyNPC_BuffAdd2(IBuff b, float duration, float runningTime);
+        void NotifyNPC_BuffAdd2(IBuff b);
         /// <summary>
         /// Sends a packet to all players with vision of the specified ObjAiBase detailing that the specified group of buffs has been added to the ObjAiBase.
         /// </summary>
@@ -505,6 +410,13 @@ namespace GameServerCore.Packets.Interfaces
         /// TODO: Use this. Seems to be often used when the killer = the attacker.
         void NotifyNPC_Die_Broadcast(IDeathData data);
         /// <summary>
+        /// Sends a packet to all players that a champion has died and calls a death timer update packet.
+        /// </summary>
+        /// <param name="champion">Champion that died.</param>
+        /// <param name="killer">Unit that killed the Champion.</param>
+        /// <param name="goldFromKill">Amount of gold the killer received.</param>
+        void NotifyNPC_Hero_Die(IDeathData deathData);
+        /// <summary>
         /// Sends a packet to all players with vision of the specified AttackableUnit detailing that the attacker has abrubtly stopped their attack (can be a spell or auto attack, although internally AAs are also spells).
         /// </summary>
         /// <param name="attacker">AttackableUnit that stopped their auto attack.</param>
@@ -519,7 +431,8 @@ namespace GameServerCore.Packets.Interfaces
         /// Sends a packet to all players detailing that the specified Champion has leveled up.
         /// </summary>
         /// <param name="c">Champion which leveled up.</param>
-        void NotifyNPC_LevelUp(IChampion c);
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players that have vision of the specified unit.</param>
+        void NotifyNPC_LevelUp(IObjAiBase c);
         /// <summary>
         /// Sends a packet to the specified user that the spell in the specified slot has been upgraded (skill point added).
         /// </summary>
@@ -547,35 +460,30 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="critSlot">Optional spell slot to cast when a crit is going to occur.</param>
         void NotifyNPC_SetAutocast(int userId, IObjAiBase caster, ISpell spell, byte critSlot = 0);
         /// <summary>
+        /// Sends a packet to all players with vision of the specified unit detailing that the specified unit's stats have been updated.
+        /// </summary>
+        /// <param name="u">Unit who's stats have been updated.</param>
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players that have vision of the specified unit.</param>
+        /// <param name="partial">Whether or not the packet should only include stats marked as changed.</param>
+        /// TODO: Replace with LeaguePackets and preferably move all uses of this function to a central EventHandler class (if one is fully implemented).
+        void NotifyOnReplication(IAttackableUnit u, int userId = 0, bool partial = true);
+        /// <summary>
         /// Sends a packet to all players detailing that the game has paused.
         /// </summary>
         /// <param name="seconds">Amount of time till the pause ends.</param>
         /// <param name="showWindow">Whether or not to show a pause window.</param>
-        void NotifyPauseGame(int seconds, bool showWindow);
-        /// <summary>
-        /// Sends a packet to the specified client's team detailing a map ping.
-        /// </summary>
-        /// <param name="client">Info of the client that initiated the ping.</param>
-        /// <param name="pos">2D top-down position of the ping.</param>
-        /// <param name="targetNetId">Target of the ping (if applicable).</param>
-        /// <param name="type">Type of ping; COMMAND/ATTACK/DANGER/MISSING/ONMYWAY/FALLBACK/REQUESTHELP. *NOTE*: Not all ping types are supported yet.</param>
-        void NotifyPing(ClientInfo client, Vector2 position, int targetNetId, Pings type);
+        void NotifyPausePacket(ClientInfo player, int seconds, bool isTournament);
         /// <summary>
         /// Sends a packet to all players detailing the specified client's loading screen progress.
         /// </summary>
         /// <param name="request">Info of the target client given via the client who requested loading screen progress.</param>
         /// <param name="clientInfo">Client info of the client who's progress is being requested.</param>
-        void NotifyPingLoadInfo(PingLoadInfoRequest request, ClientInfo clientInfo);
+        void NotifyPingLoadInfo(ClientInfo client, PingLoadInfoRequest request);
         /// <summary>
-        /// Sends a packet to all players detailing the stats (CS, kills, deaths, etc) of the player who owns the specified Champion.
+        /// Sends a packet to all players that a champion has respawned.
         /// </summary>
-        /// <param name="champion">Champion owned by the player.</param>
-        void NotifyPlayerStats(IChampion champion);
-        /// <summary>
-        /// Sends a packet to the specified player which is meant as a response to the players query about the status of the game.
-        /// </summary>
-        /// <param name="userId">User to send the packet to; player that sent the query.</param>
-        void NotifyQueryStatus(int userId);
+        /// <param name="c">Champion that respawned.</param>
+        void NotifyHeroReincarnateAlive(IChampion c, float parToRestore);
         /// <summary>
         /// Sends a packet to the specified player detailing that the specified Debug Object has been removed.
         /// </summary>
@@ -602,11 +510,25 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="unit">GameObject that had the highlight.</param>
         void NotifyRemoveUnitHighlight(int userId, IGameObject unit);
         /// <summary>
+        /// Sends a packet to the specified player detailing skin and player name information of all specified players on the loading screen.
+        /// </summary>
+        /// <param name="userId">User to send the packet to.</param>
+        /// <param name="player">Player information to send.</param>
+        void NotifyRequestRename(int userId, Tuple<uint, ClientInfo> player);
+        /// <summary>
+        /// Sends a packet to the specified player detailing skin information of all specified players on the loading screen.
+        /// </summary>
+        /// <param name="userId">User to send the packet to.</param>
+        /// <param name="player">Player information to send.</param>
+        void NotifyRequestReskin(int userId, Tuple<uint, ClientInfo> player);
+        /// <summary>
         /// Sends a packet to all players detailing that the game has been unpaused.
         /// </summary>
         /// <param name="unpauser">Unit that unpaused the game.</param>
         /// <param name="showWindow">Whether or not to show a window before unpausing (delay).</param>
-        void NotifyResumeGame(IAttackableUnit unpauser, bool showWindow);
+        void NotifyResumePacket(IChampion unpauser, ClientInfo player, bool isDelayed);
+        void NotifyS2C_ActivateMinionCamp(IMonsterCamp monsterCamp, int userId = 0);
+        void NotifyS2C_AmmoUpdate(ISpell spell);
         /// <summary>
         /// Sends a packet to all players with vision of the given chain missile that it has updated (unit/position).
         /// </summary>
@@ -618,17 +540,75 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="p">Projectile that has changed target.</param>
         void NotifyS2C_ChangeMissileTarget(ISpellMissile p);
         /// <summary>
-        /// Sends a packet to the specified user detailing that the hero designated to the given clientInfo has been created.
+        /// Sends a packet to the specified user or all users detailing that the hero designated to the given clientInfo has been created.
         /// </summary>
-        /// <param name="userId">User to send the packet to.</param>
         /// <param name="clientInfo">Information about the client which had their hero created.</param>
-        void NotifyS2C_CreateHero(int userId, ClientInfo clientInfo);
+        /// <param name="userId">User to send the packet to. Set to -1 to broadcast.</param>
+        /// <param name="doVision">Whether or not to package the packets into a vision packet.</param>
+        void NotifyS2C_CreateHero(ClientInfo clientInfo, int userId = -1, bool doVision = false);
+        void NotifyS2C_CreateMinionCamp(IMonsterCamp monsterCamp, int userId = 0);
+        void NotifyS2C_CreateNeutral(IMonster monster, float time);
         /// <summary>
         /// Sends a packet to either all players or the specified player detailing that the specified LaneTurret has spawned.
         /// </summary>
         /// <param name="turret">LaneTurret that spawned.</param>
         /// <param name="userId">User to send the packet to.</param>
         void NotifyS2C_CreateTurret(ILaneTurret turret, int userId = 0);
+        /// <summary>
+        /// Disables the UI for ther end of the game
+        /// </summary>
+        /// <param name="player">Player for the UI to be disabled</param>
+        void NotifyS2C_DisableHUDForEndOfGame(Tuple<uint, ClientInfo> player);
+        /// <summary>
+        /// Sends packets to all players notifying the result of a match (Victory or defeat)
+        /// </summary>
+        /// <param name="losingTeam">The Team that lost the match</param>
+        /// <param name="time">The offset for the result to actually be displayed</param>
+        void NotifyS2C_EndGame(TeamId losingTeam);
+        void NotifyS2C_HandleCapturePointUpdate(byte capturePointIndex, uint otherNetId, byte PARType, byte attackTeam, CapturePointUpdateCommand capturePointUpdateCommand);
+        /// <summary>
+        /// Notifies the game about a map score
+        /// </summary>
+        /// <param name="team"></param>
+        /// <param name="score"></param>
+        void NotifyS2C_HandleGameScore(TeamId team, int score);
+        /// <summary>
+        /// Sends a side bar tip to the specified player (ex: quest tips).
+        /// </summary>
+        /// <param name="userId">User to send the packet to.</param>
+        /// <param name="title">Title of the tip.</param>
+        /// <param name="text">Description text of the tip.</param>
+        /// <param name="imagePath">Path to an image that will be embedded in the tip.</param>
+        /// <param name="tipCommand">Action suggestion(? unconfirmed).</param>
+        /// <param name="playerNetId">NetID to send the packet to.</param>
+        /// <param name="targetNetId">NetID of the target referenced by the tip.</param>
+        /// TODO: tipCommand should be a lib/core enum that gets translated into a league version specific packet enum as it may change over time.
+        void NotifyS2C_HandleTipUpdatep(int userId, string title, string text, string imagePath, byte tipCommand, uint playerNetId, uint targetNetId);
+        /// <summary>
+        /// Sends a packet to all players detailing the stats (CS, kills, deaths, etc) of the player who owns the specified Champion.
+        /// </summary>
+        /// <param name="champion">Champion owned by the player.</param>
+        void NotifyS2C_HeroStats(IChampion champion);
+        void NotifyS2C_IncrementPlayerScore(IScoreData scoreData);
+        /// <summary>
+        /// Sends a packet to the specified client's team detailing a map ping.
+        /// </summary>
+        /// <param name="client">Info of the client that initiated the ping.</param>
+        /// <param name="pos">2D top-down position of the ping.</param>
+        /// <param name="targetNetId">Target of the ping (if applicable).</param>
+        /// <param name="type">Type of ping; COMMAND/ATTACK/DANGER/MISSING/ONMYWAY/FALLBACK/REQUESTHELP. *NOTE*: Not all ping types are supported yet.</param>
+        void NotifyS2C_MapPing(Vector2 pos, Pings type, uint targetNetId = 0, ClientInfo client = null);
+        /// <summary>
+        /// Notifies the camera of a given player to move
+        /// </summary>
+        /// <param name="player">Player who'll it's camera moved</param>
+        /// <param name="startPosition">The starting position of the camera (Not yet known how to get it's values)</param>
+        /// <param name="endPosition">End point to where the camera will move</param>
+        /// <param name="travelTime">The time the camera will have to travel the given distance</param>
+        /// <param name="startFromCurretPosition">Wheter or not it starts from current position</param>
+        /// <param name="unlockCamera">Whether or not the camera is unlocked</param>
+        void NotifyS2C_MoveCameraToPoint(Tuple<uint, ClientInfo> player, Vector3 startPosition, Vector3 endPosition, float travelTime = 0, bool startFromCurretPosition = true, bool unlockCamera = false);
+        void NotifyS2C_Neutral_Camp_Empty(IMonsterCamp monsterCamp, IDeathData deathData = null, int userId = 0);
         /// <summary>
         /// Sends a packet to all players detailing that the specified unit has been killed by the specified killer.
         /// </summary>
@@ -642,6 +622,25 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="userId">User to send the packet to.</param>
         void NotifyS2C_OnEnterTeamVisibility(IGameObject o, TeamId team, int userId = 0);
         /// <summary>
+        /// Sends a packet to all players that announces a specified message (ex: "Minions have spawned.")
+        /// </summary>
+        /// <param name="eventId">Id of the event to happen.</param>
+        /// <param name="sourceNetID">Not yet know it's use.</param>
+        void NotifyS2C_OnEventWorld(IEvent mapEvent, uint sourceNetId = 0);
+        /// <summary>
+        /// Sends a packet to either all players with vision of the specified GameObject or a specified user.
+        /// The packet contains details of which team lost visibility of the GameObject and should only be used after it is first initialized into vision (NotifyEnterVisibility).
+        /// </summary>
+        /// <param name="o">GameObject going out of vision.</param>
+        /// <param name="userId">User to send the packet to.</param>
+        void NotifyS2C_OnLeaveTeamVisibility(IGameObject o, TeamId team, int userId = 0);
+        /// <summary>
+        /// Sends a packet to all players detailing that the specified object's current animations have been paused/unpaused.
+        /// </summary>
+        /// <param name="obj">GameObject that is playing the animation.</param>
+        /// <param name="pause">Whether or not to pause/unpause animations.</param>
+        void NotifyS2C_PauseAnimation(IGameObject obj, bool pause);
+        /// <summary>
         /// Sends a packet to all players with vision of the specified object detailing that it is playing the specified animation.
         /// </summary>
         /// <param name="obj">GameObject that is playing the animation.</param>
@@ -654,11 +653,17 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="speedScale">How much the speed of the GameObject should affect the animation.</param>
         void NotifyS2C_PlayAnimation(IGameObject obj, string animation, AnimationFlags flags = 0, float timeScale = 1.0f, float startTime = 0.0f, float speedScale = 1.0f);
         /// <summary>
-        /// Sends a packet to all players detailing that the specified object's current animations have been paused/unpaused.
+        /// Sends a packet to all players detailing an emotion that is being performed by the unit that owns the specified netId.
         /// </summary>
-        /// <param name="obj">GameObject that is playing the animation.</param>
-        /// <param name="pause">Whether or not to pause/unpause animations.</param>
-        void NotifyS2C_PauseAnimation(IGameObject obj, bool pause);
+        /// <param name="type">Type of emotion being performed; DANCE/TAUNT/LAUGH/JOKE/UNK.</param>
+        /// <param name="netId">NetID of the unit performing the emotion.</param>
+        void NotifyS2C_PlayEmote(Emotions type, uint netId);
+        void NotifyS2C_PlaySound(string soundName, IAttackableUnit soundOwner);
+        /// <summary>
+        /// Sends a packet to the specified player which is meant as a response to the players query about the status of the game.
+        /// </summary>
+        /// <param name="userId">User to send the packet to; player that sent the query.</param>
+        void NotifyS2C_QueryStatusAns(int userId);
         /// <summary>
         /// Sends a packet to all players with vision of the specified unit detailing that its animation states have changed to the specified animation pairs.
         /// Replaces the unit's normal animation behaviors with the given animation pairs. Structure of the animationPairs is expected to follow the same structure from before the replacement.
@@ -666,6 +671,12 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="u">AttackableUnit to change.</param>
         /// <param name="animationPairs">Dictionary of animations to set.</param>
         void NotifyS2C_SetAnimStates(IAttackableUnit u, Dictionary<string, string> animationPairs);
+        /// <summary>
+        /// Sets if your screen will be grey or not when dead (used in the end of a game)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="enabled"></param>
+        void NotifyS2C_SetGreyscaleEnabledWhenDead(bool enabled, IAttackableUnit sender = null);
         /// <summary>
         /// Sends a packet to the specified user detailing that the spell in the given slot has had its spelldata changed to the spelldata of the given spell name.
         /// </summary>
@@ -697,11 +708,33 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="ignoreLock">Whether or not locked animations should still be stopped.</param>
         void NotifyS2C_StopAnimation(IGameObject obj, string animation, bool stopAll = false, bool fade = false, bool ignoreLock = true);
         /// <summary>
+        /// Sends a packet to all players detailing a debug message.
+        /// </summary>
+        /// <param name="htmlDebugMessage">Debug message to send.</param>
+        void NotifyS2C_SystemMessage(string htmlDebugMessage);
+        /// <summary>
+        /// Sends a packet to the specified user detailing a debug message.
+        /// </summary>
+        /// <param name="userId">ID of the user to send the packet to.</param>
+        /// <param name="message">Debug message to send.</param>
+        void NotifyS2C_SystemMessage(int userId, string message);
+        /// <summary>
+        /// Sends a packet to the specified team detailing a debug message.
+        /// </summary>
+        /// <param name="team">TeamId to send the packet to; BLUE/PURPLE/NEUTRAL.</param>
+        /// <param name="message">Debug message to send.</param>
+        void NotifyS2C_SystemMessage(TeamId team, string message);
+        /// <summary>
         /// Sends a packet to the given user detailing that the specified input locking flags have been toggled.
         /// </summary>
         /// <param name="userId">User to send the packet to.</param>
         /// <param name="flags">InputLockFlags to toggle.</param>
         void NotifyS2C_ToggleInputLockFlag(int userId, InputLockFlags flags);
+        /// <summary>
+        /// Sends a packet to all players detailing spell tooltip parameters that the game does not inform automatically.
+        /// </summary>
+        /// <param name="data">The list of changed tool tip values.</param>
+        void NotifyS2C_ToolTipVars(List<IToolTipData> data);
         /// <summary>
         /// Sends a packet to all players with vision of the specified attacker that it it looking at the specified attacked unit with the given AttackType.
         /// </summary>
@@ -709,6 +742,9 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="attacked">Unit that is being attacked.</param>
         /// <param name="attackType">AttackType that the attacker is using to attack.</param>
         void NotifyS2C_UnitSetLookAt(IAttackableUnit attacker, IAttackableUnit attacked, AttackType attackType);
+        void NotifyS2C_UnitSetMinimapIcon(IAttackableUnit unit, TeamId team);
+        void NotifyS2C_UnitSetMinimapIcon(IAttackableUnit unit);
+        void NotifyS2C_UpdateAscended(IObjAiBase ascendant = null);
         /// <summary>
         /// Sends a packet to all players detailing the attack speed cap overrides for this game.
         /// </summary>
@@ -716,12 +752,17 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="maxAttackSpeedOverride">Value to override the maximum attack speed cap.</param>
         /// <param name="overrideMin">Whether or not to override the minimum attack speed cap.</param>
         /// <param name="minAttackSpeedOverride">Value to override the minimum attack speed cap.</param>
-        void NotifyS2C_UpdateAttackSpeedCapOverrides(bool overrideMax, float maxAttackSpeedOverride, bool overrideMin, float minAttackSpeedOverride);
+        void NotifyS2C_UpdateAttackSpeedCapOverrides(bool overrideMax, float maxAttackSpeedOverride, bool overrideMin, float minAttackSpeedOverride, IAttackableUnit unit = null);
         /// <summary>
         /// Sends a packet to all players with vision of the given bounce missile that it has updated (unit/position).
         /// </summary>
         /// <param name="p">Missile that has been updated.</param>
         void NotifyS2C_UpdateBounceMissile(ISpellMissile p);
+        /// <summary>
+        /// Sends a packet to all players updating a player's death timer.
+        /// </summary>
+        /// <param name="champion">Champion that died.</param>
+        void NotifyS2C_UpdateDeathTimer(IChampion champion);
         /// <summary>
         /// Sends a packet to the specified user detailing that the specified spell's toggle state has been updated.
         /// </summary>
@@ -765,21 +806,23 @@ namespace GameServerCore.Packets.Interfaces
         /// Calls for the appropriate spawn packet to be sent given the specified GameObject's type and calls for a vision packet to be sent for the specified GameObject.
         /// </summary>
         /// <param name="o">GameObject that has spawned.</param>
+        /// <param name="team">The team the user belongs to.</param>
         /// <param name="userId">UserId to send the packet to.</param>
+        /// <param name="gameTime">Time elapsed since the start of the game</param>
         /// <param name="doVision">Whether or not to package the packets into a vision packet.</param>
-        void NotifySpawn(IGameObject o, int userId = 0, bool doVision = true);
+        void NotifySpawn(IGameObject obj, TeamId team, int userId, float gameTime, bool doVision = false);
         /// <summary>
         /// Sends a packet to the specified player detailing that the spawning (of champions & buildings) that occurs at the start of the game has ended.
         /// </summary>
         /// <param name="userId">User to send the packet to.</param>
         void NotifySpawnEnd(int userId);
         /// <summary>
-        /// Sends a packet to the specified player detailing that the GameObject associated with the specified NetID has spawned.
+        /// Sends a packet to all players with vision of the specified Champion detailing that the Champion's items have been swapped.
         /// </summary>
-        /// <param name="userId">User to send the packet to.</param>
-        /// <param name="netId">NetID of the GameObject that has spawned.</param>
-        /// TODO: Remove this and replace all usages with NotifyEnterVisibilityClient, refer to the MinionSpawn2 packet as it uses the same packet command.
-        void NotifyStaticObjectSpawn(int userId, uint netId);
+        /// <param name="c">Champion who swapped their items.</param>
+        /// <param name="fromSlot">Slot the item was previously in.</param>
+        /// <param name="toSlot">Slot the item was swapped to.</param>
+        void NotifySwapItemAns(IChampion c, byte fromSlot, byte toSlot);
         /// <summary>
         /// Sends a packet to the specified player detailing the amount of time since the game started (in seconds). Used to initialize the user's in-game timer.
         /// </summary>
@@ -841,14 +884,19 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="color">Color of the tint.</param>
         void NotifyTint(TeamId team, bool enable, float speed, Content.Color color);
         /// <summary>
-        /// Sends a packet to all players detailing that the specified event has occurred.
+        /// Sends a packet to all players that the specified Champion has gained the specified amount of experience.
         /// </summary>
-        /// <param name="messageId">ID of the event that has occurred. *NOTE*: This enum is incomplete and will be renamed to EventID</param>
-        /// <param name="target">Unit that caused the event to occur.</param>
-        /// <param name="killer">Optional killer of the unit that caused the event to occur.</param>
-        /// <param name="assists">Optional number of assists of the killer.</param>
-        /// TODO: Replace this with LeaguePackets, rename UnitAnnounces to EventID, and complete its enum (refer to LeaguePackets.Game.Events.EventID).
-        void NotifyUnitAnnounceEvent(UnitAnnounces messageId, IAttackableUnit target, IGameObject killer = null, List<IChampion> assists = null);
+        /// <param name="champion">Champion that gained the experience.</param>
+        /// <param name="experience">Amount of experience gained.</param>
+        void NotifyUnitAddEXP(IChampion champion, float experience);
+        /// <summary>
+        /// Sends a packet to all players that the specified Champion has killed a specified player and received a specified amount of gold.
+        /// </summary>
+        /// <param name="c">Champion that killed a unit.</param>
+        /// <param name="died">AttackableUnit that died to the Champion.</param>
+        /// <param name="gold">Amount of gold the Champion gained for the kill.</param>
+        /// TODO: Only use BroadcastPacket when the unit that died is a Champion.
+        void NotifyUnitAddGold(IChampion c, IAttackableUnit died, float gold);
         /// <summary>
         /// Sends a packet to optionally all players (given isGlobal), a specified user that is the source of damage, or a specified user that is receiving the damage. The packet details an instance of damage being applied to a unit by another unit.
         /// </summary>
@@ -870,18 +918,7 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="mode">Draw path mode to set. Refer to DrawPathMode enum.</param>
         /// TODO: Verify the functionality of this packet (and its parameters) and create an enum for the mode.
         void NotifyUnitSetDrawPathMode(int userId, IAttackableUnit unit, IGameObject target, DrawPathMode mode);
-        /// <summary>
-        /// Unfinished(?) function which intends to resume the game automatically (without client requests). This is usually called after the pause time has ended in Game.GameLoop.
-        /// </summary>
-        /// TODO: Verify if this works and if not, then finish it.
-        void NotifyUnpauseGame();
-        /// <summary>
-        /// Sends a packet to all players with vision of the specified unit detailing that the specified unit's stats have been updated.
-        /// </summary>
-        /// <param name="u">Unit who's stats have been updated.</param>
-        /// <param name="partial">Whether or not the packet should be counted as a partial update (whether the stats have actually changed or not). *NOTE*: Use case for this parameter is unknown.</param>
-        /// TODO: Replace with LeaguePackets and preferably move all uses of this function to a central EventHandler class (if one is fully implemented).
-        void NotifyUpdatedStats(IAttackableUnit u, bool partial = true);
+        void NotifyUpdateLevelPropS2C(UpdateLevelPropData propData);
         /// <summary>
         /// Sends a packet to the player attempting to use an item that the item was used successfully.
         /// </summary>
@@ -890,18 +927,43 @@ namespace GameServerCore.Packets.Interfaces
         /// <param name="itemInstance">Item instance housing all information about the item that has been used.</param>
         void NotifyUseItemAns(int userId, IObjAiBase ai, IItem itemInstance);
         /// <summary>
-        /// Sends a packet to the specified player detailing that their request to view something with their camera has been acknowledged.
+        /// Sends a packet to the specified team detailing that an object's visibility has changed.
+        /// General function which will send the needed vision packet for the specific object type.
         /// </summary>
-        /// <param name="userId">User to send the packet to.</param>
-        /// <param name="request">ViewRequest housing information about the camera's view.</param>
-        /// TODO: Verify if this is the correct implementation.
-        void NotifyViewResponse(int userId, ViewRequest request);
+        /// <param name="obj">GameObject which had their visibility changed.</param>
+        /// <param name="team">Team which is affected by this visibility change.</param>
+        /// <param name="becameVisible">Whether or not the change was an entry into vision.</param>
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to the team.</param>
+        void NotifyVisibilityChange(IGameObject obj, TeamId team, bool becameVisible, int userId = 0);
+        /// <summary>
+        /// Creates a package and puts it in the queue that will be emptied with the NotifyWaypointGroup call.
+        /// </summary>
+        /// <param name="u">AttackableUnit that is moving.</param>
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players that have vision of the specified unit.</param>
+        /// <param name="useTeleportID">Whether or not to teleport the unit to its current position in its path.</param>
+        void HoldMovementDataUntilWaypointGroupNotification(IAttackableUnit u, int userId, bool useTeleportID = false);
+        /// <summary>
+        /// Sends all packets queued by HoldMovementDataUntilWaypointGroupNotification and clears queue.
+        /// </summary>
+        void NotifyWaypointGroup();
+        /// <summary>
+        /// Creates a package and puts it in the queue that will be emptied with the NotifyOnReplication call.
+        /// </summary>
+        /// <param name="u">Unit who's stats have been updated.</param>
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players that have vision of the specified unit.</param>
+        /// <param name="partial">Whether or not the packet should only include stats marked as changed.</param>
+        void HoldReplicationDataUntilOnReplicationNotification(IAttackableUnit u, int userId, bool partial = true);
+        /// <summary>
+        /// Sends all packets queued by HoldReplicationDataUntilOnReplicationNotification and clears queue.
+        /// </summary>
+        void NotifyOnReplication();
         /// <summary>
         /// Sends a packet to all players that have vision of the specified unit that it has made a movement.
         /// </summary>
         /// <param name="u">AttackableUnit that is moving.</param>
+        /// <param name="userId">UserId to send the packet to. If not specified or zero, the packet is broadcasted to all players that have vision of the specified unit.</param>
         /// <param name="useTeleportID">Whether or not to teleport the unit to its current position in its path.</param>
-        void NotifyWaypointGroup(IAttackableUnit u, bool useTeleportID = true);
+        void NotifyWaypointGroup(IAttackableUnit u, int userId = 0, bool useTeleportID = false);
         /// <summary>
         /// Sends a packet to all players that have vision of the specified unit.
         /// The packet details a group of waypoints with speed parameters which determine what kind of movement will be done to reach the waypoints, or optionally a GameObject.
@@ -909,8 +971,6 @@ namespace GameServerCore.Packets.Interfaces
         /// </summary>
         /// <param name="u">Unit that is dashing.</param>
         void NotifyWaypointGroupWithSpeed(IAttackableUnit u);
-        void NotifyAttachMinimapIcon(IAttackableUnit unit, bool ChangeIcon, string IconCategory, bool ChangeBorder, string BorderCategory, string BorderScriptName);
-
         /// <summary>
         /// Sends a packet to all players with vision of the given unit detailing its waypoints.
         /// </summary>
@@ -946,8 +1006,14 @@ namespace GameServerCore.Packets.Interfaces
             float backDistance = 0,
             float travelTime = 0
         );
+        /// <summary>
+        /// Sends a packet to the specified player detailing that their request to view something with their camera has been acknowledged.
+        /// </summary>
+        /// <param name="userId">User to send the packet to.</param>
+        /// <param name="request">ViewRequest housing information about the camera's view.</param>
+        /// TODO: Verify if this is the correct implementation.
+        /// TODO: Fix LeaguePackets Typos.
+        void NotifyWorld_SendCamera_Server_Acknologment(ClientInfo client, ViewRequest request);
 
-        void NotifyMonsterCampEmpty(IMonsterCamp monsterCamp, IChampion killer);
-        void NotifyCreateMonsterCamp(Vector2 pos, byte campId, TeamId team, string icon);
     }
 }

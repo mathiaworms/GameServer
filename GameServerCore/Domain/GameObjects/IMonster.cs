@@ -1,17 +1,9 @@
-﻿using GameServerCore.Enums;
-using System.Numerics;
-
-namespace GameServerCore.Domain.GameObjects
+﻿namespace GameServerCore.Domain.GameObjects
 {
-    public interface IMonster : IObjAiBase
+    public interface IMonster : IMinion
     {
-        Vector2 Facing { get; }
-        string Name { get; }
+        IMonsterCamp Camp { get; }
         string SpawnAnimation { get; }
-        MonsterCampType CampId { get; }
-        byte CampUnk { get; }
-        float SpawnAnimationTime { get; }
-
-        MonsterSpawnType MinionSpawnType { get; }
+        void UpdateInitialLevel(int level);
     }
 }

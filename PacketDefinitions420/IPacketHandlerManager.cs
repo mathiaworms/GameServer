@@ -1,7 +1,7 @@
-﻿using ENet;
+﻿using LENet;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
-using GameServerCore.Packets.Enums;
+using Channel = GameServerCore.Packets.Enums.Channel;
 
 namespace PacketDefinitions420
 {
@@ -10,18 +10,12 @@ namespace PacketDefinitions420
     /// </summary>
     public interface IPacketHandlerManager
     {
-        bool BroadcastPacket(byte[] data, Channel channelNo, PacketFlags flag = PacketFlags.Reliable);
-        bool BroadcastPacket(Packet packet, Channel channelNo, PacketFlags flag = PacketFlags.Reliable);
-        bool BroadcastPacketTeam(TeamId team, byte[] data, Channel channelNo, PacketFlags flag = PacketFlags.Reliable);
-        bool BroadcastPacketTeam(TeamId team, Packet packet, Channel channelNo, PacketFlags flag = PacketFlags.Reliable);
-        bool BroadcastPacketVision(IGameObject o, byte[] data, Channel channelNo, PacketFlags flag = PacketFlags.Reliable);
-        bool BroadcastPacketVision(IGameObject o, Packet packet, Channel channelNo, PacketFlags flag = PacketFlags.Reliable);
+        bool BroadcastPacket(byte[] data, Channel channelNo, PacketFlags flag = PacketFlags.RELIABLE);
+        bool BroadcastPacketTeam(TeamId team, byte[] data, Channel channelNo, PacketFlags flag = PacketFlags.RELIABLE);
+        bool BroadcastPacketVision(IGameObject o, byte[] data, Channel channelNo, PacketFlags flag = PacketFlags.RELIABLE);
         bool HandlePacket(Peer peer, byte[] data, Channel channelId);
-        bool HandlePacket(Peer peer, ENet.Packet packet, Channel channelId);
-        bool SendPacket(int playerId, byte[] source, Channel channelNo, PacketFlags flag = PacketFlags.Reliable);
-        bool SendPacket(int playerId, Packet packet, Channel channelNo, PacketFlags flag = PacketFlags.Reliable);
-        // TODO: is this really should be in PacketHandler?
-        void UnpauseGame();
+        bool HandlePacket(Peer peer, Packet packet, Channel channelId);
+        bool SendPacket(int playerId, byte[] source, Channel channelNo, PacketFlags flag = PacketFlags.RELIABLE);
         bool HandleDisconnect(Peer peer);
     }
 }

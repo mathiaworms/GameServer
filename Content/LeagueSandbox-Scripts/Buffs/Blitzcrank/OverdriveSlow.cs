@@ -2,15 +2,20 @@ using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
 using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 
 
 namespace Buffs
 {
-    internal class OverdriveSlow : IBuffGameScript
+     class OverdriveSlow : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.SLOW;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.SLOW
+        };
         public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
         public int MaxStacks => 1;
         public bool IsHidden => false;
@@ -29,8 +34,6 @@ namespace Buffs
 
         public void OnUpdate(float diff)
         {
-
         }
     }
 }
-

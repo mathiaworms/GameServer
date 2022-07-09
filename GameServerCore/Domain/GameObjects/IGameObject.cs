@@ -21,6 +21,10 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         float CollisionRadius { get; }
         /// <summary>
+        /// Radius of the circle which is used for pathfinding around objects and terrain.
+        /// </summary>
+        float PathfindingRadius { get; }
+        /// <summary>
         /// Position of this GameObject from a top-down view.
         /// </summary>
         Vector2 Position { get; }
@@ -40,6 +44,16 @@ namespace GameServerCore.Domain.GameObjects
         /// Radius of the circle which is used for vision; detecting if objects are visible given terrain, and if so, networked to the player (or team) that owns this game object.
         /// </summary>
         float VisionRadius { get; }
+        /// <summary>
+        /// Whether the object should be hidden by the fog of war.
+        /// </summary>
+        bool IsAffectedByFoW { get; }
+        /// <summary>
+        /// If an object is to be hidden by the fog of war,
+        /// should the object's spawn notification be sent only when the object comes into view,
+        /// not as soon as possible.
+        /// </summary>
+        bool SpawnShouldBeHidden { get; }
 
         /// <summary>
         /// Called by ObjectManager after AddObject (usually right after instatiation of GameObject).
@@ -101,6 +115,24 @@ namespace GameServerCore.Domain.GameObjects
         void OnCollision(IGameObject collider, bool isTerrain = false);
 
         /// <summary>
+        /// Called by ObjectManager after the Update function has been called on all objects.
+        /// Designed to be used by AI to determine the target. 
+        /// </summary>
+        void LateUpdate(float diff);
+        /// <summary>
+        /// Called by the ObjectManager after vision has been computed for this object and a particular player.
+        /// </summary>
+        void Sync(int userId, TeamId team, bool visible, bool forceSpawn = false);
+        /// <summary>
+        /// Called by ObjectManager after the Sync function has been called on all objects.
+        /// </summary>
+        void OnAfterSync();
+        /// <summary>
+        /// Called by HandleSpawn class after the player has reconnected.
+        /// </summary>
+        void OnReconnect(int userId, TeamId team);
+
+        /// <summary>
         /// Sets the object's team.
         /// </summary>
         /// <param name="team">TeamId.BLUE/PURPLE/NEUTRAL</param>
@@ -112,17 +144,57 @@ namespace GameServerCore.Domain.GameObjects
         void FaceDirection(Vector3 newDirection, bool isInstant = true, float turnTime = 0.08333f);
 
         /// <summary>
-        /// Whether or not the object is networked to a specified team.
+        /// Whether or not the object is within the vision of the specified team.
         /// </summary>
         /// <param name="team">A team which could have vision of this object.</param>
         bool IsVisibleByTeam(TeamId team);
 
         /// <summary>
-        /// Sets the object to be networked or not to a specified team.
+        /// Sets the object as visible to a specified team.
+        /// Should be called in the ObjectManager. By itself, it only affects the return value of IsVisibleByTeam.
         /// </summary>
         /// <param name="team">A team which could have vision of this object.</param>
-        /// <param name="visible">true/false; networked or not</param>
-        void SetVisibleByTeam(TeamId team, bool visible);
+        /// <param name="visible">New value.</param>
+        void SetVisibleByTeam(TeamId team, bool visible = true);
+        
+        /// <summary>
+        /// Gets a list of all teams that have vision of this object.
+        /// </summary>
+        List<TeamId> TeamsWithVision();
+        
+        /// <summary>
+        /// Whether or not the object is visible for the specified player.
+        /// <summary>
+        /// <param name="userId">The player in relation to which the value is obtained</param>
+        bool IsVisibleForPlayer(int userId);
+
+        /// <summary>
+        /// Sets the object as visible and or not to a specified player.
+        /// Should be called in the ObjectManager. By itself, it only affects the return value of IsVisibleForPlayer.
+        /// <summary>
+        /// <param name="userId">The player for which the value is set.</param>
+        /// <param name="visible">New value.</param>
+        void SetVisibleForPlayer(int userId, bool visible = true);
+
+        /// <summary>
+        /// Whether or not the object is spawned on the player's client side.
+        /// <summary>
+        /// <param name="userId">The player in relation to which the value is obtained</param>
+
+      
+        bool IsSpawnedForPlayer(int userId);
+
+        /// <summary>
+        /// Sets the object as spawned on the player's client side.
+        /// Should be called in the ObjectManager. By itself, it only affects the return value of IsSpawnedForPlayer.
+        /// <summary>
+        /// <param name="userId">The player for which the value is set.</param>
+        void SetSpawnedForPlayer(int userId);
+
+        /// <summary>
+        /// Allows to iterate all players who see the object 
+        /// </summary>
+        IEnumerable<int> VisibleForPlayers { get; }
 
         /// <summary>
         /// Sets the position of this GameObject to the specified position.

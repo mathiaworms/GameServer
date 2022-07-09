@@ -8,6 +8,8 @@ using LeagueSandbox.GameServer.GameObjects.Other;
 using LeagueSandbox.GameServer.API;
 using GameServerCore.Scripting.CSharp;
 using System.Collections.Generic;
+using GameServerCore.Domain;
+using LeagueSandbox.GameServer.GameObjects.Stats;
 
 namespace LeagueSandbox.GameServer.GameObjects
 {
@@ -15,7 +17,6 @@ namespace LeagueSandbox.GameServer.GameObjects
     {
         // Crucial Vars.
         private readonly Game _game;
-        private readonly CSharpScriptEngine _scriptEngine;
 
         // Function Vars.
         private readonly bool _infiniteDuration;
@@ -39,6 +40,10 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// All status effects applied by this buff.
         /// </summary>
         public Dictionary<StatusFlags, bool> StatusEffects { get; private set; }
+        /// <summary>
+        /// Used to update player buff tool tip values.
+        /// </summary>
+        public IToolTipData ToolTipData { get; protected set; }
 
         public Buff(Game game, string buffName, float duration, int stacks, ISpell originSpell, IAttackableUnit onto, IObjAiBase from, bool infiniteDuration = false)
         {
@@ -50,27 +55,26 @@ namespace LeagueSandbox.GameServer.GameObjects
             _infiniteDuration = infiniteDuration;
             _game = game;
             _remove = false;
-            _scriptEngine = game.ScriptEngine;
             Name = buffName;
 
             LoadScript();
 
-            BuffAddType = BuffScript.BuffAddType;
-            if (BuffAddType == (BuffAddType.STACKS_AND_RENEWS | BuffAddType.STACKS_AND_CONTINUE | BuffAddType.STACKS_AND_OVERLAPS) && BuffScript.MaxStacks < 2)
+            BuffAddType = BuffScript.BuffMetaData.BuffAddType;
+            if (BuffAddType == (BuffAddType.STACKS_AND_RENEWS | BuffAddType.STACKS_AND_CONTINUE | BuffAddType.STACKS_AND_OVERLAPS) && BuffScript.BuffMetaData.MaxStacks < 2)
             {
                 throw new ArgumentException("Error: Tried to create Stackable Buff, but MaxStacks was less than 2.");
             }
 
-            BuffType = BuffScript.BuffType;
+            BuffType = BuffScript.BuffMetaData.BuffType;
             Duration = duration;
-            IsHidden = BuffScript.IsHidden;
-            if (BuffScript.MaxStacks > 254 && BuffType != BuffType.COUNTER)
+            IsHidden = BuffScript.BuffMetaData.IsHidden;
+            if (BuffScript.BuffMetaData.MaxStacks > 254 && BuffType != BuffType.COUNTER)
             {
                 MaxStacks = 254;
             }
             else
             {
-                MaxStacks = Math.Min(BuffScript.MaxStacks, int.MaxValue);
+                MaxStacks = Math.Min(BuffScript.BuffMetaData.MaxStacks, int.MaxValue);
             }
             OriginSpell = originSpell;
             if (onto.HasBuff(Name) && BuffAddType == BuffAddType.STACKS_AND_OVERLAPS)
@@ -88,12 +92,14 @@ namespace LeagueSandbox.GameServer.GameObjects
             TimeElapsed = 0;
             TargetUnit = onto;
             StatusEffects = new Dictionary<StatusFlags, bool>();
+
+            ToolTipData = new ToolTipData(TargetUnit, null, this);
         }
 
         public void LoadScript()
         {
             ApiEventManager.RemoveAllListenersForOwner(BuffScript);
-            BuffScript = _scriptEngine.CreateObject<IBuffGameScript>("Buffs", Name) ?? new BuffScriptEmpty();
+            BuffScript = CSharpScriptEngine.CreateObjectStatic<IBuffGameScript>("Buffs", Name) ?? new BuffScriptEmpty();
         }
 
         public void ActivateBuff()
@@ -113,10 +119,15 @@ namespace LeagueSandbox.GameServer.GameObjects
 
             BuffScript.OnDeactivate(TargetUnit, this, OriginSpell);
 
+            ApiEventManager.RemoveAllListenersForOwner(BuffScript);
+
             if (BuffScript.StatsModifier != null)
             {
                 TargetUnit.RemoveStatModifier(BuffScript.StatsModifier);
             }
+
+            ApiEventManager.OnBuffDeactivated.Publish(this);
+            ApiEventManager.OnUnitBuffDeactivated.Publish(TargetUnit, this);
         }
 
         public bool Elapsed()
@@ -146,6 +157,16 @@ namespace LeagueSandbox.GameServer.GameObjects
 
                     StatusEffects.Add(currentFlag, enabled);
                 }
+            }
+        }
+
+        public void SetToolTipVar<T>(int tipIndex, T value) where T : struct
+        {
+            ToolTipData.Update(tipIndex, value);
+
+            if (TargetUnit is IChampion champ)
+            {
+                champ.AddToolTipChange(ToolTipData);
             }
         }
 

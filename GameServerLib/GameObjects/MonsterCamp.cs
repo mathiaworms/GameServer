@@ -1,117 +1,156 @@
-﻿using System.Collections.Generic;
-using System.Numerics;
+﻿using GameServerCore.Domain;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
-using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
+using LeagueSandbox.GameServer;
+using LeagueSandbox.GameServer.API;
+using LeagueSandbox.GameServer.GameObjects;
+using System.Collections.Generic;
+using System.Numerics;
 
-namespace LeagueSandbox.GameServer.GameObjects
+namespace GameServerLib.GameObjects
 {
-    public class MonsterCamp : IMonsterCamp
+    public class MonsterCamp : GameObject, IMonsterCamp
     {
-        public MonsterCampType CampType { get; }
+        private TeamId[] _playerTeams = new TeamId[] { TeamId.TEAM_BLUE, TeamId.TEAM_PURPLE };
+        private Dictionary<TeamId, bool> _teamSawLastDeath = new Dictionary<TeamId, bool>{
+            { TeamId.TEAM_BLUE, true },
+            { TeamId.TEAM_PURPLE, true },
+        };
+        private Dictionary<TeamId, bool> _isAliveForTeam = new Dictionary<TeamId, bool>{
+            { TeamId.TEAM_BLUE, false },
+            { TeamId.TEAM_PURPLE, false },
+        };
+        private Dictionary<int, bool> _isAliveForPlayer = new Dictionary<int, bool>();
 
-        public Vector2 Position { get; }
+        public byte CampIndex { get; set; }
+        public new Vector3 Position { get; set; }
+        public byte SideTeamId { get; set; }
+        public string MinimapIcon { get; set; }
+        public byte RevealEvent { get; set; }
+        public float Expire { get; set; }
+        public int TimerType { get; set; }
+        public float SpawnDuration { get; set; }
+        public float DoPlayVO { get; set; }
+        public bool IsAlive { get; set; } = false;
+        public float RespawnTimer { get; set; }
+        public List<IMonster> Monsters { get; set; } = new List<IMonster>();
 
-        public Dictionary<Vector2, MonsterSpawnType> MonsterList { get; set; } = new Dictionary<Vector2, MonsterSpawnType>();
-        public Vector2 FacingDirection { get; }
+        public override bool IsAffectedByFoW => true;
 
-        public float RespawnCooldown { get; set; }
-        public float NextSpawnTime { get; protected set; } = 0f;
-
-        private Game _game;
-        private bool _notifiedClient;
-        private bool _isAlive;
-        private bool _setToSpawn;
-
-        List<Monster> monsters = new List<Monster>();
-
-        public MonsterCamp(Game game, MonsterCampType campType, Vector2 position, Dictionary<Vector2, MonsterSpawnType> listOfMonsters, float respawnCooldown = 1, Vector2 facingDirection = default)
+        public MonsterCamp(
+            Game game, Vector3 position, byte groupNumber, TeamId teamSideOfTheMap,
+            string campTypeIcon, float respawnTimer, bool doPlayVO = true, byte revealEvent = 74,
+            float spawnDuration = 0
+        ): base(
+            game, new Vector2(position.X, position.Z), 0, 0, 0, team: TeamId.TEAM_NEUTRAL
+        )
         {
-            _game = game;
-            CampType = campType;
             Position = position;
-            RespawnCooldown = respawnCooldown * 1000;
-            foreach (Vector2 coord in listOfMonsters.Keys)
-            {
-                MonsterList.Add(coord, listOfMonsters[coord]);
-            }
-            if (facingDirection == default)
-            {
-                FacingDirection = Position;
-            }
-            else
-            {
-                FacingDirection = facingDirection;
-            }
+            CampIndex = groupNumber;
+            RevealEvent = revealEvent;
+            MinimapIcon = campTypeIcon;
+            RespawnTimer = respawnTimer;
+            SideTeamId = (byte)teamSideOfTheMap;
+            SpawnDuration = spawnDuration;
         }
 
-        private static string GetMinimapIcon(MonsterCampType type)
+        public override void LateUpdate(float diff)
         {
-            switch (type)
+            foreach(TeamId team in _playerTeams)
             {
-                case MonsterCampType.BARON:
-                    return "Baron";
-                case MonsterCampType.DRAGON:
-                case MonsterCampType.BLUE_BLUE_BUFF:
-                case MonsterCampType.BLUE_RED_BUFF:
-                case MonsterCampType.RED_BLUE_BUFF:
-                case MonsterCampType.RED_RED_BUFF:
-                    return "Camp";
-                default:
-                    return "LesserCamp";
-            }
-        }
-
-        // TODO: method is used to evaluate whether camp should respawn as well as funcitoning as a getter for _isAlive,
-        // should probably split that functionality into separate methods
-        public bool IsAlive()
-        {
-            List<bool> alive = new List<bool>();
-            foreach (var monster in monsters)
-            {
-                if (monster != null && !monster.IsDead)
+                if(IsVisibleByTeam(team))
                 {
-                    alive.Add(true);
+                    _isAliveForTeam[team] = IsAlive;
+                }
+            }
+        }
+
+        public override void Sync(int userId, TeamId team, bool visible, bool forceSpawn = false)
+        {
+            base.Sync(userId, team, visible, forceSpawn);
+
+            bool isAliveForTeam = _isAliveForTeam[team];
+            bool isAliveForPlayer = _isAliveForPlayer.GetValueOrDefault(userId, false);
+            if
+            (
+                (forceSpawn && isAliveForPlayer) // Reconnect
+                || (isAliveForPlayer != isAliveForTeam
+                    // TODO: Handle based on vision radius, not status (also handle null peer info)
+                    && !_game.PlayerManager.GetPeerInfo(userId).Champion.Status.HasFlag(StatusFlags.NearSighted))
+            )
+            {
+                if(_isAliveForPlayer[userId] = isAliveForTeam)
+                {
+                    _game.PacketNotifier.NotifyS2C_ActivateMinionCamp(this, userId);
                 }
                 else
                 {
-                    alive.Add(false);
+                    _game.PacketNotifier.NotifyS2C_Neutral_Camp_Empty(this, userId: userId);
                 }
             }
 
-            _isAlive = alive.Contains(true);
-
-            if (!_isAlive && !_setToSpawn)
-            {
-                NextSpawnTime = _game.GameTime + RespawnCooldown * 1000f;
-                _game.PacketNotifier.NotifyMonsterCampEmpty(this, null);
-                _setToSpawn = true;
-            }
-
-            return _isAlive;
         }
 
-        public void Spawn()
+        protected override void OnSpawn(int userId, TeamId team, bool doVision = false)
         {
-            if (!_notifiedClient)
+            _game.PacketNotifier.NotifyS2C_CreateMinionCamp(this, userId);
+        }
+
+        protected override void OnEnterVision(int userId, TeamId team)
+        {
+        }
+
+        protected override void OnLeaveVision(int userId, TeamId team)
+        {
+        }
+
+        public IMonster AddMonster(IMonster monster)
+        {
+            var aiscript = monster.AIScript.ToString().Remove(0, 10);
+            var campMonster = new Monster
+            (
+                _game, monster.Name, monster.Model, monster.Position,
+                monster.Direction, this, monster.Team, 0,
+                monster.SpawnAnimation, monster.IsTargetable, monster.IgnoresCollision, aiscript,
+                monster.DamageBonus, monster.HealthBonus, monster.InitialLevel
+            );
+            while(campMonster.Stats.Level < monster.InitialLevel)
             {
-                _game.PacketNotifier.NotifyCreateMonsterCamp(Position, (byte)CampType, 0, GetMinimapIcon(CampType));
-                //_notifiedClient = true;
+                campMonster.Stats.LevelUp();
+            }
+            Monsters.Add(campMonster);
+            ApiEventManager.OnDeath.AddListener(campMonster, campMonster, OnMonsterDeath, true);
+            _game.ObjectManager.AddObject(campMonster);
+
+            IsAlive = true;
+            foreach(TeamId team in _playerTeams)
+            {
+                if(_teamSawLastDeath[team])
+                {
+                    _teamSawLastDeath[team] = false;
+                    _isAliveForTeam[team] = true;
+                }
             }
 
-            if (_isAlive) return;
+            return campMonster;
+        }
 
-            monsters = new List<Monster>();
-
-            foreach (var coord in MonsterList.Keys)
+        public void OnMonsterDeath(IDeathData deathData)
+        {
+            IMonster monster = deathData.Unit as IMonster;
+            Monsters.Remove(monster);
+            if (Monsters.Count == 0)
             {
-                var m = new Monster(_game, coord, FacingDirection, MonsterList[coord], _game.Map.MapScript.MonsterModels[MonsterList[coord]], _game.Map.MapScript.MonsterModels[MonsterList[coord]], CampType);
-                _game.ObjectManager.AddObject(m);
-                monsters.Add(m);
+                IsAlive = false;
+                foreach(TeamId team in _playerTeams)
+                {
+                    _teamSawLastDeath[team] = monster.IsVisibleByTeam(team) || IsVisibleByTeam(team);
+                    if (_teamSawLastDeath[team])
+                    {
+                        _isAliveForTeam[team] = false;
+                    }
+                }
             }
-
-            _setToSpawn = false;
-            _isAlive = true;
         }
     }
 }

@@ -5,16 +5,16 @@ using LeagueSandbox.GameServer.GameObjects.Stats;
 using LeagueSandbox.GameServer.API;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Scripting.CSharp;
-using GameServerCore.Domain;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 
 namespace Buffs
 {
     internal class MoltenShield : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
-        public BuffAddType BuffAddType => BuffAddType.RENEW_EXISTING;
-        public int MaxStacks => 1;
-        public bool IsHidden => false;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.COMBAT_ENCHANCER
+        };
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
@@ -38,7 +38,7 @@ namespace Buffs
                 float damage = ap + 10f + (obj.Spells[2].CastInfo.SpellLevel * 10f);
 
                 attacker.TakeDamage(obj, damage, DamageType.DAMAGE_TYPE_MAGICAL, DamageSource.DAMAGE_SOURCE_ATTACK, false);
-                AddParticleTarget(obj, null, "global_armor_pos_buf.troy", attacker);
+                AddParticleTarget(obj, null, "global_armor_pos_buf", attacker);
             }
         }
 

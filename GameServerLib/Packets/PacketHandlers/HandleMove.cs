@@ -1,14 +1,10 @@
-﻿using GameServerCore;
+﻿using GameServerCore.Packets.PacketDefinitions.Requests;
+using GameServerCore;
 using GameServerCore.Domain.GameObjects;
 using GameServerCore.Enums;
-using GameServerCore.Maps;
-using GameServerCore.Packets.Enums;
 using GameServerCore.Packets.Handlers;
-using GameServerCore.Packets.PacketDefinitions.Requests;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
 using System.Numerics;
+using System.Collections.Generic;
 
 namespace LeagueSandbox.GameServer.Packets.PacketHandlers
 {
@@ -27,75 +23,123 @@ namespace LeagueSandbox.GameServer.Packets.PacketHandlers
         {
             var peerInfo = _playerManager.GetPeerInfo(userId);
             var champion = peerInfo?.Champion;
-            if (peerInfo == null || !champion.CanMove())
+            if (peerInfo == null)
             {
                 return true;
             }
 
-            // Last waypoint position
-            var pos = req.Position;
-            var translatedWaypoints = req.Waypoints.ConvertAll(TranslateFromCenteredCoordinates);
-
-            var lastindex = 0;
-            if (!(translatedWaypoints.Count - 1 < 0))
+            if (champion.MovementParameters == null)
             {
-                lastindex = translatedWaypoints.Count - 1;
-            }
-
-            var nav = _game.Map.NavigationGrid;
-
-            foreach (Vector2 wp in translatedWaypoints)
-            {
-                if (!_game.Map.NavigationGrid.IsWalkable(wp))
+                // Last waypoint position
+                List<Vector2> translatedWaypoints = req.Waypoints.ConvertAll(TranslateFromCenteredCoordinates);
+                var lastindex = 0;
+                if (!(translatedWaypoints.Count - 1 < 0))
                 {
-                    Vector2 exit = nav.GetClosestTerrainExit(translatedWaypoints[lastindex]);
+                    lastindex = translatedWaypoints.Count - 1;
+                }
 
-                    // prevent player pathing within their collision radius
-                    if (Vector2.DistanceSquared(champion.Position, exit) < (champion.CollisionRadius * champion.CollisionRadius))
+                var nav = _game.Map.NavigationGrid;
+
+                foreach (Vector2 wp in translatedWaypoints)
+                {
+                    if (!_game.Map.PathingHandler.IsWalkable(wp))
                     {
+                        Vector2 exit = nav.GetClosestTerrainExit(translatedWaypoints[lastindex]);
+
+                        // prevent player pathing within their pathing radius
+                        if (Vector2.DistanceSquared(champion.Position, exit) < (champion.PathfindingRadius * champion.PathfindingRadius))
+                        {
+                            return true;
+                        }
+
+                        if (_game.Map.PathingHandler.IsWalkable(champion.Position))
+                        {
+                            translatedWaypoints = _game.Map.PathingHandler.GetPath(champion.Position, exit);
+                        }
+                        break;
+                    }
+                }
+
+                var u = _game.ObjectManager.GetObjectById(req.TargetNetID) as IAttackableUnit;
+                var pet = champion.GetPet();
+
+                switch (req.OrderType)
+                {
+                    case OrderType.MoveTo:
+                        translatedWaypoints[0] = champion.Position;
+                        champion.UpdateMoveOrder(OrderType.MoveTo, true);
+                        champion.SetWaypoints(translatedWaypoints);
+                        champion.SetTargetUnit(u);
+                        break;
+                    case OrderType.AttackTo:
+                        translatedWaypoints[0] = champion.Position;
+                        champion.UpdateMoveOrder(OrderType.AttackTo, true);
+                        champion.SetWaypoints(translatedWaypoints);
+                        champion.SetTargetUnit(u);
+                        break;
+                    case OrderType.PetHardAttack:
+                        if (pet != null)
+                        {
+                            List<Vector2> waypoints = _game.Map.PathingHandler.GetPath(pet.Position, nav.GetClosestTerrainExit(req.Position));
+                            pet.UpdateMoveOrder(OrderType.PetHardAttack, true);
+                            pet.SetWaypoints(waypoints);
+                            pet.SetTargetUnit(u, true);
+                        }
+                        break;
+                    case OrderType.PetHardMove:
+                        if (pet != null)
+                        {
+                            List<Vector2> waypoints = _game.Map.PathingHandler.GetPath(pet.Position, nav.GetClosestTerrainExit(req.Position));
+                            pet.UpdateMoveOrder(OrderType.PetHardMove, true);
+                            pet.SetWaypoints(waypoints);
+                            pet.SetTargetUnit(u, true);
+                        }
+                        break;
+                    case OrderType.AttackMove:
+                        translatedWaypoints[0] = champion.Position;
+                        champion.UpdateMoveOrder(OrderType.AttackMove, true);
+                        champion.SetWaypoints(translatedWaypoints);
+                        champion.SetTargetUnit(u);
+                        break;
+                    case OrderType.Taunt:
+                        champion.UpdateMoveOrder(OrderType.Taunt);
                         return true;
-                    }
+                    case OrderType.PetHardReturn:
+                        if (pet != null)
+                        {
+                            List<Vector2> waypoints = _game.Map.PathingHandler.GetPath(pet.Position, nav.GetClosestTerrainExit(req.Position));
+                            pet.UpdateMoveOrder(OrderType.PetHardReturn, true);
+                            pet.SetWaypoints(waypoints);
+                            pet.SetTargetUnit(u, true);
+                        }
+                        break;
+                    case OrderType.Stop:
+                        champion.UpdateMoveOrder(OrderType.Stop, true);
+                        break;
+                    case OrderType.PetHardStop:
+                        if (pet != null)
+                        {
+                            pet.UpdateMoveOrder(OrderType.PetHardStop, true);
+                        }
+                        break;
+                    case OrderType.Use:
+                        translatedWaypoints[0] = champion.Position;
+                        champion.UpdateMoveOrder(OrderType.Use, true);
+                        champion.SetWaypoints(translatedWaypoints);
+                        champion.SetTargetUnit(u);
+                        break;
+                }
 
-                    if (_game.Map.NavigationGrid.IsWalkable(champion.Position))
-                    {
-                        translatedWaypoints = nav.GetPath(champion.Position, exit);
-                    }
-                    break;
+                if (translatedWaypoints == null)
+                {
+                    return false;
                 }
             }
 
-            switch (req.Type)
+            // TODO: Shouldn't be here.
+            if (champion.SpellToCast != null)
             {
-                case OrderType.AttackTo:
-                    translatedWaypoints[0] = champion.Position;
-                    champion.UpdateMoveOrder(OrderType.AttackTo, true);
-                    // TODO: Verify if stopping movement is the correct thing to do.
-                    champion.SetWaypoints(translatedWaypoints);
-                    break;
-                case OrderType.Stop:
-                    champion.UpdateMoveOrder(OrderType.Stop, true);
-                    break;
-                case OrderType.Taunt:
-                    champion.UpdateMoveOrder(OrderType.Taunt);
-                    return true;
-                case OrderType.AttackMove:
-                    translatedWaypoints[0] = champion.Position;
-                    champion.UpdateMoveOrder(OrderType.AttackMove, true);
-                    champion.SetWaypoints(translatedWaypoints);
-                    break;
-                case OrderType.MoveTo:
-                    translatedWaypoints[0] = champion.Position;
-                    champion.UpdateMoveOrder(OrderType.MoveTo, true);
-                    champion.SetWaypoints(translatedWaypoints);
-                    break;
-            }
-
-            var u = _game.ObjectManager.GetObjectById(req.TargetNetId) as IAttackableUnit;
-            champion.SetTargetUnit(u);
-
-            if (translatedWaypoints == null)
-            {
-                return false;
+                champion.SetSpellToCast(null, Vector2.Zero);
             }
 
             return true;

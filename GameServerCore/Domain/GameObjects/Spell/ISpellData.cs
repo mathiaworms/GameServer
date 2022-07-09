@@ -78,7 +78,7 @@ namespace GameServerCore.Domain.GameObjects.Spell
         float LuaOnMissileUpdateDistanceInterval { get; }
         float MagicDamageCoefficient { get; }
         float[] ManaCost { get; }
-        int[] MaxAmmo { get; }
+        int MaxAmmo { get; }
         float MissileAccel { get; }
         string MissileBoneName { get; }
         string MissileEffect { get; }
@@ -144,6 +144,5 @@ namespace GameServerCore.Domain.GameObjects.Spell
             float attackMaximumDelay = 5.0f
         );
         void SetTargetingType(TargetingType newType);
-        void Load(string name);
     }
 }

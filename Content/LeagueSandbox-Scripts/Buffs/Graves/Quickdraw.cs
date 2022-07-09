@@ -4,19 +4,22 @@ using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 
 namespace Buffs
 {
     internal class Quickdraw : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
-        public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
-        public int MaxStacks => 1;
-        public bool IsHidden => false;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.COMBAT_ENCHANCER,
+            BuffAddType = BuffAddType.REPLACE_EXISTING
+        };
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
         IParticle activate;
+
         public void OnUpdate(float diff)
         {
         }
@@ -24,7 +27,7 @@ namespace Buffs
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
             var owner = ownerSpell.CastInfo.Owner;
-            activate = AddParticleTarget(owner, unit, "Graves_Move_OnBuffActivate.troy", unit);
+            activate = AddParticleTarget(owner, unit, "Graves_Move_OnBuffActivate", unit);
             StatsModifier.AttackSpeed.PercentBonus = 0.2f + (0.1f * ownerSpell.CastInfo.SpellLevel);
             unit.AddStatModifier(StatsModifier);
         }

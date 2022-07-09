@@ -2,7 +2,7 @@
 
 namespace GameServerCore.Domain.GameObjects
 {
-    public interface IStats: IUpdate
+    public interface IStats : IUpdate
     {
         ulong SpellsEnabled { get; }
         ulong SummonerSpellsEnabled { get; }
@@ -17,7 +17,6 @@ namespace GameServerCore.Domain.GameObjects
         float AttackSpeedFlat { get; set; }
         float HealthPerLevel { get; }
         float ManaPerLevel { get; }
-        float AdPerLevel { get; }
         float ArmorPerLevel { get; }
         float MagicResistPerLevel { get; }
         float HealthRegenerationPerLevel { get; }
@@ -28,11 +27,14 @@ namespace GameServerCore.Domain.GameObjects
         IStat Armor { get; }
         IStat ArmorPenetration { get; }
         IStat AttackDamage { get; }
+        IStat AttackDamagePerLevel { get; }
         IStat AttackSpeedMultiplier { get; }
         IStat CooldownReduction { get; }
         IStat CriticalChance { get; }
         IStat CriticalDamage { get; }
-        IStat GoldPerSecond { get; }
+        IStat ExpGivenOnDeath { get; }
+        IStat GoldPerGoldTick { get; }
+        IStat GoldGivenOnDeath { get; }
         IStat HealthPoints { get; }
         IStat HealthRegeneration { get; }
         IStat LifeSteal { get; }
@@ -45,24 +47,27 @@ namespace GameServerCore.Domain.GameObjects
         IStat Size { get; }
         IStat SpellVamp { get; }
         IStat Tenacity { get; }
+        IStat AcquisitionRange { get; }
         float Gold { get; set; }
         byte Level { get; set; }
         float Experience { get; set; }
+        float Points { get; set; }
         float CurrentHealth { get; set; }
         float CurrentMana { get; set; }
         bool IsGeneratingGold { get; set; }
         float SpellCostReduction { get; }
-        
+        float SlowResistPercent { get; set; }
+        float MultiplicativeSpeedBonus { get; set; }
         void AddModifier(IStatsModifier modifier);
         void RemoveModifier(IStatsModifier modifier);
         void LevelUp();
-        
+
         float GetTotalAttackSpeed();
         bool GetActionState(ActionState state);
         bool GetSpellEnabled(byte id);
         float GetPostMitigationDamage(float damage, DamageType type, IAttackableUnit attacker);
         bool GetSummonerSpellEnabled(byte id);
-        
+
         void SetActionState(ActionState state, bool enabled);
         void SetSpellEnabled(byte id, bool enabled);
         void SetSummonerSpellEnabled(byte id, bool enabled);

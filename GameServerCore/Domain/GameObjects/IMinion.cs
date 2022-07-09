@@ -1,4 +1,5 @@
 ﻿using GameServerCore.Enums;
+using GameServerCore.Scripting.CSharp;
 
 namespace GameServerCore.Domain.GameObjects
 {
@@ -8,10 +9,6 @@ namespace GameServerCore.Domain.GameObjects
         /// Unit which spawned this minion.
         /// </summary>
         IObjAiBase Owner { get; }
-        /// <summary>
-        /// Whether or not this minion is considered a clone of its owner.
-        /// </summary>
-        bool IsClone { get; }
         /// <summary>
         /// Whether or not this minion should ignore collisions.
         /// </summary>
@@ -25,14 +22,6 @@ namespace GameServerCore.Domain.GameObjects
         /// </summary>
         bool IsLaneMinion { get; }
         /// <summary>
-        /// Whether or not this minion is considered a bot.
-        /// </summary>
-        bool IsBot { get; }
-        /// <summary>
-        /// Whether or not this minion is considered a pet.
-        /// </summary>
-        bool IsPet { get; }
-        /// <summary>
         /// Whether or not this minion is targetable at all.
         /// </summary>
         bool IsTargetable { get; }
@@ -44,7 +33,8 @@ namespace GameServerCore.Domain.GameObjects
         /// Only unit which is allowed to see this minion.
         /// </summary>
         IObjAiBase VisibilityOwner { get; }
-
-        void PauseAi(bool pause);
+        int DamageBonus { get; }
+        int HealthBonus { get; }
+        int InitialLevel { get; }
     }
 }

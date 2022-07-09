@@ -1,15 +1,21 @@
-﻿using GameServerCore.Domain.GameObjects;
+﻿using System.Numerics;
+using GameServerCore.Domain.GameObjects;
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
+using LeagueSandbox.GameServer.API;
+using LeagueSandbox.GameServer.GameObjects.Stats;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
-using System.Numerics;
 using GameServerCore.Scripting.CSharp;
 
 namespace Buffs
 {
-    internal class HeadButt : IBuffGameScript
+     class HeadButt : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.INTERNAL;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData 
+        {
+             BuffType = BuffType.INTERNAL
+        };
         public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
         public int MaxStacks => 1;
         public bool IsHidden => true;
@@ -23,7 +29,7 @@ namespace Buffs
             var owner = ownerSpell.CastInfo.Owner;
             var time = 0.6f - ownerSpell.CastInfo.SpellLevel * 0.1f;
             var damage = 50f + ownerSpell.CastInfo.SpellLevel * 20f + unit.Stats.AbilityPower.Total * 0.6f;
-            
+
             AddParticleTarget(owner, target, "HeadButt_tar.troy", target);
             var to = Vector2.Normalize(target.Position - unit.Position);
             ForceMovement(unit, null, new Vector2(target.Position.X + to.X * 250f, target.Position.Y + to.Y * 250f), 800f + unit.Stats.MoveSpeed.Total * 0.6f, 0, 0, 0); ; ;
@@ -32,12 +38,10 @@ namespace Buffs
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-
         }
 
         public void OnUpdate(float diff)
         {
-
         }
     }
 }

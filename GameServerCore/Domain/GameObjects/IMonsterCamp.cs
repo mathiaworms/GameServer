@@ -1,17 +1,23 @@
-﻿using GameServerCore.Enums;
+﻿using GameServerCore.Domain.GameObjects;
+using GameServerCore.Enums;
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace GameServerCore.Domain.GameObjects
+namespace GameServerCore.Domain
 {
     public interface IMonsterCamp
     {
-        MonsterCampType CampType { get; }
-        Vector2 Position { get; }
-        public Dictionary<Vector2, MonsterSpawnType> MonsterList { get; set; }
-        float RespawnCooldown { get; set; }
-        float NextSpawnTime { get; }
-        bool IsAlive();
-        void Spawn();
+        byte CampIndex { get; set; }
+        Vector3 Position { get; set; }
+        byte SideTeamId { get; set; }
+        string MinimapIcon { get; set; }
+        byte RevealEvent { get; set; }
+        float Expire { get; set; }
+        int TimerType { get; set; }
+        float SpawnDuration { get; set; }
+        bool IsAlive { get; set; }
+        float RespawnTimer { get; set; }
+        List<IMonster> Monsters { get; }
+        IMonster AddMonster(IMonster monster);
     }
 }

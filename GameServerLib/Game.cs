@@ -1,18 +1,15 @@
 ﻿using GameServerCore;
 using GameServerCore.Enums;
-using GameServerCore.Maps;
-using GameServerCore.Packets.Enums;
 using GameServerCore.Packets.Handlers;
 using GameServerCore.Packets.Interfaces;
 using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.Chatbox;
 using LeagueSandbox.GameServer.Logging;
-using LeagueSandbox.GameServer.Maps;
 using LeagueSandbox.GameServer.Packets;
 using LeagueSandbox.GameServer.Players;
 using LeagueSandbox.GameServer.Scripting.CSharp;
 using log4net;
-using LeagueSandbox.GameServer.Items;
+using LeagueSandbox.GameServer.Inventory;
 using PacketDefinitions420;
 using System;
 using System.Collections.Generic;
@@ -20,14 +17,13 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using Timer = System.Timers.Timer;
+using LeagueSandbox.GameServer.Packets.PacketHandlers;
+using GameServerCore.Domain.GameObjects;
+using GameServerCore.Handlers;
+using LeagueSandbox.GameServer.Handlers;
 using GameServerCore.Packets.PacketDefinitions;
 using GameServerCore.Packets.PacketDefinitions.Requests;
-using LeagueSandbox.GameServer.GameObjects;
-using LeagueSandbox.GameServer.GameObjects.Spell;
-using LeagueSandbox.GameServer.Packets.PacketHandlers;
 
 namespace LeagueSandbox.GameServer
 {
@@ -38,13 +34,10 @@ namespace LeagueSandbox.GameServer
     {
         // Crucial Game Vars
         private PacketServer _packetServer;
-        private Stopwatch _lastMapDurationWatch;
         private List<GameScriptTimer> _gameScriptTimers;
 
         // Function Vars
         private readonly ILog _logger;
-        private Timer _pauseTimer;
-        private bool _autoResumeCheck;
         private float _nextSyncTime = 10 * 1000;
         protected const double REFRESH_RATE = 1000.0 / 60.0; // GameLoop called 60 times a second.
 
@@ -84,7 +77,7 @@ namespace LeagueSandbox.GameServer
         /// <summary>
         /// Handler for response packets sent by the server to game clients.
         /// </summary>
-        public NetworkHandler<ICoreResponse> ResponseHandler { get; }
+        public NetworkHandler<ICoreRequest> ResponseHandler { get; }
         /// <summary>
         /// Interface containing all function related packets (except handshake) which are sent by the server to game clients.
         /// </summary>
@@ -144,7 +137,7 @@ namespace LeagueSandbox.GameServer
             PlayerManager = new PlayerManager(this);
             ScriptEngine = new CSharpScriptEngine();
             RequestHandler = new NetworkHandler<ICoreRequest>();
-            ResponseHandler = new NetworkHandler<ICoreResponse>();
+            ResponseHandler = new NetworkHandler<ICoreRequest>();
         }
 
         /// <summary>
@@ -170,13 +163,6 @@ namespace LeagueSandbox.GameServer
 
             Map.Init();
 
-            _pauseTimer = new Timer
-            {
-                AutoReset = true,
-                Enabled = false,
-                Interval = 1000
-            };
-            _pauseTimer.Elapsed += (sender, args) => PauseTimeLeft--;
             PauseTimeLeft = 30 * 60; // 30 minutes
 
             // TODO: GameApp should send the Response/Request handlers
@@ -193,16 +179,6 @@ namespace LeagueSandbox.GameServer
             }
 
             _logger.Info("Game is ready.");
-            var timer = new Timer(360000) { AutoReset = false };
-            timer.Elapsed += (a, b) =>
-            {
-                if(!IsRunning)
-                {
-                    _logger.Info("Game didn't start");
-                    SetToExit = true;
-                }
-            };
-            timer.Start();
         }
 
         /// <summary>
@@ -210,7 +186,7 @@ namespace LeagueSandbox.GameServer
         /// </summary>
         public void InitializePacketHandlers()
         {
-            // maybe use reflection, the problem is that Register is generic and so it needs to know its type at 
+            // maybe use reflection, the problem is that Register is generic and so it needs to know its type at
             // compile time, maybe just use interface and in runetime figure out the type - and again there is
             // a problem with passing generic delegate to non-generic function, if we try to only constraint the
             // argument to interface ICoreRequest we will get an error cause our generic handlers use generic type
@@ -228,7 +204,7 @@ namespace LeagueSandbox.GameServer
             RequestHandler.Register<SyncSimTimeRequest>(new HandleSyncSimTime(this).HandlePacket);
             RequestHandler.Register<PingLoadInfoRequest>(new HandleLoadPing(this).HandlePacket);
             RequestHandler.Register<LockCameraRequest>(new HandleLockCamera(this).HandlePacket);
-            RequestHandler.Register<MapRequest>(new HandleMap(this).HandlePacket);
+            RequestHandler.Register<JoinTeamRequest>(new HandleJoinTeam(this).HandlePacket);
             RequestHandler.Register<MovementRequest>(new HandleMove(this).HandlePacket);
             RequestHandler.Register<MoveConfirmRequest>(new HandleMoveConfirm(this).HandlePacket);
             RequestHandler.Register<PauseRequest>(new HandlePauseReq(this).HandlePacket);
@@ -239,7 +215,7 @@ namespace LeagueSandbox.GameServer
             RequestHandler.Register<UpgradeSpellReq>(new HandleUpgradeSpellReq(this).HandlePacket);
             RequestHandler.Register<SpawnRequest>(new HandleSpawn(this).HandlePacket);
             RequestHandler.Register<StartGameRequest>(new HandleStartGame(this).HandlePacket);
-            RequestHandler.Register<StatsConfirmRequest>(new HandleStatsConfirm(this).HandlePacket);
+            RequestHandler.Register<ReplicationConfirmRequest>(new HandleStatsConfirm(this).HandlePacket);
             RequestHandler.Register<SurrenderRequest>(new HandleSurrender(this).HandlePacket);
             RequestHandler.Register<SwapItemsRequest>(new HandleSwapItems(this).HandlePacket);
             RequestHandler.Register<SynchVersionRequest>(new HandleSync(this).HandlePacket);
@@ -292,11 +268,21 @@ namespace LeagueSandbox.GameServer
 
             if (scriptLoadingResults)
             {
-                foreach (var champion in ObjectManager.GetAllChampions())
+                foreach (var unit in ObjectManager.GetObjects().Values)
                 {
-                    champion.LoadPassiveScript(champion.Spells[(int)SpellSlotType.PassiveSpellSlot]);
-                    champion.GetBuffs().ForEach(buff => buff.LoadScript());
-                    champion.Spells.Values.ToList().ForEach(spell => spell.LoadScript());
+                    if (unit is IObjAiBase obj)
+                    {
+                        if (obj.Spells.ContainsKey((int)SpellSlotType.PassiveSpellSlot))
+                        {
+                            obj.LoadCharScript(obj.Spells[(int)SpellSlotType.PassiveSpellSlot]);
+                        }
+                        else
+                        {
+                            obj.LoadCharScript();
+                        }
+                        obj.GetBuffs().ForEach(buff => buff.LoadScript());
+                        obj.Spells.Values.ToList().ForEach(spell => spell.LoadScript());
+                    }
                 }
             }
 
@@ -308,37 +294,65 @@ namespace LeagueSandbox.GameServer
         /// </summary>
         public void GameLoop()
         {
-            _lastMapDurationWatch = new Stopwatch();
-            _lastMapDurationWatch.Start();
+            uint timeout = (uint)REFRESH_RATE;
+
+            Stopwatch lastMapDurationWatch = new Stopwatch();
+            lastMapDurationWatch.Start();
+
+            bool isJustPaused = true;
+            bool autoResumeCheck = false;
+
             while (!SetToExit)
             {
-                _packetServer.NetLoop();
+                _packetServer.NetLoop(timeout);
+
                 if (IsPaused)
                 {
-                    _lastMapDurationWatch.Stop();
-                    _pauseTimer.Enabled = true;
-                    if (PauseTimeLeft <= 0 && !_autoResumeCheck)
+                    if (isJustPaused)
                     {
-                        PacketNotifier.NotifyUnpauseGame();
-                        _autoResumeCheck = true;
+                        lastMapDurationWatch.Stop();
+                        isJustPaused = false;
+                        timeout = 1000;
                     }
-                    continue;
+                    else if (!autoResumeCheck)
+                    {
+                        PauseTimeLeft--;
+                        _logger.Debug(PauseTimeLeft.ToString());
+                        if (PauseTimeLeft <= 0)
+                        {
+                            autoResumeCheck = true;
+                            timeout = (int)REFRESH_RATE;
+
+                            //TODO: fix these
+                            //PacketNotifier.NotifyUnpauseGame();
+
+                            // Pure water framing
+                            var players = PlayerManager.GetPlayers();
+                            var unpauser = players[0].Item2.Champion;
+                            foreach (var player in players)
+                            {
+                                PacketNotifier.NotifyResumePacket(unpauser, player.Item2, false);
+                            }
+                            Unpause();
+                        }
+                    }
                 }
 
-                if (_lastMapDurationWatch.Elapsed.TotalMilliseconds + 1.0 > REFRESH_RATE)
+                if (!IsPaused)
                 {
-                    // Sets last tick time (diff).
-                    double sinceLastMapTime = _lastMapDurationWatch.Elapsed.TotalMilliseconds;
-                    _lastMapDurationWatch.Restart();
+                    isJustPaused = true;
+                    autoResumeCheck = false;
+
+                    double sinceLastMapTime = lastMapDurationWatch.Elapsed.TotalMilliseconds;
+                    lastMapDurationWatch.Restart();
                     if (IsRunning)
                     {
                         Update((float)sinceLastMapTime);
-
                     }
+                    sinceLastMapTime = lastMapDurationWatch.Elapsed.TotalMilliseconds;
+                    timeout = (uint)Math.Max(0, REFRESH_RATE - sinceLastMapTime);
                 }
-                Thread.Sleep(1);
             }
-
         }
 
         /// <summary>
@@ -400,6 +414,7 @@ namespace LeagueSandbox.GameServer
         public void Start()
         {
             IsRunning = true;
+            Map.MapScript.OnMatchStart();
         }
 
         /// <summary>
@@ -420,7 +435,10 @@ namespace LeagueSandbox.GameServer
                 return;
             }
             IsPaused = true;
-            PacketNotifier.NotifyPauseGame((int)PauseTimeLeft, true);
+            foreach (var player in PlayerManager.GetPlayers())
+            {
+                PacketNotifier.NotifyPausePacket(player.Item2, (int)PauseTimeLeft, true);
+            }
         }
 
         /// <summary>
@@ -428,9 +446,7 @@ namespace LeagueSandbox.GameServer
         /// </summary>
         public void Unpause()
         {
-            _lastMapDurationWatch.Start();
             IsPaused = false;
-            _pauseTimer.Enabled = false;
         }
 
         /// <summary>

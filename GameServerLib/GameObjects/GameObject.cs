@@ -22,15 +22,32 @@ namespace LeagueSandbox.GameServer.GameObjects
         // Function Vars
         protected bool _toRemove;
         protected bool _movementUpdated;
-        private Dictionary<TeamId, bool> _visibleByTeam;
+
+        protected Dictionary<TeamId, bool> _visibleByTeam;
+        protected HashSet<int> _spawnedForPlayers = new HashSet<int>();
+        protected Dictionary<int, bool> _visibleForPlayers = new Dictionary<int, bool>();
+        /// <summary>
+        /// A set of players with vision of this GameObject.
+        /// Can be iterated through.
+        /// </summary>
+        public IEnumerable<int> VisibleForPlayers
+        {
+            get
+            {
+                foreach(var kv in _visibleForPlayers)
+                {
+                    if(kv.Value)
+                    {
+                        yield return kv.Key;
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Comparison variable for small distance movements.
         /// </summary>
         public static readonly uint MOVEMENT_EPSILON = 5; //TODO: Verify if this should be changed
-        /// <summary>
-        /// Whether or not this object counts as a single point target. *NOTE*: Will be depricated once Target class is removed.
-        /// </summary>
 
         /// <summary>
         ///  Identifier unique to this game object.
@@ -40,6 +57,10 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// Radius of the circle which is used for collision detection between objects or terrain.
         /// </summary>
         public float CollisionRadius { get; protected set; }
+        /// <summary>
+        /// Radius of the circle which is used for pathfinding around objects and terrain.
+        /// </summary>
+        public float PathfindingRadius { get; protected set; }
         /// <summary>
         /// Position of this GameObject from a top-down view.
         /// </summary>
@@ -61,10 +82,13 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// </summary>
         public float VisionRadius { get; protected set; }
 
+        public virtual bool IsAffectedByFoW => false;
+        public virtual bool SpawnShouldBeHidden => false;
+
         /// <summary>
         /// Instantiation of an object which represents the base class for all objects in League of Legends.
         /// </summary>
-        public GameObject(Game game, Vector2 position, float collisionRadius = 40f, float visionRadius = 0f, uint netId = 0, TeamId team = TeamId.TEAM_NEUTRAL)
+        public GameObject(Game game, Vector2 position, float collisionRadius = 40f, float pathingRadius = 40f, float visionRadius = 0f, uint netId = 0, TeamId team = TeamId.TEAM_NEUTRAL)
         {
             _game = game;
             _networkIdManager = game.NetworkIdManager;
@@ -77,9 +101,10 @@ namespace LeagueSandbox.GameServer.GameObjects
                 NetId = _networkIdManager.GetNewNetId(); // base class assigns a netId
             }
             Position = position;
-            Direction = new Vector3();
+            Direction = Vector3.Zero;
             SyncId = Environment.TickCount; // TODO: use movement manager to generate this
             CollisionRadius = collisionRadius;
+            PathfindingRadius = pathingRadius;
             VisionRadius = visionRadius;
 
             _visibleByTeam = new Dictionary<TeamId, bool>();
@@ -100,6 +125,7 @@ namespace LeagueSandbox.GameServer.GameObjects
         public virtual void OnAdded()
         {
             _game.Map.CollisionHandler.AddObject(this);
+            _game.ObjectManager.AddVisionProvider(this, Team);
         }
 
         /// <summary>
@@ -107,6 +133,10 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// </summary>
         /// <param name="diff">Number of milliseconds that passed before this tick occurred.</param>
         public virtual void Update(float diff)
+        {
+        }
+
+        public virtual void LateUpdate(float diff)
         {
         }
 
@@ -132,6 +162,7 @@ namespace LeagueSandbox.GameServer.GameObjects
         public virtual void OnRemoved()
         {
             _game.Map.CollisionHandler.RemoveObject(this);
+            _game.ObjectManager.RemoveVisionProvider(this, Team);
         }
 
         /// <summary>
@@ -200,7 +231,7 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// <param name="o">An object that could be colliding with this object.</param>
         public virtual bool IsCollidingWith(IGameObject o)
         {
-            return Vector2.DistanceSquared(new Vector2(Position.X, Position.Y), o.Position) < (CollisionRadius + o.CollisionRadius) * (CollisionRadius + o.CollisionRadius);
+            return Vector2.DistanceSquared(Position, o.Position) < (CollisionRadius + o.CollisionRadius) * (CollisionRadius + o.CollisionRadius);
         }
 
         /// <summary>
@@ -208,12 +239,76 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// </summary>
         public virtual void OnCollision(IGameObject collider, bool isTerrain = false)
         {
+            // TODO: Verify if we should trigger events here.
+
             if (isTerrain)
             {
                 // Escape functionality should be moved to GameObject.OnCollision.
                 // only time we would collide with terrain is if we are inside of it, so we should teleport out of it.
-                Vector2 exit = _game.Map.NavigationGrid.GetClosestTerrainExit(Position, CollisionRadius + 1.0f);
-                TeleportTo(exit.X, exit.Y);
+                Vector2 exit = _game.Map.NavigationGrid.GetClosestTerrainExit(Position, PathfindingRadius + 1.0f);
+                SetPosition(exit);
+            }
+        }
+
+        protected virtual void OnSpawn(int userId, TeamId team, bool doVision)
+        {
+            _game.PacketNotifier.NotifySpawn(this, team, userId, _game.GameTime, doVision);
+        }
+
+        protected virtual void OnEnterVision(int userId, TeamId team)
+        {
+            _game.PacketNotifier.NotifyVisibilityChange(this, team, true, userId);
+        }
+
+        protected virtual void OnSync(int userId, TeamId team)
+        {
+        }
+
+        protected virtual void OnLeaveVision(int userId, TeamId team)
+        {
+            _game.PacketNotifier.NotifyVisibilityChange(this, team, false, userId);
+        }
+
+        public virtual void Sync(int userId, TeamId team, bool visible, bool forceSpawn = false)
+        {
+            visible = visible || !IsAffectedByFoW;
+
+            if (!forceSpawn && IsSpawnedForPlayer(userId))
+            {
+                if (IsAffectedByFoW && (IsVisibleForPlayer(userId) != visible))
+                {
+                    if(visible)
+                    {
+                        OnEnterVision(userId, team);
+                    }
+                    else
+                    {
+                        OnLeaveVision(userId, team);
+                    }
+                    SetVisibleForPlayer(userId, visible);
+                }
+                else if(visible)
+                {
+                    OnSync(userId, team);
+                }
+            }
+            else if (visible || !SpawnShouldBeHidden)
+            {
+                OnSpawn(userId, team, visible);
+                SetVisibleForPlayer(userId, visible);
+                SetSpawnedForPlayer(userId);
+            }
+        }
+
+        public virtual void OnAfterSync()
+        {
+        }
+
+        public virtual void OnReconnect(int userId, TeamId team)
+        {
+            if(IsSpawnedForPlayer(userId))
+            {
+                Sync(userId, team, IsVisibleForPlayer(userId), true);
             }
         }
 
@@ -221,11 +316,11 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// Sets the object's team.
         /// </summary>
         /// <param name="team">TeamId.BLUE/PURPLE/NEUTRAL</param>
-        public void SetTeam(TeamId team)
+        public virtual void SetTeam(TeamId team)
         {
-            _visibleByTeam[Team] = false;
+            _game.ObjectManager.RemoveVisionProvider(this, Team);
             Team = team;
-            _visibleByTeam[Team] = true;
+            _game.ObjectManager.AddVisionProvider(this, Team);
             if (_game.IsRunning)
             {
                 _game.PacketNotifier.NotifySetTeam(this as IAttackableUnit);
@@ -233,28 +328,78 @@ namespace LeagueSandbox.GameServer.GameObjects
         }
 
         /// <summary>
-        /// Whether or not the object is networked to a specified team.
+        /// Whether or not the object is within vision of the specified team.
         /// </summary>
         /// <param name="team">A team which could have vision of this object.</param>
         public bool IsVisibleByTeam(TeamId team)
         {
-            return team == Team || _visibleByTeam[team];
+            return !IsAffectedByFoW || _visibleByTeam[team];
+        }
+        
+        /// <summary>
+        /// Sets the object as visible to a specified team.
+        /// Should be called in the ObjectManager. By itself, it only affects the return value of IsVisibleByTeam.
+        /// </summary>
+        /// <param name="team">A team which could have vision of this object.</param>
+        /// <param name="visible">New value.</param>
+        public void SetVisibleByTeam(TeamId team, bool visible = true)
+        {
+            _visibleByTeam[team] = visible;
         }
 
         /// <summary>
-        /// Sets the object to be networked or not to a specified team.
+        /// Gets a list of all teams that have vision of this object.
         /// </summary>
-        /// <param name="team">A team which could have vision of this object.</param>
-        /// <param name="visible">true/false; networked or not</param>
-        public void SetVisibleByTeam(TeamId team, bool visible)
+        public List<TeamId> TeamsWithVision()
         {
-            _visibleByTeam[team] = visible;
-
-            if (this is IAttackableUnit)
+            List<TeamId> toReturn = new List<TeamId>();
+            foreach(var team in _visibleByTeam.Keys)
             {
-                // TODO: send this in one place only
-                _game.PacketNotifier.NotifyUpdatedStats(this as IAttackableUnit, false);
+                if (_visibleByTeam[team])
+                {
+                    toReturn.Add(team);
+                }
             }
+            return toReturn;
+        }
+
+        /// <summary>
+        /// Whether or not the object is visible for the specified player.
+        /// <summary>
+        /// <param name="userId">The player in relation to which the value is obtained</param>
+        public bool IsVisibleForPlayer(int userId)
+        {
+            return !IsAffectedByFoW || _visibleForPlayers.GetValueOrDefault(userId, false);
+        }
+
+        /// <summary>
+        /// Sets the object as visible and or not to a specified player.
+        /// Should be called in the ObjectManager. By itself, it only affects the return value of IsVisibleForPlayer.
+        /// <summary>
+        /// <param name="userId">The player for which the value is set.</param>
+        /// <param name="visible">New value.</param>
+        public void SetVisibleForPlayer(int userId, bool visible = true)
+        {
+            _visibleForPlayers[userId] = visible;
+        }
+
+        /// <summary>
+        /// Whether or not the object is spawned on the player's client side.
+        /// <summary>
+        /// <param name="userId">The player in relation to which the value is obtained</param>
+        public bool IsSpawnedForPlayer(int userId)
+        {
+            return _spawnedForPlayers.Contains(userId);
+        }
+
+        /// <summary>
+        /// Sets the object as spawned on the player's client side.
+        /// Should be called in the ObjectManager. By itself, it only affects the return value of IsSpawnedForPlayer.
+        /// <summary>
+        /// <param name="userId">The player for which the value is set.</param>
+        public void SetSpawnedForPlayer(int userId)
+        {
+            _spawnedForPlayers.Add(userId);
         }
 
         /// <summary>
@@ -264,18 +409,13 @@ namespace LeagueSandbox.GameServer.GameObjects
         /// <param name="y">Y coordinate to set.</param>
         public virtual void TeleportTo(float x, float y)
         {
-            var position = new Vector2(x, y);
-
-            if (!_game.Map.NavigationGrid.IsWalkable(x, y, CollisionRadius))
-            {
-                position = _game.Map.NavigationGrid.GetClosestTerrainExit(new Vector2(x, y), CollisionRadius + 1.0f);
-            }
+            var position = _game.Map.NavigationGrid.GetClosestTerrainExit(new Vector2(x, y), PathfindingRadius + 1.0f);
 
             SetPosition(position);
 
-            // TODO: Verify which one we want to use. WaypointList does not require conversions, however WaypointGroup does (and it has TeleportID functionality).
-            //_game.PacketNotifier.NotifyWaypointList(this, new List<Vector2> { Position });
-            _game.PacketNotifier.NotifyEnterVisibilityClient(this, useTeleportID: true);
+            // TODO: Find a suitable function for this. Maybe modify NotifyWaypointGroup to accept simple objects.
+            _game.PacketNotifier.NotifyEnterVisibilityClient(this);
+            _movementUpdated = false;
         }
 
         /// <summary>

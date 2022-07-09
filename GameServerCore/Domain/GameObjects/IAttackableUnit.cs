@@ -11,20 +11,15 @@ namespace GameServerCore.Domain.GameObjects
     public interface IAttackableUnit : IGameObject
     {
         /// <summary>
+        /// Variable containing all data about this unit's current character such as base health, base mana, whether or not they are melee, base movespeed, per level stats, etc.
+        /// </summary>
+        ICharData CharData { get; }
+        /// <summary>
         /// Whether or not this Unit is dead. Refer to TakeDamage() and Die().
         /// </summary>
         bool IsDead { get; }
         /// <summary>
-        /// Whether or not this Unit's model has been changeds this tick. Resets to False when the next tick update happens in ObjectManager.
-        /// </summary>
-        bool IsModelUpdated { get; set; }
-        /// <summary>
-        /// The "score" of this Unit which increases as kills are gained and decreases as deaths are inflicted.
-        /// Used in determining kill gold rewards.
-        /// </summary>
-        int KillDeathCounter { get; set; }
-        /// <summary>
-        /// Number of minions this Unit has killed. Unused besides in replication which is used for packets, refer to NotifyUpdateStats in PacketNotifier.
+        /// Number of minions this Unit has killed. Unused besides in replication which is used for packets, refer to NotifyOnReplication in PacketNotifier.
         /// </summary>
         /// TODO: Verify if we want to move this to ObjAIBase since AttackableUnits cannot attack or kill anything.
         int MinionCounter { get; }
@@ -63,7 +58,13 @@ namespace GameServerCore.Domain.GameObjects
         /// Resets when reaching byte.MaxValue (255).
         /// </summary>
         byte TeleportID { get; set; }
+        /// <summary>
+        /// Information about this object's icon on the minimap.
+        /// </summary>
+        /// TODO: Move this to GameObject.
+        IIconInfo IconInfo { get; }
 
+        bool disableBroadcastStats { get; set; }
         /// <summary>
         /// Gets the HashString for this unit's model. Used for packets so clients know what data to load.
         /// </summary>
@@ -87,6 +88,21 @@ namespace GameServerCore.Domain.GameObjects
         /// <param name="team">TeamId to change.</param>
         /// <param name="targetable">True/False.</param>
         void SetIsTargetableToTeam(TeamId team, bool targetable);
+        /// <summary>
+        /// Whether or not this unit can move itself.
+        /// </summary>
+        /// <returns></returns>
+        bool CanMove();
+        /// <summary>
+        /// Whether or not this unit can modify its Waypoints.
+        /// </summary>
+        bool CanChangeWaypoints();
+        /// <summary>
+        /// Whether or not this unit can take damage of the given type.
+        /// </summary>
+        /// <param name="type">Type of damage to check.</param>
+        /// <returns>True/False</returns>
+        bool CanTakeDamage(DamageType type);
         /// <summary>
         /// Adds a modifier to this unit's stats, ex: Armor, Attack Damage, Movespeed, etc.
         /// </summary>
@@ -115,6 +131,8 @@ namespace GameServerCore.Domain.GameObjects
         /// <param name="source">What the damage came from: attack, spell, summoner spell, or passive.</param>
         /// <param name="isCrit">Whether or not the damage text should be shown as a crit.</param>
         void TakeDamage(IAttackableUnit attacker, float damage, DamageType type, DamageSource source, bool isCrit);
+        void TakeDamage(IDamageData damageData, DamageResultType damageText);
+        void TakeDamage(IDamageData damageData, bool isCrit);
         /// <summary>
         /// Whether or not this unit is currently calling for help. Unimplemented.
         /// </summary>
@@ -209,10 +227,15 @@ namespace GameServerCore.Domain.GameObjects
         /// <returns>Float units/sec.</returns>
         float GetMoveSpeed();
         /// <summary>
-        /// Whether or not this unit can move itself.
+        /// Processes the unit's move speed
+        /// </summary>
+        void CalculateTrueMoveSpeed();
+        /// <summary>
+        /// Returns the true movespeed of an unit
         /// </summary>
         /// <returns></returns>
-        bool CanMove();
+        float GetTrueMoveSpeed();
+        void ClearSlows();
         /// <summary>
         /// Teleports this unit to the given position, and optionally repaths from the new position.
         /// </summary>
@@ -262,21 +285,23 @@ namespace GameServerCore.Domain.GameObjects
         /// <param name="animation">Internal name of the dash animation.</param>
         /// <param name="leapGravity">Optionally how much gravity the unit will experience when above the ground while dashing.</param>
         /// <param name="keepFacingLastDirection">Whether or not the AI unit should face the direction they were facing before the dash.</param>
+        /// <param name="consideredCC">Whether or not to prevent movement, casting, or attacking during the duration of the movement.</param>
         /// TODO: Find a good way to grab these variables from spell data.
         /// TODO: Verify if we should count Dashing as a form of Crowd Control.
         /// TODO: Implement Dash class which houses these parameters, then have that as the only parameter to this function (and other Dash-based functions).
-        void DashToLocation(Vector2 endPos, float dashSpeed, string animation, float leapGravity = 0.0f, bool keepFacingLastDirection = true);
+        void DashToLocation(Vector2 endPos, float dashSpeed, string animation = "", float leapGravity = 0.0f, bool keepFacingLastDirection = true, bool consideredCC = true);
         /// <summary>
         /// Sets this unit's current dash state to the given state.
         /// </summary>
         /// <param name="state">State to set. True = dashing, false = not dashing.</param>
         /// TODO: Implement ForcedMovement methods and enumerators to handle different kinds of dashes.
-        void SetDashingState(bool state);
+        void SetDashingState(bool state, MoveStopReason reason = MoveStopReason.Finished);
         /// <summary>
         /// Sets this unit's animation states to the given set of states.
         /// Given state pairs are expected to follow a specific structure:
         /// First string is the animation to override, second string is the animation to play in place of the first.
         /// <param name="animPairs">Dictionary of animations to set.</param>
         void SetAnimStates(Dictionary<string, string> animPairs);
+        void UpdateIcon();
     }
 }

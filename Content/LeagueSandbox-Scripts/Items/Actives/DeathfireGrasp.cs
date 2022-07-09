@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using GameServerCore.Scripting.CSharp;
 using GameServerCore.Domain.GameObjects.Spell.Sector;
 
-namespace Spells
+namespace ItemSpells
 {
     public class DeathfireGrasp : ISpellScript
     {
@@ -44,7 +44,7 @@ namespace Spells
         {
         }
 
-        public void OnSpellChannelCancel(ISpell spell)
+        public void OnSpellChannelCancel(ISpell spell, ChannelingStopSource reason)
         {
         }
 
@@ -101,7 +101,7 @@ namespace Spells
         {
         }
 
-        public void OnSpellChannelCancel(ISpell spell)
+        public void OnSpellChannelCancel(ISpell spell, ChannelingStopSource reason)
         {
         }
 

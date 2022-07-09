@@ -2,11 +2,18 @@
 using GameServerCore.Domain.GameObjects.Spell;
 using GameServerCore.Enums;
 using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.Scripting.CSharp;
+using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 
 namespace Buffs
 {
     internal class YasuoQ01 : IBuffGameScript
     {
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffAddType = BuffAddType.REPLACE_EXISTING
+        };
+
         public BuffType BuffType => BuffType.INTERNAL;
         public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
         public int MaxStacks => 1;
@@ -16,14 +23,20 @@ namespace Buffs
 
         public void OnActivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            ((IObjAiBase)unit).SetSpell("YasuoQ2W", 0, true);
+            if (unit is IObjAiBase ai)
+            {
+                SetSpell(ai, "YasuoQ2W", SpellSlotType.SpellSlots, 0);
+            }
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)
         {
-            if (((IObjAiBase)unit).Spells[0].SpellName == "YasuoQ2W")
+            if (unit is IObjAiBase ai)
             {
-                ((IObjAiBase)unit).SetSpell("YasuoQW", 0, true);
+                if (ai.Spells[0].SpellName == "YasuoQ2W")
+                {
+                    SetSpell(ai, "YasuoQW", SpellSlotType.SpellSlots, 0);
+                }
             }
         }
 

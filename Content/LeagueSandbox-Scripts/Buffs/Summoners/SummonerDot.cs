@@ -4,15 +4,17 @@ using GameServerCore.Domain.GameObjects.Spell;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using GameServerCore.Scripting.CSharp;
+using LeagueSandbox.GameServer.Scripting.CSharp;
 
 namespace Buffs
 {
     internal class SummonerDot : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.DAMAGE;
-        public BuffAddType BuffAddType => BuffAddType.REPLACE_EXISTING;
-        public int MaxStacks => 1;
-        public bool IsHidden => false;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.DAMAGE,
+            BuffAddType = BuffAddType.REPLACE_EXISTING
+        };
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 
@@ -28,7 +30,7 @@ namespace Buffs
             Owner = ownerSpell.CastInfo.Owner;
             Target = unit;
             damage = 10 + Owner.Stats.Level * 4;
-            ignite = AddParticleTarget(Owner, unit, "Global_SS_Ignite.troy", unit, buff.Duration); //"C_BUFFBONE_GLB_CHEST_LOC", lifetime: );
+            ignite = AddParticleTarget(Owner, unit, "Global_SS_Ignite", unit, buff.Duration, bone: "C_BUFFBONE_GLB_CHEST_LOC");
         }
 
         public void OnDeactivate(IAttackableUnit unit, IBuff buff, ISpell ownerSpell)

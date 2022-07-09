@@ -6,6 +6,7 @@ using LeagueSandbox.GameServer.GameObjects.AttackableUnits.AI;
 using LeagueSandbox.GameServer.Packets;
 using System.Collections.Generic;
 using System;
+using GameServerCore.Domain;
 
 namespace LeagueSandbox.GameServer.Players
 {
@@ -27,7 +28,7 @@ namespace LeagueSandbox.GameServer.Players
             _networkIdManager = game.NetworkIdManager;
         }
 
-        private TeamId GetTeamIdFromConfig(PlayerConfig p)
+        private TeamId GetTeamIdFromConfig(IPlayerConfig p)
         {
             if (p.Team.ToLower().Equals("blue"))
             {
@@ -37,7 +38,7 @@ namespace LeagueSandbox.GameServer.Players
             return TeamId.TEAM_PURPLE;
         }
 
-        public void AddPlayer(KeyValuePair<string, PlayerConfig> p)
+        public void AddPlayer(KeyValuePair<string, IPlayerConfig> p)
         {
             var summonerSkills = new[]
             {
@@ -55,17 +56,26 @@ namespace LeagueSandbox.GameServer.Players
                 summonerSkills,
                 p.Value.PlayerID // same as StartClient.bat
             );
-            var c = new Champion(_game, p.Value.Champion, (uint)player.PlayerId, _userIdsPerTeam[teamId]++, p.Value.Runes, player, 0, teamId);
+            
+            player.ClientId = (uint)_players.Count;
 
-            var pos = c.GetSpawnPosition();
+            var c = new Champion(_game, p.Value.Champion, (uint)player.PlayerId, _userIdsPerTeam[teamId]++, p.Value.Runes, p.Value.Talents, player, 0, teamId);
+
+            var pos = c.GetSpawnPosition((int)_userIdsPerTeam[teamId]);
             c.SetPosition(pos, false);
             c.StopMovement();
             c.UpdateMoveOrder(OrderType.Stop);
-            c.LevelUp();
+
+            _game.ObjectManager.AddObject(c);
 
             player.Champion = c;
             var pair = new Tuple<uint, ClientInfo> ((uint)player.PlayerId, player);
             _players.Add(pair);
+        }
+
+        public void AddPlayer(Tuple<uint, ClientInfo> p)
+        {
+            _players.Add(p);
         }
 
         // GetPlayerFromPeer
@@ -84,11 +94,16 @@ namespace LeagueSandbox.GameServer.Players
 
         public ClientInfo GetClientInfoByChampion(IChampion champ)
         {
-            return GetPlayers().Find(c => c.Item2.Champion == champ).Item2;
+            return GetPlayers(true).Find(c => c.Item2.Champion == champ).Item2;
         }
 
-        public List<Tuple<uint, ClientInfo>> GetPlayers()
+        public List<Tuple<uint, ClientInfo>> GetPlayers(bool includeBots = true)
         {
+            if (!includeBots)
+            {
+                return _players.FindAll(c => !c.Item2.Champion.IsBot);
+            }
+
             return _players;
         }
     }

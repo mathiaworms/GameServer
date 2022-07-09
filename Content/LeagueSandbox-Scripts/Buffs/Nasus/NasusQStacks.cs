@@ -6,16 +6,18 @@ using LeagueSandbox.GameServer.API;
 using LeagueSandbox.GameServer.GameObjects.Stats;
 using static LeagueSandbox.GameServer.API.ApiFunctionManager;
 using GameServerCore.Domain;
-
+using LeagueSandbox.GameServer.Scripting.CSharp;
 
 namespace Buffs
 {
     internal class NasusQStacks : IBuffGameScript
     {
-        public BuffType BuffType => BuffType.COMBAT_ENCHANCER;
-        public BuffAddType BuffAddType => BuffAddType.STACKS_AND_OVERLAPS;
-        public int MaxStacks => 999999;
-        public bool IsHidden => false;
+        public IBuffScriptMetaData BuffMetaData { get; set; } = new BuffScriptMetaData
+        {
+            BuffType = BuffType.COUNTER,
+            BuffAddType = BuffAddType.STACKS_AND_RENEWS,
+            MaxStacks = 999999
+        };
 
         public IStatsModifier StatsModifier { get; private set; } = new StatsModifier();
 

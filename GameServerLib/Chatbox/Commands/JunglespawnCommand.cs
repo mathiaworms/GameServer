@@ -7,7 +7,8 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
     {
         private readonly ILog _logger;
         private readonly Game _game;
-        public override string Command => "spawnjungle";
+
+        public override string Command => "junglespawn";
         public override string Syntax => $"{Command}";
 
         public JunglespawnCommand(ChatCommandManager chatCommandManager, Game game)
@@ -19,20 +20,9 @@ namespace LeagueSandbox.GameServer.Chatbox.Commands
 
         public override void Execute(int userId, bool hasReceivedArguments, string arguments = "")
         {
-            if(_game.Map.MapScript.JungleCamps == null || _game.Map.MapScript.JungleCamps.Count == 0)
-            {
-                ChatCommandManager.SendDebugMsgFormatted(DebugMsgType.INFO, "This map doesn't have jungle camps");
-            }
-            else
-            {
-                foreach (var jungleCamp in _game.Map.MapScript.JungleCamps)
-                {
-                    if (!jungleCamp.IsAlive())
-                    {
-                        jungleCamp.Spawn();
-                    }
-                }
-            }
+            _game.Map.MapScript.SpawnAllCamps();
+            _logger.Info($"{ChatCommandManager.CommandStarterCharacter}{Command} Jungle Spawned!");
+            ChatCommandManager.SendDebugMsgFormatted(DebugMsgType.NORMAL, "Jungle Spawned!");
         }
     }
 }

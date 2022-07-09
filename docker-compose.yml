@@ -1,0 +1,46 @@
+version: '3.7'
+
+services:
+  ls4api:
+    image: ${IMAGE}
+    container_name: ls4_$SERVICE_DOMAIN
+    restart: always
+    networks:
+      - traefik_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.$SERVICE_DOMAIN.rule=Host(`$SERVICE_DOMAIN.leagues4.com`)"
+      - "traefik.http.routers.$SERVICE_DOMAIN.entrypoints=websecure"
+      - "traefik.http.routers.$SERVICE_DOMAIN.tls.certresolver=jandevresolver"
+      - "traefik.http.services.$SERVICE_DOMAIN.loadbalancer.server.port=80"
+    environment:
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-null}
+      - DATABASE_CONNECTION=${DATABASE_CONNECTION:-null}
+      - DATABASE_USERNAME=${DATABASE_USERNAME:-null}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-null}
+      - JWT_SECRET=${JWT_SECRET:-null}
+      - USER_MAX_FRIENDS=${USER_MAX_FRIENDS:-null}
+      - USER_MAX_FRIEND_REQUESTS_IN=${USER_MAX_FRIEND_REQUESTS_IN:-null}
+      - USER_MAX_FRIEND_REQUESTS_OUT=${USER_MAX_FRIEND_REQUESTS_OUT:-null}
+      - USER_MAX_LOBBY_INVITES=${USER_MAX_LOBBY_INVITES:-null}
+      - MAIL_HOST=${MAIL_HOST:-null}
+      - MAIL_PORT=${MAIL_PORT:-null}
+      - MAIL_USERNAME=${MAIL_USERNAME:-null}
+      - MAIL_PASSWORD=${MAIL_PASSWORD:-null}
+    ports:
+      - 1337:1337/udp
+      - 1338:1338/udp
+      - 1339:1339/udp
+      - 1340:1340/udp
+      - 1341:1341/udp
+      - 1342:1342/udp
+      - 1343:1343/udp
+      - 1344:1344/udp
+      - 1345:1339/udp
+      - 1346:1346/udp
+      - 1347:1347/udp
+      - 1348:1348/udp
+
+networks:
+  traefik_default:
+    external: true

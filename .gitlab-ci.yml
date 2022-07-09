@@ -1,0 +1,86 @@
+stages:
+  - build
+  - package
+  - deploy
+  - stop
+
+variables:
+  IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+
+Maven Build:
+  image: maven:3-openjdk-11
+  stage: build
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  script:
+    - "mvn package -B -DskipTests"
+  artifacts:
+    expire_in: 30 min
+    paths:
+      - target/*.jar
+  cache:
+    paths:
+      - .m2/repository/
+  tags:
+    - docker
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      changes:
+        - src/**/*
+        - pom.xml
+
+Docker Build:
+  image: docker:stable
+  stage: package
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - docker build -t "$IMAGE" .
+    - docker push "$IMAGE"
+  tags:
+    - docker
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      changes:
+        - src/**/*
+        - pom.xml
+
+.Deploy Template: &deploy
+  image: docker/compose:latest
+  stage: deploy
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  tags:
+    - docker
+
+Deploy Production:
+  <<: *deploy
+  script:
+    - docker-compose -p "ls4-$SERVICE_DOMAIN" up -d --force-recreate
+  environment:
+    name: production
+    url: https://$SERVICE_DOMAIN.leagues4.com/
+    on_stop: Stop Production
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      changes:
+        - src/**/*
+        - pom.xml
+
+.Stop Template: &stop
+  image: docker/compose:latest
+  stage: stop
+  script:
+    - docker-compose -p "ls4-$SERVICE_DOMAIN" down
+  tags:
+    - docker
+  when: manual
+
+Stop Production:
+  <<: *stop
+  environment:
+    name: production
+    url: https://$SERVICE_DOMAIN.leagues4.com
+    action: stop
+  only:
+    - master

@@ -129,6 +129,90 @@ namespace LeagueSandbox.GameServer.API
         {
             return _game.ObjectManager.Teams;
         }
+     public static List<IChampion> GetAllChampionsInRange(Vector2 targetPos, float range)
+        {
+            List<IChampion> x = new List<IChampion>();
+            var alive = _game.ObjectManager.GetChampionsInRange(targetPos, range, true);
+            var dead = _game.ObjectManager.GetChampionsInRange(targetPos, range, false);
+
+            foreach(var champion in alive)
+            {
+                x.Add(champion);
+            }
+            foreach (var champion in dead)
+            {
+                x.Add(champion);
+            }
+
+            return x;
+        }
+
+        public static int ConvertAPISlot(SpellSlotType slotType, int slot)
+        {
+            if ((slotType == SpellSlotType.SpellSlots && (slot < 0 || slot > 3))
+                || (slotType == SpellSlotType.InventorySlots && (slot < 0 || slot > 6))
+                || (slotType == SpellSlotType.ExtraSlots && (slot < 0 || slot > 15)))
+            {
+                return -1;
+            }
+
+            if (slotType == SpellSlotType.SummonerSpellSlots)
+            {
+                slot += (int)SpellSlotType.SummonerSpellSlots;
+            }
+            else if (slotType == SpellSlotType.InventorySlots)
+            {
+                slot += (int)SpellSlotType.InventorySlots;
+            }
+            else if (slotType == SpellSlotType.TempItemSlot)
+            {
+                slot = (int)SpellSlotType.TempItemSlot;
+            }
+            else if (slotType == SpellSlotType.ExtraSlots)
+            {
+                slot += (int)SpellSlotType.ExtraSlots;
+            }
+
+            return slot;
+        }
+
+        public static int ConvertAPISlot(SpellbookType spellbookType, SpellSlotType slotType, int slot)
+        {
+            if (spellbookType == SpellbookType.SPELLBOOK_UNKNOWN
+                || spellbookType == SpellbookType.SPELLBOOK_SUMMONER && (slotType != SpellSlotType.SummonerSpellSlots)
+                || (spellbookType == SpellbookType.SPELLBOOK_CHAMPION
+                    && ((slotType == SpellSlotType.SpellSlots && (slot < 0 || slot > 3))
+                        || (slotType == SpellSlotType.InventorySlots && (slot < 0 || slot > 6))
+                        || (slotType == SpellSlotType.ExtraSlots && (slot < 0 || slot > 15)))))
+            {
+                return -1;
+            }
+
+            if (spellbookType == SpellbookType.SPELLBOOK_CHAMPION)
+            {
+                if (slotType == SpellSlotType.InventorySlots)
+                {
+                    slot += (int)SpellSlotType.InventorySlots;
+                }
+                else if (slotType == SpellSlotType.TempItemSlot)
+                {
+                    slot = (int)SpellSlotType.TempItemSlot;
+                }
+                else if (slotType == SpellSlotType.ExtraSlots)
+                {
+                    slot += (int)SpellSlotType.ExtraSlots;
+                }
+            }
+            else if (spellbookType == SpellbookType.SPELLBOOK_SUMMONER)
+            {
+                if (slotType == SpellSlotType.SummonerSpellSlots)
+                {
+                    slot += (int)SpellSlotType.SummonerSpellSlots;
+                }
+            }
+
+            return slot;
+        }
 
         /// <summary>
         /// Teleports an AI unit to the specified coordinates.
@@ -169,7 +253,7 @@ namespace LeagueSandbox.GameServer.API
         /// <returns>Vector2 point.</returns>
         public static Vector2 GetPointFromUnit(IGameObject obj, float distance, float offsetAngle = 0)
         {
-            Vector2 pos = new Vector2(obj.Position.X, obj.Position.Y);
+            Vector2 pos = obj.Position;
             Vector2 dir = new Vector2(obj.Direction.X, obj.Direction.Z);
             if (offsetAngle != 0)
             {
@@ -187,7 +271,7 @@ namespace LeagueSandbox.GameServer.API
         /// <returns>True/False</returns>
         public static bool IsWalkable(float x, float y, float checkRadius = 0)
         {
-            return _game.Map.NavigationGrid.IsWalkable(x, y, checkRadius);
+            return _game.Map.PathingHandler.IsWalkable(new Vector2(x, y), checkRadius);
         }
 
         /// <summary>
@@ -290,9 +374,9 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="teamOnly">The only team which should be able to see the particle.</param>
         /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
         /// <returns>New particle instance.</returns>
-        public static IParticle AddParticlePos(IGameObject caster, string particle, Vector2 start, Vector2 end, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, bool reqVision = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.BindDirection)
+        public static IParticle AddParticlePos(IGameObject caster, string particle, Vector2 start, Vector2 end, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, TeamId teamOnly = TeamId.TEAM_NEUTRAL, IGameObject unitOnly = null, FXFlags flags = FXFlags.BindDirection)
         {
-            var p = new Particle(_game, caster, start, end, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, reqVision, true, teamOnly, flags);
+            var p = new Particle(_game, caster, start, end, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, teamOnly, unitOnly, flags);
             return p;
         }
 
@@ -313,9 +397,9 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="teamOnly">The only team which should be able to see the particle.</param>
         /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
         /// <returns>New particle instance.</returns>
-        public static IParticle AddParticle(IGameObject caster, IGameObject bindObj, string particle, Vector2 position, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, bool reqVision = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.BindDirection)
+        public static IParticle AddParticle(IGameObject caster, IGameObject bindObj, string particle, Vector2 position, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, TeamId teamOnly = TeamId.TEAM_NEUTRAL, IGameObject unitOnly = null, FXFlags flags = FXFlags.BindDirection)
         {
-            var p = new Particle(_game, caster, bindObj, position, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, reqVision, true, teamOnly, flags);
+            var p = new Particle(_game, caster, bindObj, position, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, teamOnly, unitOnly, flags);
             return p;
         }
 
@@ -337,9 +421,9 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="teamOnly">The only team which should be able to see the particle.</param>
         /// <param name="flags">Flags which determine how the particle behaves. Refer to FXFlags enum.</param>
         /// <returns>New particle instance.</returns>
-        public static IParticle AddParticleTarget(IGameObject caster, IGameObject bindObj, string particle, IGameObject target, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, bool reqVision = true, TeamId teamOnly = TeamId.TEAM_NEUTRAL, FXFlags flags = FXFlags.BindDirection)
+        public static IParticle AddParticleTarget(IGameObject caster, IGameObject bindObj, string particle, IGameObject target, float lifetime = 1.0f, float size = 1.0f, string bone = "", string targetBone = "", Vector3 direction = new Vector3(), bool followGroundTilt = false, TeamId teamOnly = TeamId.TEAM_NEUTRAL, IGameObject unitOnly = null, FXFlags flags = FXFlags.BindDirection)
         {
-            var p = new Particle(_game, caster, bindObj, target, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, reqVision, true, teamOnly, flags);
+            var p = new Particle(_game, caster, bindObj, target, particle, size, bone, targetBone, 0, direction, followGroundTilt, lifetime, teamOnly, unitOnly, flags);
             return p;
         }
 
@@ -376,21 +460,94 @@ namespace LeagueSandbox.GameServer.API
             string model,
             string name,
             Vector2 position,
+            TeamId team = TeamId.TEAM_NEUTRAL,
             int skinId = 0,
             bool ignoreCollision = false,
             bool targetable = true,
+             bool isWard = false,
             SpellDataFlags targetingFlags = 0,
             IObjAiBase visibilityOwner = null,
             bool isVisible = true,
             bool aiPaused = true
         )
         {
-            var m = new Minion(_game, owner, position, model, name, 0, owner.Team, skinId, ignoreCollision, targetable, visibilityOwner);
+            var m = new Minion(_game, owner, position, model, name, 0, team, skinId, ignoreCollision, targetable, isWard, visibilityOwner);
             m.Stats.IsTargetableToTeam = targetingFlags;
             _game.ObjectManager.AddObject(m);
-            m.SetVisibleByTeam(owner.Team, isVisible);
+            if (owner != null)
+            {
+                m.SetVisibleByTeam(owner.Team, isVisible);
+            }
             m.PauseAi(aiPaused);
             return m;
+        }
+
+        /// <summary>
+        /// Creates a stationary perception bubble at the given location.
+        /// </summary>
+        /// <param name="position">Position to spawn the perception bubble at.</param>
+        /// <param name="radius">Size of the perception bubble.</param>
+        /// <param name="duration">Number of seconds the perception bubble should exist.</param>
+        /// <param name="team">Team the perception bubble should be owned by.</param>
+        /// <param name="revealStealthed">Whether or not the perception bubble should reveal stealthed units while they are in range.</param>
+        /// <param name="revealSpecificUnitOnly">Specific unit to reveal. Perception bubble will not reveal any other units when used. *NOTE* Currently does nothing.</param>
+        /// <param name="collisionArea">Area around the perception bubble where units are not allowed to move into.</param>
+        /// <returns>New Region instance.</returns>
+        public static IRegion AddPosPerceptionBubble
+        (
+            Vector2 position,
+            float radius,
+            float duration = -1f,
+            TeamId team = TeamId.TEAM_NEUTRAL,
+            bool revealStealthed = false,
+            IAttackableUnit revealSpecificUnitOnly = null,
+            float collisionArea = 0f,
+            IGameObject collisionOwner = null
+        )
+        {
+            var useCollision = false;
+            if (collisionArea > 0)
+            {
+                useCollision = true;
+            }
+
+            // TODO: Implement revealSpecificUnitOnly
+            return new Region(_game, team, position, collisionUnit: collisionOwner, giveVision: true, visionRadius: radius, revealStealth: revealStealthed, hasCollision: useCollision, collisionRadius: collisionArea, lifetime: duration);
+        }
+
+        /// <summary>
+        /// Creates a perception bubble which is attached to a specific unit.
+        /// </summary>
+        /// <param name="target">Unit to attach the perception bubble to.</param>
+        /// <param name="radius">Size of the perception bubble.</param>
+        /// <param name="duration">Number of seconds the perception bubble should exist.</param>
+        /// <param name="team">Team the perception bubble should be owned by.</param>
+        /// <param name="revealStealthed">Whether or not the perception bubble should reveal stealthed units while they are in range.</param>
+        /// <param name="revealSpecificUnitOnly">Specific unit to reveal. Perception bubble will not reveal any other units when used. *NOTE* Currently does nothing.</param>
+        /// <param name="collisionArea">Area around the perception bubble where units are not allowed to move into.</param>
+        ///
+        /// <returns>New Region instance.</returns>
+        public static IRegion AddUnitPerceptionBubble
+        (
+            IAttackableUnit target,
+            float radius,
+            float duration = -1f,
+            TeamId team = TeamId.TEAM_NEUTRAL,
+            bool revealStealthed = false,
+            IAttackableUnit revealSpecificUnitOnly = null,
+            float collisionArea = 0f,
+            IGameObject collisionOwner = null,
+            RegionType regionType = RegionType.Default
+        )
+        {
+            var useCollision = false;
+            if (collisionArea > 0)
+            {
+                useCollision = true;
+            }
+
+            // TODO: Implement revealSpecificUnitOnly
+            return new Region(_game, team, target.Position, regionType, collisionOwner, revealSpecificUnitOnly, true, radius, revealStealthed, useCollision, collisionArea, duration);
         }
 
         /// <summary>
@@ -399,7 +556,7 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="msg">String to print.</param>
         public static void PrintChat(string msg)
         {
-            _game.PacketNotifier.NotifyDebugMessage(msg); // TODO: Move PacketNotifier usage to less abstract classes
+            _game.PacketNotifier.NotifyS2C_SystemMessage(msg); // TODO: Move PacketNotifier usage to less abstract classes
         }
 
         /// <summary>
@@ -427,9 +584,46 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="range">Range to check from the target position.</param>
         /// <param name="isAlive">Whether or not to return alive AttackableUnits.</param>
         /// <returns>List of AttackableUnits.</returns>
-        public static List<IAttackableUnit> GetUnitsInRange(Vector2 targetPos, float range, bool isAlive)
+        public static List<IAttackableUnit> GetUnitsInRangeOld(Vector2 targetPos, float range, bool isAlive)
         {
             return _game.ObjectManager.GetUnitsInRange(targetPos, range, isAlive);
+        }
+
+        /// <summary>
+        /// Acquires all dead or alive AttackableUnits within the specified range of a target position.
+        /// </summary>
+        /// <param name="targetPos">Origin of the range to check.</param>
+        /// <param name="range">Range to check from the target position.</param>
+        /// <returns>List of AttackableUnits.</returns>
+        public static IEnumerable<IAttackableUnit> EnumerateUnitsInRange(Vector2 targetPos, float range, bool isAlive)
+        {
+            foreach (var obj in _game.Map.CollisionHandler.GetNearestObjects(new System.Activities.Presentation.View.Circle(targetPos, range)))
+            {
+                if (obj is IAttackableUnit u && (!isAlive || !u.IsDead))
+                {
+                    yield return u;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Acquires all dead or alive AttackableUnits within the specified range of a target position.
+        /// </summary>
+        /// <param name="targetPos">Origin of the range to check.</param>
+        /// <param name="range">Range to check from the target position.</param>
+        /// <returns>List of AttackableUnits.</returns>
+        public static List<IAttackableUnit> GetUnitsInRange(Vector2 targetPos, float range, bool isAlive)
+        {
+            var returnList = new List<IAttackableUnit>();
+            foreach (var obj in _game.Map.CollisionHandler.GetNearestObjects(new System.Activities.Presentation.View.Circle(targetPos, range)))
+            {
+                if (obj is IAttackableUnit u && (!isAlive || !u.IsDead))
+                {
+                    returnList.Add(u);
+                }
+            }
+            returnList.OrderBy(unit => Vector2.DistanceSquared(unit.Position, targetPos));
+            return returnList;
         }
 
         /// <summary>
@@ -441,7 +635,7 @@ namespace LeagueSandbox.GameServer.API
         /// <returns>Closest AttackableUnit.</returns>
         public static IAttackableUnit GetClosestUnitInRange(Vector2 targetPos, float range, bool isAlive)
         {
-            var units = _game.ObjectManager.GetUnitsInRange(targetPos, range, isAlive);
+            var units = GetUnitsInRange(targetPos, range, isAlive);
             var orderedUnits = units.OrderBy(unit => Vector2.DistanceSquared(targetPos, unit.Position));
 
             return orderedUnits.First();
@@ -456,7 +650,7 @@ namespace LeagueSandbox.GameServer.API
         /// <returns>Closest AttackableUnit.</returns>
         public static IAttackableUnit GetClosestUnitInRange(IAttackableUnit target, float range, bool isAlive)
         {
-            var units = _game.ObjectManager.GetUnitsInRange(target.Position, range, isAlive);
+            var units = GetUnitsInRange(target.Position, range, isAlive);
             var orderedUnits = units.OrderBy(unit => Vector2.DistanceSquared(target.Position, unit.Position));
 
             if (orderedUnits.First() == target && orderedUnits.Count() > 1)
@@ -480,6 +674,50 @@ namespace LeagueSandbox.GameServer.API
         }
 
         /// <summary>
+        /// Counts the number of units attacking a specified GameObject of type AttackableUnit.
+        /// </summary>
+        /// <param name="target">AttackableUnit potentially being attacked.</param>
+        /// <returns>Number of units attacking target.</returns>
+        public static int CountUnitsAttackingUnit(IAttackableUnit target)
+        {
+            return _game.ObjectManager.CountUnitsAttackingUnit(target);
+        }
+
+        /// <summary>
+        /// Returns a new list of all players in the game.
+        /// Players are designated as clients, this includes bot champions.
+        /// Currently only a single champion is designated to each player.
+        /// </summary>
+        /// <returns></returns>
+        public static List<IChampion> GetAllPlayers()
+        {
+            var toreturn = new List<IChampion>();
+            foreach (var player in _game.PlayerManager.GetPlayers(true))
+            {
+                toreturn.Add(player.Item2.Champion);
+            }
+            return toreturn;
+        }
+
+        //Consider changing this to take bots into account too
+        public static List<IChampion> GetAllPlayersFromTeam(TeamId team)
+        {
+            return _game.ObjectManager.GetAllChampionsFromTeam(team);
+        }
+
+        /// <summary>
+        /// Returns a new list of all champions in the game.
+        /// </summary>
+        /// <returns></returns>
+        public static List<IChampion> GetAllChampions()
+        {
+            return _game.ObjectManager.GetAllChampions();
+        }
+         public static IGameObject GetObjectNET(uint netid)
+        {
+            return _game.ObjectManager.GetObjectById(netid);
+        }
+        /// <summary>
         /// Instantly cancels any dashes the specified unit is performing.
         /// </summary>
         /// <param name="unit">Unit to stop dashing.</param>
@@ -499,6 +737,7 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="idealDistance">How far the forced movement should travel from the unit's position.</param>
         /// <param name="gravity">How high the force movement should reach at the mid point of the force movement.</param>
         /// <param name="moveBackBy">How far behind the end point the force movement should go before finishing.</param>
+        /// <param name="consideredAsCC">Whether or not to prevent movement, casting, or attacking during the duration of the movement.</param>
         /// <param name="movementType">Type of force movement to perform. Refer to ForceMovementType enum.</param>
         /// <param name="movementOrdersType">How should the force movement affect the orders of the unit?</param>
         /// <param name="movementOrdersFacing">How should the force movement affect the facing direction of the unit?</param>
@@ -512,6 +751,7 @@ namespace LeagueSandbox.GameServer.API
             float idealDistance,
             float gravity,
             float moveBackBy,
+            bool consideredAsCC = true,
             ForceMovementType movementType = ForceMovementType.FURTHEST_WITHIN_RANGE,
             ForceMovementOrdersType movementOrdersType = ForceMovementOrdersType.POSTPONE_CURRENT_ORDER,
             ForceMovementOrdersFacing movementOrdersFacing = ForceMovementOrdersFacing.FACE_MOVEMENT_DIRECTION)
@@ -521,7 +761,7 @@ namespace LeagueSandbox.GameServer.API
             {
                 keepFacingLastDirection = true;
             }
-            unit.DashToLocation(target, speed, animation, gravity, keepFacingLastDirection);
+            unit.DashToLocation(target, speed, animation, gravity, keepFacingLastDirection, consideredAsCC);
         }
 
         /// <summary>
@@ -535,6 +775,7 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="gravity">How high the force movement should reach at the mid point of the force movement.</param>
         /// <param name="moveBackBy">How far behind the end point the force movement should go before finishing.</param>
         /// <param name="maxTravelTime">Maximum amount of time the forced movement is allowed to last.</param>
+        /// <param name="consideredAsCC">Whether or not to prevent movement, casting, or attacking during the duration of the movement.</param>
         /// <param name="movementType">Type of force movement to perform. Refer to ForceMovementType enum.</param>
         /// <param name="movementOrdersType">How should the force movement affect the orders of the unit?</param>
         /// <param name="movementOrdersFacing">How should the force movement affect the facing direction of the unit?</param>
@@ -549,6 +790,7 @@ namespace LeagueSandbox.GameServer.API
             float gravity,
             float moveBackBy,
             float maxTravelTime,
+            bool consideredAsCC = true,
             ForceMovementType movementType = ForceMovementType.FURTHEST_WITHIN_RANGE,
             ForceMovementOrdersType movementOrdersType = ForceMovementOrdersType.POSTPONE_CURRENT_ORDER,
             ForceMovementOrdersFacing movementOrdersFacing = ForceMovementOrdersFacing.FACE_MOVEMENT_DIRECTION)
@@ -558,7 +800,7 @@ namespace LeagueSandbox.GameServer.API
             {
                 keepFacingLastDirection = true;
             }
-            unit.DashToTarget(target, speed, animation, gravity, keepFacingLastDirection, idealDistance, moveBackBy, maxTravelTime);
+            unit.DashToTarget(target, speed, animation, gravity, keepFacingLastDirection, idealDistance, moveBackBy, maxTravelTime, consideredAsCC);
         }
 
         /// <summary>
@@ -601,26 +843,11 @@ namespace LeagueSandbox.GameServer.API
 
         public static void SealSpellSlot(IObjAiBase target, SpellSlotType slotType, int slot, SpellbookType spellbookType, bool seal)
         {
-            if (spellbookType == SpellbookType.SPELLBOOK_UNKNOWN
-                || spellbookType == SpellbookType.SPELLBOOK_SUMMONER && (slotType != SpellSlotType.SummonerSpellSlots)
-                || (spellbookType == SpellbookType.SPELLBOOK_CHAMPION
-                    && ((slotType == SpellSlotType.SpellSlots && (slot < 0 || slot > 3))
-                        || (slotType == SpellSlotType.InventorySlots && (slot < 0 || slot > 6))
-                        || (slotType == SpellSlotType.ExtraSlots && (slot < 0 || slot > 15)))))
+            slot = ConvertAPISlot(spellbookType, slotType, slot);
+
+            if (slot == -1)
             {
                 return;
-            }
-
-            if (spellbookType == SpellbookType.SPELLBOOK_CHAMPION)
-            {
-                if (slotType == SpellSlotType.InventorySlots)
-                {
-                    slot += (int)SpellSlotType.InventorySlots;
-                }
-                if (slotType == SpellSlotType.ExtraSlots)
-                {
-                    slot += (int)SpellSlotType.ExtraSlots;
-                }
             }
 
             if (spellbookType == SpellbookType.SPELLBOOK_SUMMONER)
@@ -633,15 +860,25 @@ namespace LeagueSandbox.GameServer.API
         }
 
         /// <summary>
-        /// Sets the specified unit's animation states to the given set of states.
-        /// Given state pairs are expected to follow a specific structure:
+        /// Overrides the given animation with the other given animation.
         /// First string is the animation to override, second string is the animation to play in place of the first.
         /// </summary>
         /// <param name="unit">Unit to set animation states on.</param>
-        /// <param name="animPairs">Dictionary of animations to set.</param>
-        public static void SetAnimStates(IAttackableUnit unit, Dictionary<string, string> animPairs)
+        /// <param name="overrideAnim">Animation to use instead.</param>
+        /// <param name="toOverrideAnim">Animation to override.</param>
+        public static void OverrideAnimation(IAttackableUnit unit, string overrideAnim, string toOverrideAnim)
         {
-            unit.SetAnimStates(animPairs);
+            unit.SetAnimStates(new Dictionary<string, string> { { toOverrideAnim, overrideAnim } });
+        }
+
+        /// <summary>
+        /// Clears the given overridden animation, making it play its original animation.
+        /// </summary>
+        /// <param name="unit">Unit to set animation states on.</param>
+        /// <param name="overriddenAnim">Animation which has been overridden.</param>
+        public static void ClearOverrideAnimation(IAttackableUnit unit, string overriddenAnim)
+        {
+            unit.SetAnimStates(new Dictionary<string, string> { { overriddenAnim, "" } });
         }
 
         /// <summary>
@@ -662,43 +899,47 @@ namespace LeagueSandbox.GameServer.API
         /// <param name="enabled">Whether or not the status should be enabled.</param>
         public static void SetStatus(IAttackableUnit unit, StatusFlags status, bool enabled)
         {
-            // Loop over all possible status flags and set them individually.
-            for (int i = 0; i < 30; i++)
-            {
-                StatusFlags currentFlag = (StatusFlags)(1 << i);
-
-                if (status.HasFlag(currentFlag))
-                {
-                    unit.SetStatus(currentFlag, enabled);
-                }
-            }
+            unit.SetStatus(status, enabled);
         }
 
+        /// <summary>
+        /// Sets the given spell slot of the given unit to the spell of the given name.
+        /// </summary>
+        /// <param name="target">Unit to set the spell for.</param>
+        /// <param name="newName">Name of the spell to place in the slot.</param>
+        /// <param name="slotType">Type of slot being used.</param>
+        /// <param name="slot">Index of the spell slot to change.</param>
+        /// <param name="fullReplace">Whether or not the spell should be entirely replaced, or just the name. Typically used for transformations.</param>
+        /// <returns>Newly created spell or existing spell with the given name. Null for failure.</returns>
+        public static ISpell SetSpell(IObjAiBase target, string newName, SpellSlotType slotType, int slot, bool fullReplace = false)
+        {
+            slot = ConvertAPISlot(slotType, slot);
+
+            if (slot == -1)
+            {
+                return null;
+            }
+
+            return target.SetSpell(newName, (byte)slot, true, fullReplace);
+        }
+
+        /// <summary>
+        /// Sets the targeting type of the spell in a given slot to a given targeting type.
+        /// </summary>
+        /// <param name="target">Unit to set the targeting type for.</param>
+        /// <param name="slotType">Type of slot being used.</param>
+        /// <param name="slot">Index of the spell slot to change.</param>
+        /// <param name="newType">Targeting type to set.</param>
         public static void SetTargetingType(IObjAiBase target, SpellSlotType slotType, int slot, TargetingType newType)
         {
-            if ((slotType == SpellSlotType.SpellSlots && (slot < 0 || slot > 3))
-                || (slotType == SpellSlotType.InventorySlots && (slot < 0 || slot > 6))
-                || (slotType == SpellSlotType.ExtraSlots && (slot < 0 || slot > 15)))
+            slot = ConvertAPISlot(slotType, slot);
+
+            if (slot == -1)
             {
                 return;
             }
 
-            if (slotType == SpellSlotType.InventorySlots)
-            {
-                slot += (int)SpellSlotType.InventorySlots;
-            }
-
-            if (slotType == SpellSlotType.TempItemSlot)
-            {
-                slot = (int)SpellSlotType.TempItemSlot;
-            }
-
-            if (slotType == SpellSlotType.ExtraSlots)
-            {
-                slot += (int)SpellSlotType.ExtraSlots;
-            }
-
-            ISpell spell = target.GetSpell((byte)slot);
+            var spell = target.GetSpell((byte)slot);
 
             spell.SpellData.SetTargetingType(newType);
 
@@ -715,29 +956,26 @@ namespace LeagueSandbox.GameServer.API
             }
         }
 
+        public static void SetSpellToolTipVar<T>(IAttackableUnit unit, int tipIndex, T value, SpellbookType book, byte slot, SpellSlotType slotType)
+            where T : struct
+        {
+            if (unit is IChampion champ)
+            {
+                slot = (byte)ConvertAPISlot(book, slotType, slot);
+
+                champ.GetSpell(slot).SetToolTipVar(tipIndex, value);
+            }
+        }
+
+        public static void SetBuffToolTipVar<T>(IBuff buff, int tipIndex, T value)
+            where T : struct
+        {
+            buff.SetToolTipVar(tipIndex, value);
+        }
+
         public static void SpellCast(IObjAiBase caster, int slot, SpellSlotType slotType, Vector2 pos, Vector2 endPos, bool fireWithoutCasting, Vector2 overrideCastPos, List<ICastTarget> targets = null, bool isForceCastingOrChanneling = false, int overrideForceLevel = -1, bool updateAutoAttackTimer = false, bool useAutoAttackSpell = false)
         {
-            if ((slotType == SpellSlotType.SpellSlots && (slot < 0 || slot > 3))
-                || (slotType == SpellSlotType.InventorySlots && (slot < 0 || slot > 6))
-                || (slotType == SpellSlotType.ExtraSlots && (slot < 0 || slot > 15)))
-            {
-                return;
-            }
-
-            if (slotType == SpellSlotType.InventorySlots)
-            {
-                slot += (int)SpellSlotType.InventorySlots;
-            }
-
-            if (slotType == SpellSlotType.TempItemSlot)
-            {
-                slot = (int)SpellSlotType.TempItemSlot;
-            }
-
-            if (slotType == SpellSlotType.ExtraSlots)
-            {
-                slot += (int)SpellSlotType.ExtraSlots;
-            }
+            slot = ConvertAPISlot(slotType, slot);
 
             ISpell spell = caster.GetSpell((byte)slot);
 
@@ -840,6 +1078,96 @@ namespace LeagueSandbox.GameServer.API
                 DamageSource = dmgSource,
                 DeathDuration = duration
             };
+        }
+
+        /// <summary>
+        /// Returns whether or not the designed team has vision over an unit or not
+        /// </summary>
+        /// <param name="team"></param>
+        /// <param name="unit"></param>
+        /// <returns></returns>
+        public static bool TeamHasVision(TeamId team, IGameObject unit)
+        {
+            return _game.ObjectManager.TeamHasVisionOn(team, unit);
+        }
+
+        /// <summary>
+        /// Returns wether or not an unit is protected from attacks (Monstly used to check tower protection)
+        /// </summary>
+        /// <param name="unit"></param>
+        /// <returns></returns>
+        public static bool UnitIsProtectionActive(IAttackableUnit unit)
+        {
+            return _game.ProtectionManager.IsProtectionActive(unit);
+        }
+
+        /// <summary>
+        /// Gets a list of waypoints, which forms a path to the desired destination
+        /// </summary>
+        /// <param name="from"></param>
+        /// <param name="to"></param>
+        /// <param name="distanceThreshold"></param>
+        /// <returns></returns>
+        public static List<Vector2> GetPath(Vector2 from, Vector2 to, float distanceThreshold = 0)
+        {
+            return _game.Map.PathingHandler.GetPath(from, to, distanceThreshold);
+        }
+
+        public static void OverrideUnitAttackSpeedCap(IAttackableUnit unit, bool doOverrideMax, float maxAttackSpeedOverride, bool doOverrideMin, float minAttackSpeedOverride)
+        {
+            //Investigate if we wanna update the stats here too
+            _game.PacketNotifier.NotifyS2C_UpdateAttackSpeedCapOverrides(doOverrideMax, maxAttackSpeedOverride, doOverrideMin, minAttackSpeedOverride, unit);
+        }
+
+        public static IItemData GetItemData(int Id)
+        {
+            return _game.ItemManager.SafeGetItemType(Id);
+        }
+
+        public static void PlaySound(string soundName, IAttackableUnit soundOwner)
+        {
+            _game.PacketNotifier.NotifyS2C_PlaySound(soundName, soundOwner);
+        }
+
+        public static void StopTargetingUnit(IAttackableUnit unit)
+        {
+            _game.ObjectManager.StopTargeting(unit);
+        }
+
+        public static IPet CreatePet
+        (
+            IChampion owner,
+            ISpell spell,
+            Vector2 position,
+            string name,
+            string model,
+            string buffName,
+            float lifeTime,
+            int skinId = 0,
+            bool cloneInventory = true,
+            bool showMinimapIfClone = true,
+            bool disallowPlayerControl =false,
+            bool doFade = false,
+            bool isClone = true,
+            string aiScript = "Pet"
+        )
+        {
+            return new Pet(_game, owner, spell, position, name, model, buffName, lifeTime, skinId, cloneInventory, showMinimapIfClone, disallowPlayerControl, doFade, isClone, aiScript);
+        }
+
+        public static float GetPetReturnRadius()
+        {
+            return _game.Map.MapScript.MapScriptMetadata.AIVars.DefaultPetReturnRadius;
+        }
+
+        public static float GetPetReturnRadius(IMinion minion)
+        {
+            if (minion is IPet pet)
+            {
+                return pet.GetReturnRadius();
+            }
+
+            return GetPetReturnRadius();
         }
     }
 }

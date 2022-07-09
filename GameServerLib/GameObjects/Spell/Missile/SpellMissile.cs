@@ -36,6 +36,9 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
         /// </summary>
         public bool IsServerOnly { get; }
 
+        public override bool IsAffectedByFoW => true;
+        public override bool SpawnShouldBeHidden => true;
+
         public SpellMissile(
             Game game,
             int collisionRadius,
@@ -45,7 +48,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
             SpellDataFlags overrideFlags = 0, // TODO: Find a use for these
             uint netId = 0,
             bool serverOnly = false
-        ) : base(game, new Vector2(castInfo.SpellCastLaunchPosition.X, castInfo.SpellCastLaunchPosition.Z), collisionRadius, 0, netId)
+        ) : base(game, new Vector2(castInfo.SpellCastLaunchPosition.X, castInfo.SpellCastLaunchPosition.Z), collisionRadius, 0, 0, netId)
         {
             _moveSpeed = moveSpeed;
             _timeSinceCreation = 0.0f;
@@ -53,7 +56,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
             SpellOrigin = originSpell;
 
             CastInfo = castInfo;
-            
+
             // TODO: Implement full support for multiple targets.
             if (castInfo.Targets[0].Unit != null)
             {
@@ -69,16 +72,19 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
 
         public override void Update(float diff)
         {
-            if (!HasTarget())
+            if (HasTarget() && !TargetUnit.IsDead && TargetUnit.Status.HasFlag(StatusFlags.Targetable))
             {
-                Direction = new Vector3();
-
-                SetToRemove();
-                return;
+                _timeSinceCreation += diff;
+                Move(diff);
+                API.ApiEventManager.OnSpellMissileUpdate.Publish(this, diff);
             }
-            _timeSinceCreation += diff;
-
-            Move(diff);
+            else
+            {
+                // Destroy any missiles which are targeting an untargetable unit.
+                // TODO: Verify if this should apply to SpellSector.
+                //Direction = new Vector3();
+                SetToRemove();
+            }
         }
 
         public override void OnCollision(IGameObject collider, bool isTerrain = false)
@@ -120,7 +126,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
         public virtual void Move(float diff)
         {
             // current position
-            var cur = new Vector2(Position.X, Position.Y);
+            var cur = Position;
 
             var next = GetTargetPosition();
 
@@ -153,7 +159,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
             Position = new Vector2(Position.X + xx, Position.Y + yy);
 
             // (X, Y) has moved to the next position
-            cur = new Vector2(Position.X, Position.Y);
+            cur = Position;
 
             // Check if we reached the target position/destination.
             // REVIEW (of previous code): (deltaMovement * 2) being used here is problematic; if the server lags, the diff will be much greater than the usual values
@@ -217,7 +223,7 @@ namespace LeagueSandbox.GameServer.GameObjects.Spell.Missile
         /// </summary>
         /// <returns>Vector2 position of target. Vector2(float.NaN, float.NaN) if projectile has no target.</returns>
         public Vector2 GetTargetPosition()
-        { 
+        {
             if (TargetUnit != null)
             {
                 return TargetUnit.Position;
